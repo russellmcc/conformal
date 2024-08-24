@@ -84,7 +84,7 @@ const vst3 = (): Tool => ({
 });
 
 export const bootstrap = async (): Promise<void> => {
-  const tools: Tool[] = [rustNightly(), vst3(), rustup(), rust(), lld()];
+  const tools: Tool[] = [vst3(), rustup(), rustNightly(), rust(), lld()];
   for (const tool of tools) {
     console.log(`Checking ${tool.name}...`);
     if (!(await tool.check())) {
