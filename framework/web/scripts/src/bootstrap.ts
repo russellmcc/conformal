@@ -83,8 +83,37 @@ const vst3 = (): Tool => ({
   },
 });
 
+const vst3Validator = (): Tool => ({
+  name: "vst3 validator",
+  // eslint-disable-next-line @typescript-eslint/require-await
+  check: async () =>
+    (
+      await $`command -v ${process.env.VST3_SDK_DIR}/build/bin/validator`
+        .nothrow()
+        .quiet()
+    ).exitCode == 0,
+
+  install: async () => {
+    // use cmake to build the validator
+    const buildPath = `${process.env.VST3_SDK_DIR}/build`;
+    await $`mkdir -p ${buildPath}`.quiet();
+    await $`cmake ..`.cwd(buildPath);
+    await $`cmake --build . --target validator`.cwd(buildPath);
+  },
+});
+
+const cmake = () => brew("cmake");
+
 export const bootstrap = async (): Promise<void> => {
-  const tools: Tool[] = [vst3(), rustup(), rustNightly(), rust(), lld()];
+  const tools: Tool[] = [
+    vst3(),
+    cmake(),
+    vst3Validator(),
+    rustup(),
+    rustNightly(),
+    rust(),
+    lld(),
+  ];
   for (const tool of tools) {
     console.log(`Checking ${tool.name}...`);
     if (!(await tool.check())) {
