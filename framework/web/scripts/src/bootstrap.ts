@@ -85,7 +85,6 @@ const vst3 = (): Tool => ({
 
 const vst3Validator = (): Tool => ({
   name: "vst3 validator",
-  // eslint-disable-next-line @typescript-eslint/require-await
   check: async () =>
     (
       await $`command -v ${process.env.VST3_SDK_DIR}/build/bin/validator`
