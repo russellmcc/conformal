@@ -12,6 +12,9 @@ runs:
     - run: bun install --frozen-lockfile
       working-directory: ${{ inputs.subfolder }}
       shell: bash
+    - run: bun install --frozen-lockfile
+      working-directory: framework
+      shell: bash
     - run: bun run bootstrap
       working-directory: ${{ inputs.subfolder }}
       shell: bash
