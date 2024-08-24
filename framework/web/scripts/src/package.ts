@@ -18,7 +18,11 @@ import { findWorkspaceRoot } from "./workspaceRoot";
 /**
  * Must be called from a package!
  */
-export const execute = async (config: Config, dist: boolean) => {
+export const execute = async (
+  config: Config,
+  dist: boolean,
+  linkToLibrary: boolean,
+) => {
   const packageRoot = process.cwd();
   const workspaceRoot = await findWorkspaceRoot(packageRoot);
   if (dist) {
@@ -66,7 +70,7 @@ export const execute = async (config: Config, dist: boolean) => {
     ]);
   }
 
-  await createBundle({ packageRoot, bundleData, config, dist });
+  await createBundle({ packageRoot, bundleData, config, dist, linkToLibrary });
 
   if (dist) {
     await createInstaller({ packageRoot, bundleData });
@@ -93,6 +97,10 @@ export class PackageAction extends CommandLineAction {
   }
 
   public async onExecute(): Promise<void> {
-    await execute(parseConfigArg(this._configArgRaw), this._dist.value);
+    await execute(
+      parseConfigArg(this._configArgRaw),
+      this._dist.value,
+      !this._dist.value,
+    );
   }
 }

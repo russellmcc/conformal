@@ -1,0 +1,24 @@
+name: CI
+run-name: CI
+on: [push]
+jobs:
+  ci-framework:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/bootstrap
+        with:
+          subfolder: framework
+      - run: bun run ci
+        working-directory: framework
+  ci-plugs:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: "true"
+      - uses: ./.github/actions/bootstrap
+        with:
+          subfolder: plugs
+      - run: bun run ci
+        working-directory: plugs

@@ -13,5 +13,9 @@
   },
   "license": "ISC",
   "type": "module",
-  "dependencies": {}
+  "dependencies": {
+    "tmp-promise": "^3.0.3",
+    "@rushstack/ts-command-line": "^4.22.5",
+    "zod": "^3.23.8"
+  }
 }
