@@ -1,6 +1,6 @@
-# Build audio plug-ins with Rust and Typescript!
+# Build audio plug-ins with Rust and TypeScript!
 
-This repo contains two open-source plug-ins built in Rust and Typescript!
+This repo contains two open-source plug-ins built in Rust and TypeScript!
 
 Currently we support macOS VST3 format only.
 
@@ -12,6 +12,5 @@ Eventually, we aspire to grow this codebase into a general purpose framework for
 
 Currently we have two top-level folders:
 
-
- - `framework`: this includes framework code that we hope to eventually publish to npm and cargo, although it's not quite ready yet. When and if this happens, this code may be moved to a separate repository.
- - `plugs`: this includes code specific to audio plug-ins currently built on this framework.
+- `framework`: this includes framework code that we hope to eventually publish to npm and cargo, although it's not quite ready yet. When and if this happens, this code may be moved to a separate repository.
+- `plugs`: this includes code specific to audio plug-ins currently built on this framework.
