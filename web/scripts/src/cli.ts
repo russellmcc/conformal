@@ -8,6 +8,7 @@ import { CargoAction } from "./cargo";
 import { PackageAction } from "./package";
 import { ValidateAction } from "./validate";
 import { CIAction } from "./ci";
+import { BootstrapAction } from "./bootstrap";
 
 export class CommandLine extends CommandLineParser {
   public constructor() {
@@ -18,6 +19,7 @@ export class CommandLine extends CommandLineParser {
 This package is a CLI entry point for various build scripts.`,
     });
 
+    this.addAction(new BootstrapAction());
     this.addAction(new CheckLFSAction());
     this.addAction(new CheckTodosAction());
     this.addAction(new CheckFormatAction());

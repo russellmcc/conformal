@@ -15,7 +15,7 @@ export const execute = async (config: Config) => {
   const packageRoot = process.cwd();
   const workspaceRoot = await findWorkspaceRoot(packageRoot);
 
-  await makePackage(config, false);
+  await makePackage(config, false, false);
 
   // Now, continue from the repo root.
   process.chdir(workspaceRoot);

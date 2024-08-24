@@ -6,6 +6,7 @@
     "web/*"
   ],
   "scripts": {
+    "bootstrap": "scripts bootstrap",
     "ci": "scripts ci",
     "check-lfs": "scripts check-lfs",
     "check-todo": "scripts check-todo",
@@ -45,10 +46,7 @@
     "prettier": "^3.3.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "tmp-promise": "^3.0.3",
     "typescript": "^5.5.4",
-    "@rushstack/ts-command-line": "^4.22.5",
-    "zod": "^3.23.8",
     "jotai": "^2.9.3",
     "@msgpack/msgpack": "^3.0.0-beta2",
     "ajv": "^8.17.1"
