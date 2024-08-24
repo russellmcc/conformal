@@ -17,11 +17,13 @@ export const createBundle = async ({
   bundleData,
   config,
   dist,
+  linkToLibrary,
 }: {
   packageRoot: string;
   bundleData: BundleData;
   config: Config;
   dist: boolean;
+  linkToLibrary: boolean;
 }) => {
   const bundlePath = `target/${config}/${bundleData.name}.vst3`;
 
@@ -120,10 +122,12 @@ export const createBundle = async ({
   // Link into the vst3 directory.
   const bundle_absolute_path = resolve(bundlePath);
 
-  const bundle_dest = resolve(
-    `${process.env.HOME}/Library/Audio/Plug-Ins/VST3/${bundleData.name}.vst3`,
-  );
+  if (linkToLibrary) {
+    const bundle_dest = resolve(
+      `${process.env.HOME}/Library/Audio/Plug-Ins/VST3/${bundleData.name}.vst3`,
+    );
 
-  await runShell(["rm", "-rf", bundle_dest]);
-  await runShell(["ln", "-sf", bundle_absolute_path, bundle_dest]);
+    await runShell(["rm", "-rf", bundle_dest]);
+    await runShell(["ln", "-sf", bundle_absolute_path, bundle_dest]);
+  }
 };
