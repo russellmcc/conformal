@@ -6,6 +6,7 @@
     "web/*"
   ],
   "scripts": {
+    "bootstrap": "scripts bootstrap",
     "ci": "scripts ci",
     "check-lfs": "scripts check-lfs",
     "check-todo": "scripts check-todo",
