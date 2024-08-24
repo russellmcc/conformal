@@ -1,0 +1,20 @@
+{
+  "name": "plugin",
+  "private": true,
+  "scripts": {
+    "lint": "tsc && eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "check-format": "prettier --ignore-path .gitignore -c .",
+    "format": "prettier --ignore-path .gitignore --write ."
+  },
+  "author": "",
+  "main": "src/index.ts",
+  "license": "ISC",
+  "dependencies": {},
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "bun": "./src/index.ts"
+    }
+  },
+  "type": "module"
+}
