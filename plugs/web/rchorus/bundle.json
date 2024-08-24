@@ -1,0 +1,7 @@
+{
+  "rustPackage": "rchorus_vst",
+  "name": "Chorus-R",
+  "id": "com.russellmcc.chorus-r",
+  "sig": "RMcC",
+  "version": "0.0.0"
+}

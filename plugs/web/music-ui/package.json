@@ -1,0 +1,31 @@
+{
+  "name": "music-ui",
+  "private": true,
+  "scripts": {
+    "lint": "tsc && eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "check-format": "prettier --ignore-path .gitignore -c .",
+    "format": "prettier --ignore-path .gitignore --write ."
+  },
+  "author": "Russell McClellan",
+  "main": "src/index.ts",
+  "license": "ISC",
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "exports": {
+    "./enum-slider": {
+      "import": "./src/enum-slider/index.tsx"
+    },
+    "./enum-slider/useSlider": {
+      "import": "./src/enum-slider/useSlider.ts"
+    },
+    "./animation": {
+      "import": "./src/animation/index.ts"
+    },
+    "./util": {
+      "import": "./src/util/index.ts"
+    }
+  },
+  "type": "module"
+}

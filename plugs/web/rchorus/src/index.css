@@ -1,0 +1,25 @@
+@font-face {
+  font-family: "TeX Gyre Heros Regular";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(./fonts/texgyreheros-regular.woff) format("woff");
+}
+
+:root {
+  --bg-color: #1a1423;
+  --text-color: #d6dbd2;
+  --highlight-color: #c52184;
+}
+
+body {
+  font-family: "TeX Gyre Heros Regular", sans-serif;
+  background: var(--bg-color);
+  color: var(--text-color);
+  font-size: 17.5px;
+  line-height: 21px;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+  margin: 0px;
+}

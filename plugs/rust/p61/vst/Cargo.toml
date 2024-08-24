@@ -1,0 +1,15 @@
+[package]
+name = "p61_vst"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.79.0"
+license = "ISC"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+p61_component = { path = "../component" }
+vst_wrapper = { path = "../../../../framework/rust/vst-wrapper" }
+vst3 = "0.1.2"

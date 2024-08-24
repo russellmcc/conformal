@@ -1,0 +1,8 @@
+/target
+/proptest-regressions/
+.DS_Store
+*.snap.new.wav
+/node_modules/
+
+/.env
+/web/**/installer_resources/license.txt

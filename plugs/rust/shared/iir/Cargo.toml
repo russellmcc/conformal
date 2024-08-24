@@ -1,0 +1,15 @@
+[package]
+name = "iir"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.79.0"
+license = "ISC"
+publish = false
+
+[dependencies]
+
+[dev-dependencies]
+assert_approx_eq = "1.1.0"
+more-asserts = "0.3.1"
+snapshots = { path = "../../shared/snapshots" }
+util = { path = "../../shared/util", features = ["test-utils"] }

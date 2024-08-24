@@ -1,0 +1,28 @@
+[package]
+name = "p61_component"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.79.0"
+license = "ISC"
+publish = false
+
+[dependencies]
+itertools = "0.13.0"
+num-derive = "0.4.2"
+num-traits = "0.2.19"
+component = { path = "../../../../framework/rust/component" }
+poly = { path = "../../shared/poly" }
+util = { path = "../../shared/util" }
+iir = { path = "../../shared/iir" }
+
+[dev-dependencies]
+assert_approx_eq = "1.1.0"
+more-asserts = "0.3.1"
+snapshots = { path = "../../shared/snapshots" }
+component_benchmarks = { path = "../../shared/component_benchmarks" }
+util = { path = "../../shared/util", features = ["test-utils"] }
+criterion = "0.3"
+
+[[bench]]
+name = "process"
+harness = false

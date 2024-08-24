@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+members = [
+    "rust/p61/component",
+    "rust/p61/vst",
+    "rust/shared/snapshots",
+    "rust/shared/poly",
+    "rust/rchorus/vst",
+    "rust/rchorus/component",
+    "rust/shared/iir",
+    "rust/shared/util",
+    "rust/shared/component_benchmarks",
+]

@@ -1,0 +1,8 @@
+[package]
+name = "poly"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+component = { path = "../../../../framework/rust/component" }
+util = { path = "../../shared/util" }

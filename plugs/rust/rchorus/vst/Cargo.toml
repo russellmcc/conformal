@@ -1,0 +1,15 @@
+[package]
+name = "rchorus_vst"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.79.0"
+license = "ISC"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+vst_wrapper = { path = "../../../../framework/rust/vst-wrapper" }
+vst3 = "0.1.2"
+rchorus_component = { path = "../component" }

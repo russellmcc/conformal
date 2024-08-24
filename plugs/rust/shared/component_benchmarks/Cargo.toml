@@ -1,0 +1,16 @@
+[package]
+name = "component_benchmarks"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.79.0"
+license = "ISC"
+publish = false
+
+[dependencies]
+audio = { path = "../../../../framework/rust/audio" }
+component = { path = "../../../../framework/rust/component", features = ["test-utils"] }
+fxhash = "0.2.1"
+serde = { version = "1.0.193", features = ["derive"] }
+itertools = "0.13.0"
+criterion = { version = "0.3" }
+util = { path = "../util", features = ["test-utils"] }

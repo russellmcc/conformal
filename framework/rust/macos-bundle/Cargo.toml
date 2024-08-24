@@ -1,0 +1,11 @@
+[package]
+name = "macos_bundle"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.79.0"
+license = "ISC"
+publish = false
+
+[dependencies]
+process_path = "0.1.4"
+objc = "0.2.7"

@@ -1,0 +1,17 @@
+{
+  "name": "scripts",
+  "private": true,
+  "scripts": {
+    "lint": "tsc && eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "check-format": "prettier --ignore-path .gitignore -c .",
+    "format": "prettier --ignore-path .gitignore --write .",
+    "validate": "echo 'dummy validation'"
+  },
+  "author": "Russell McClellan",
+  "bin": {
+    "scripts": "./src/index.ts"
+  },
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {}
+}

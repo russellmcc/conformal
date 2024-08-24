@@ -1,0 +1,7 @@
+[package]
+name = "snapshots"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+wavers = "1.4.2"
