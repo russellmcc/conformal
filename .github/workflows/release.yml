@@ -8,6 +8,8 @@ on:
 
 jobs:
   release-plugs:
+    permissions:
+      contents: write
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
@@ -69,7 +71,6 @@ jobs:
           NOTARYTOOL_CREDENTIALS_KEYCHAIN_ITEM: ${{ secrets.NOTARYTOOL_CREDENTIALS_KEYCHAIN_ITEM }}
       - name: Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
         with:
           prerelease: ${{ contains(github.ref, '-') }}
           files: |
