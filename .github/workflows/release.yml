@@ -73,6 +73,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           prerelease: ${{ contains(github.ref, '-') }}
+          generate_release_notes: false
           files: |
             plugs/target/release/Poly 81.dmg
             plugs/target/release/Chorus-R.dmg
