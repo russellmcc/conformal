@@ -73,7 +73,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           prerelease: ${{ contains(github.ref, '-') }}
-          body: "Release ${{ github.ref }}" # Prevent auto generation of release notes
+          body: "Release ${{ github.ref_name }}" # Prevent auto generation of release notes
           files: |
             plugs/target/release/Poly 81.dmg
             plugs/target/release/Chorus-R.dmg
