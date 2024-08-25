@@ -1,6 +1,6 @@
 import { $ } from "bun";
 import { failUnless } from "./util";
-import { CommandLineAction } from "@rushstack/ts-command-line";
+import { Command } from "@commander-js/extra-typings";
 
 export const checkFormat = async (): Promise<boolean> =>
   (await $`cargo fmt --check && bun run --filter '*' check-format`.nothrow())
@@ -10,16 +10,11 @@ export const execute = async () => {
   failUnless(await checkFormat());
 };
 
-export class CheckFormatAction extends CommandLineAction {
-  public constructor() {
-    super({
-      actionName: "check-format",
-      summary: "Check if the code is formatted correctly",
-      documentation: "",
+export const addCheckFormatCommand = (command: Command): void => {
+  command
+    .command("check-format")
+    .description("Check if the code is formatted correctly")
+    .action(async () => {
+      await execute();
     });
-  }
-
-  public async onExecute(): Promise<void> {
-    await execute();
-  }
-}
+};

@@ -1,19 +1,10 @@
-import {
-  CommandLineAction,
-  CommandLineFlagParameter,
-} from "@rushstack/ts-command-line";
 import runShell from "./runShell";
 import getBundleData from "./bundleData";
-import {
-  Config,
-  ConfigArgRawParameter,
-  configArgs,
-  defineConfigArgRaw,
-  parseConfigArg,
-} from "./configArg";
+import { Config, configArgs, parseConfigArg } from "./configArg";
 import { createBundle } from "./bundle";
 import { createInstaller } from "./installer";
 import { findWorkspaceRoot } from "./workspaceRoot";
+import { Command } from "@commander-js/extra-typings";
 
 /**
  * Must be called from a package!
@@ -77,30 +68,17 @@ export const execute = async (
   }
 };
 
-export class PackageAction extends CommandLineAction {
-  private _configArgRaw: ConfigArgRawParameter;
-  private _dist: CommandLineFlagParameter;
-  public constructor() {
-    super({
-      actionName: "package",
-      summary: "Package a plug-in",
-      documentation:
-        "Note that this must be called from a specific package folder, not the workspace root!",
+export const addPackageCommand = (command: Command) => {
+  command
+    .command("package")
+    .description("Package a plug-in")
+    .option(
+      "-d, --dist",
+      "Whether to create a distributable package, including an installer",
+    )
+    .option("--release", "Build with optimizations")
+    .action(async (options) => {
+      const { dist, release } = options as { dist: boolean; release: boolean };
+      await execute(parseConfigArg(release), dist, !dist);
     });
-
-    this._configArgRaw = defineConfigArgRaw(this);
-    this._dist = this.defineFlagParameter({
-      parameterLongName: "--dist",
-      description:
-        "Whether to create a distributable package, including an installer",
-    });
-  }
-
-  public async onExecute(): Promise<void> {
-    await execute(
-      parseConfigArg(this._configArgRaw),
-      this._dist.value,
-      !this._dist.value,
-    );
-  }
-}
+};

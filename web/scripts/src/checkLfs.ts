@@ -1,7 +1,7 @@
-import { CommandLineAction } from "@rushstack/ts-command-line";
 import { $ } from "bun";
 import { failUnless } from "./util";
 import * as path from "node:path";
+import { Command } from "@commander-js/extra-typings";
 
 // Note this is totally cromulent in bun
 declare global {
@@ -62,16 +62,12 @@ export const execute = async () => {
   failUnless(await checkLfs());
 };
 
-export class CheckLFSAction extends CommandLineAction {
-  public constructor() {
-    super({
-      actionName: "check-lfs",
-      summary: "Checks that no files are checked in that should be lfs tracked",
-      documentation: "",
+export const addCheckLfsCommand = (command: Command) =>
+  command
+    .command("check-lfs")
+    .description(
+      "Checks that no files are checked in that should be lfs tracked",
+    )
+    .action(async () => {
+      await execute();
     });
-  }
-
-  protected async onExecute(): Promise<void> {
-    await execute();
-  }
-}

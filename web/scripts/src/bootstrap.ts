@@ -1,6 +1,6 @@
-import { CommandLineAction } from "@rushstack/ts-command-line";
 import { $ } from "bun";
 import { appendFile } from "node:fs/promises";
+import { Command } from "@commander-js/extra-typings";
 
 const RUST_VERSION = "1.79.0";
 const VST3_VERSION = "v3.7.8_build_34";
@@ -130,16 +130,10 @@ export const bootstrap = async (): Promise<void> => {
   }
 };
 
-export class BootstrapAction extends CommandLineAction {
-  public constructor() {
-    super({
-      actionName: "bootstrap",
-      summary: "Make sure all build requirements are installed",
-      documentation: "",
+export const addBootstrapCommand = (command: Command) =>
+  command
+    .command("bootstrap")
+    .description("Make sure all build requirements are installed")
+    .action(async () => {
+      await bootstrap();
     });
-  }
-
-  public async onExecute(): Promise<void> {
-    await bootstrap();
-  }
-}
