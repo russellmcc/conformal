@@ -6,7 +6,6 @@ use util::test_utils::{estimate_tuning, linear_sine_sweep, sine};
 
 #[test]
 #[cfg_attr(miri, ignore)]
-
 pub fn fractional_offset_does_not_change_tuning() {
     let mut variable_delay = ModulatedDelay::new(Options {
         lookaround: 1,

@@ -6,6 +6,7 @@
     "web/*"
   ],
   "scripts": {
+    "prepare": "cd ../framework/web/scripts && npm pack && cd ../plugin && npm pack",
     "bootstrap": "scripts bootstrap",
     "ci": "scripts ci",
     "check-lfs": "scripts check-lfs",
@@ -69,8 +70,8 @@
     "@use-gesture/react": "^10.3.1",
     "d3-shape": "^3.2.0",
     "dequal": "^2.0.3",
-    "scripts": "../framework/web/scripts",
-    "plugin": "../framework/web/plugin",
+    "scripts": "../framework/web/scripts/scripts-0.0.0.tgz",
+    "plugin": "../framework/web/plugin/plugin-0.0.0.tgz",
     "@types/d3-shape": "^3.1.6"
   }
 }

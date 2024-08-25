@@ -1,5 +1,5 @@
 import { $ } from "bun";
-import { CommandLineAction } from "@rushstack/ts-command-line";
+import { Command } from "@commander-js/extra-typings";
 
 export const format = async (): Promise<boolean> =>
   (await $`cargo fmt && bun run --filter '*' format`.nothrow()).exitCode == 0;
@@ -8,16 +8,10 @@ export const execute = async () => {
   await format();
 };
 
-export class FormatAction extends CommandLineAction {
-  public constructor() {
-    super({
-      actionName: "format",
-      summary: "Auto-format code",
-      documentation: "",
+export const addFormatCommand = (command: Command) =>
+  command
+    .command("format")
+    .description("Auto-format code")
+    .action(async () => {
+      await execute();
     });
-  }
-
-  public async onExecute(): Promise<void> {
-    await execute();
-  }
-}

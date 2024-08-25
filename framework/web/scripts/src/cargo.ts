@@ -1,5 +1,5 @@
-import { CommandLineAction } from "@rushstack/ts-command-line";
 import runShell from "./runShell";
+import { Command } from "@commander-js/extra-typings";
 
 export const execute = async (args: readonly string[]) => {
   const cargoArgs: string[] = [
@@ -10,20 +10,13 @@ export const execute = async (args: readonly string[]) => {
   await runShell(cargoArgs);
 };
 
-export class CargoAction extends CommandLineAction {
-  public constructor() {
-    super({
-      actionName: "cargo",
-      summary: "Runs cargo",
-      documentation: "",
+export const addCargoCommand = (command: Command): void => {
+  command
+    .command("cargo")
+    .description("Runs cargo")
+    .arguments("[args...]")
+    .allowUnknownOption()
+    .action(async (args) => {
+      await execute(args);
     });
-
-    this.defineCommandLineRemainder({
-      description: "The arguments to cargo",
-    });
-  }
-
-  public async onExecute(): Promise<void> {
-    await execute(this.remainder!.values);
-  }
-}
+};

@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 
-import { CommandLine } from "./cli";
+import { command } from "./cli";
 
-await new CommandLine().executeAsync();
+const program = command();
+await program.parseAsync();
