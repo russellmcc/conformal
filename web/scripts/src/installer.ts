@@ -48,6 +48,8 @@ export const createInstaller = async ({
   const rustPackagePath = await getRustPackagePath(bundleData.rustPackage);
   const bundlePath = `target/release/${bundleData.name}.vst3`;
 
+  const notaryToolKeychainPath = env.NOTARYTOOL_KEYCHAIN_PATH;
+
   // Check required env variables ahead of time
   const developerIdApplication = env.DEVELOPER_ID_APPLICATION;
   if (!developerIdApplication) {
@@ -275,15 +277,19 @@ More info [here](https://developer.apple.com/documentation/security/notarizing_m
       ]);
 
       // Notarize!
-      await runShell([
-        "xcrun",
-        "notarytool",
-        "submit",
-        dmgTmpPath,
-        "--keychain-profile",
-        notarytoolCredentialsKeychainItem,
-        "--wait",
-      ]);
+      await runShell(
+        [
+          "xcrun",
+          "notarytool",
+          "submit",
+          dmgTmpPath,
+          "--keychain-profile",
+          notarytoolCredentialsKeychainItem,
+          "--wait",
+        ].concat(
+          notaryToolKeychainPath ? ["--keychain", notaryToolKeychainPath] : [],
+        ),
+      );
 
       // Staple!
       await runShell(["xcrun", "stapler", "staple", dmgTmpPath]);
