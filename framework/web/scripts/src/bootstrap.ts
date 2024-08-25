@@ -57,19 +57,6 @@ const rustNightly = (): Tool => ({
   },
 });
 
-const lld = (): Tool => ({
-  name: "lld",
-  check: async () =>
-    (
-      await $`command -v /opt/homebrew/Cellar/llvm@17/17.0.6/bin/ld64.lld`
-        .nothrow()
-        .quiet()
-    ).exitCode == 0,
-  install: async () => {
-    await $`brew install llvm@17`;
-  },
-});
-
 const vst3 = (): Tool => ({
   name: "vst3",
   // eslint-disable-next-line @typescript-eslint/require-await
@@ -113,7 +100,6 @@ export const bootstrap = async (): Promise<void> => {
     rustup(),
     rustNightly(),
     rust(),
-    lld(),
   ];
   for (const tool of tools) {
     console.log(`Checking ${tool.name}...`);
