@@ -40,8 +40,10 @@ const rust = (): Tool => ({
   install: async () => {
     await $`rustup toolchain install ${RUST_VERSION}`;
     await $`rustup default ${RUST_VERSION}`;
+    await $`rustup target add x86_64-apple-darwin`;
     await $`rustup component add rustfmt`;
     await $`rustup component add clippy`;
+    await $`cargo install --locked cargo-about`;
   },
 });
 

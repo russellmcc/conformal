@@ -1,6 +1,11 @@
 name: CI
 run-name: CI
-on: [push]
+
+on:
+  push:
+    branches:
+      - "*"
+
 jobs:
   ci-framework:
     runs-on: macos-14
