@@ -1,14 +1,9 @@
 import getBundleData from "./bundleData";
-import {
-  Config,
-  ConfigArgRawParameter,
-  defineConfigArgRaw,
-  parseConfigArg,
-} from "./configArg";
+import { Config, parseConfigArg } from "./configArg";
 import runShell from "./runShell";
 import { findWorkspaceRoot } from "./workspaceRoot";
 import { execute as makePackage } from "./package";
-import { CommandLineAction } from "@rushstack/ts-command-line";
+import { Command } from "@commander-js/extra-typings";
 
 export const execute = async (config: Config) => {
   // Note - this must be called from a package!
@@ -30,20 +25,13 @@ export const execute = async (config: Config) => {
   ]);
 };
 
-export class ValidateAction extends CommandLineAction {
-  private _configArgRaw: ConfigArgRawParameter;
-  public constructor() {
-    super({
-      actionName: "validate",
-      summary: "Validate a plug-in using the steinberg validator",
-      documentation:
-        "Note that this must be called from a specific package folder, not the workspace root!",
+export const addValidateCommand = (command: Command) => {
+  command
+    .command("validate")
+    .description("Validate a plug-in using the Steinberg validator")
+    .option("--release", "Build with optimizations")
+    .action(async (options) => {
+      const { release } = options as { release: boolean };
+      await execute(parseConfigArg(release));
     });
-
-    this._configArgRaw = defineConfigArgRaw(this);
-  }
-
-  public async onExecute(): Promise<void> {
-    await execute(parseConfigArg(this._configArgRaw));
-  }
-}
+};

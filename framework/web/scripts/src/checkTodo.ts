@@ -1,6 +1,6 @@
-import { CommandLineAction } from "@rushstack/ts-command-line";
 import { $ } from "bun";
 import { failUnless } from "./util";
+import { Command } from "@commander-js/extra-typings";
 
 const filter = async function* <T>(
   it: AsyncIterable<T>,
@@ -25,16 +25,10 @@ export const execute = async () => {
   failUnless(await checkTodos());
 };
 
-export class CheckTodosAction extends CommandLineAction {
-  public constructor() {
-    super({
-      actionName: "check-todo",
-      summary: "Check if any rust files contain TODOs",
-      documentation: "",
+export const addCheckTodoCommand = (command: Command) =>
+  command
+    .command("check-todo")
+    .description("Check if any rust files contain TODOs")
+    .action(async () => {
+      await execute();
     });
-  }
-
-  public async onExecute(): Promise<void> {
-    await execute();
-  }
-}

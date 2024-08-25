@@ -1,5 +1,5 @@
-import { CommandLineAction } from "@rushstack/ts-command-line";
 import runShell from "./runShell";
+import { Command } from "@commander-js/extra-typings";
 
 export const execute = async () => {
   process.env.CI = "1";
@@ -25,16 +25,11 @@ export const execute = async () => {
   }
 };
 
-export class CIAction extends CommandLineAction {
-  public constructor() {
-    super({
-      actionName: "ci",
-      summary: "Run a full CI pass",
-      documentation: "",
+export const addCICommand = (command: Command): void => {
+  command
+    .command("ci")
+    .description("Run a full CI pass")
+    .action(async () => {
+      await execute();
     });
-  }
-
-  protected async onExecute(): Promise<void> {
-    await execute();
-  }
-}
+};

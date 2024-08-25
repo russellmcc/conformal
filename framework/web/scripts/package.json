@@ -1,5 +1,6 @@
 {
   "name": "scripts",
+  "version": "0.0.0",
   "private": true,
   "scripts": {
     "lint": "tsc && eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
@@ -14,8 +15,14 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@commander-js/extra-typings": "^12.1.0",
+    "commander": "^12.1.0",
     "tmp-promise": "^3.0.3",
-    "@rushstack/ts-command-line": "^4.22.5",
     "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "eslint-plugin-prefer-arrow-functions": "^3.4.1",
+    "prettier": "^3.3.3"
   }
 }
