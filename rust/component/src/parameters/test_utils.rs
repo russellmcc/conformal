@@ -3,6 +3,8 @@ use std::{
     ops::{Range, RangeInclusive},
 };
 
+use crate::synth::CONTROLLER_PARAMETERS;
+
 use super::{
     hash_id, BufferState, BufferStates, EnumBufferState, IdHash, InfoRef, InternalValue,
     NumericBufferState, PiecewiseLinearCurve, PiecewiseLinearCurvePoint, States, SwitchBufferState,
@@ -345,6 +347,13 @@ pub fn override_defaults<'a, S: AsRef<str> + 'a>(
             });
         (id.to_string(), value)
     }))
+}
+
+pub fn override_synth_defaults<'a, 'b: 'a>(
+    infos: impl IntoIterator<Item = InfoRef<'a, &'b str>> + 'a,
+    overrides: &HashMap<&'_ str, InternalValue>,
+) -> HashMap<String, InternalValue> {
+    override_defaults(infos.into_iter().chain(CONTROLLER_PARAMETERS), overrides)
 }
 
 impl States for StatesMap {

@@ -57,6 +57,8 @@ pub trait Component {
     type Processor;
 
     /// Get information about the parameters of this component
+    ///
+    /// This must return the same value every time it is called.
     fn parameter_infos(&self) -> Vec<parameters::Info> {
         Default::default()
     }

@@ -4,21 +4,21 @@ use std::rc;
 use vst3::Class;
 use vst3::Steinberg::Vst::{
     IAudioProcessorTrait, IComponentHandler, IComponentHandlerTrait, IComponentTrait,
-    IHostApplication,
+    IHostApplication, IMidiMappingTrait,
 };
 use vst3::Steinberg::{IBStreamTrait, IPluginBaseTrait};
 use vst3::{ComWrapper, Steinberg::Vst::IEditControllerTrait};
 
 use crate::fake_ibstream::Stream;
-use crate::processor;
 use crate::processor::test_utils::{
     mock_no_audio_process_data, setup_proc, ParameterValueQueueImpl, ParameterValueQueuePoint,
 };
 use crate::HostInfo;
 use crate::{dummy_host, from_utf16_buffer, to_utf16};
+use crate::{processor, ExtraParameters, ParameterModel};
 use component::audio::BufferMut;
 use component::events::{Data, Event, Events};
-use component::parameters::{self, BufferStates, Flags, States, StaticInfoRef};
+use component::parameters::{self, hash_id, BufferStates, Flags, States, StaticInfoRef};
 use component::{
     parameters::{store::Store, InfoRef, TypeSpecificInfoRef},
     synth::Synth,
@@ -217,9 +217,22 @@ static DUPLICATE_PARAMETERS: [StaticInfoRef; 2] = [
     },
 ];
 
+fn create_parameter_model<F: Fn(&HostInfo) -> Vec<parameters::Info> + 'static>(
+    f: F,
+    extra_parameters: ExtraParameters,
+) -> ParameterModel {
+    ParameterModel {
+        parameter_infos: Box::new(f),
+        extra_parameters,
+    }
+}
+
 fn dummy_edit_controller() -> impl IPluginBaseTrait + IEditControllerTrait + GetStore {
     super::create_internal(
-        |_: &HostInfo| parameters::to_infos(&PARAMETERS),
+        create_parameter_model(
+            |_: &HostInfo| parameters::to_infos(&PARAMETERS),
+            ExtraParameters::None,
+        ),
         "dummy_domain".to_string(),
         ui::Size {
             width: 0,
@@ -1094,7 +1107,10 @@ fn defends_against_create_view_called_with_weird_name() {
 #[should_panic]
 fn panic_on_duplicate_ids() {
     let ec = super::create_internal(
-        |_: &HostInfo| parameters::to_infos(&DUPLICATE_PARAMETERS),
+        create_parameter_model(
+            |_: &HostInfo| parameters::to_infos(&DUPLICATE_PARAMETERS),
+            ExtraParameters::None,
+        ),
         "test_prefs".to_string(),
         ui::Size {
             width: 0,
@@ -1460,7 +1476,10 @@ fn defends_against_get_info_bad_id() {
 #[should_panic]
 fn defends_against_missing_bypass_param() {
     let ec = super::create_internal(
-        |_: &HostInfo| parameters::to_infos(&PARAMETERS),
+        create_parameter_model(
+            |_: &HostInfo| parameters::to_infos(&PARAMETERS),
+            ExtraParameters::None,
+        ),
         "dummy_domain".to_string(),
         ui::Size {
             width: 0,
@@ -1478,7 +1497,10 @@ fn defends_against_missing_bypass_param() {
 #[should_panic]
 fn defends_against_non_switch_bypass_param() {
     let ec = super::create_internal(
-        |_: &HostInfo| parameters::to_infos(&PARAMETERS),
+        create_parameter_model(
+            |_: &HostInfo| parameters::to_infos(&PARAMETERS),
+            ExtraParameters::None,
+        ),
         "dummy_domain".to_string(),
         ui::Size {
             width: 0,
@@ -1496,15 +1518,18 @@ fn defends_against_non_switch_bypass_param() {
 #[should_panic]
 fn defends_against_default_on_bypass_param() {
     let ec = super::create_internal(
-        |_: &HostInfo| {
-            parameters::to_infos(&[InfoRef {
-                title: "Test Switch",
-                short_title: "Switch",
-                unique_id: SWITCH_ID,
-                flags: Flags { automatable: true },
-                type_specific: TypeSpecificInfoRef::Switch { default: true },
-            }])
-        },
+        create_parameter_model(
+            |_: &HostInfo| {
+                parameters::to_infos(&[InfoRef {
+                    title: "Test Switch",
+                    short_title: "Switch",
+                    unique_id: SWITCH_ID,
+                    flags: Flags { automatable: true },
+                    type_specific: TypeSpecificInfoRef::Switch { default: true },
+                }])
+            },
+            ExtraParameters::None,
+        ),
         "dummy_domain".to_string(),
         ui::Size {
             width: 0,
@@ -1521,15 +1546,18 @@ fn defends_against_default_on_bypass_param() {
 #[test]
 fn bypass_parameter_exposed() {
     let ec = super::create_internal(
-        |_: &HostInfo| {
-            parameters::to_infos(&[InfoRef {
-                title: "Test Switch",
-                short_title: "Switch",
-                unique_id: SWITCH_ID,
-                flags: Flags { automatable: true },
-                type_specific: TypeSpecificInfoRef::Switch { default: false },
-            }])
-        },
+        create_parameter_model(
+            |_: &HostInfo| {
+                parameters::to_infos(&[InfoRef {
+                    title: "Test Switch",
+                    short_title: "Switch",
+                    unique_id: SWITCH_ID,
+                    flags: Flags { automatable: true },
+                    type_specific: TypeSpecificInfoRef::Switch { default: false },
+                }])
+            },
+            ExtraParameters::None,
+        ),
         "dummy_domain".to_string(),
         ui::Size {
             width: 0,
@@ -1569,4 +1597,108 @@ fn bypass_parameter_exposed() {
         param_info.flags & vst3::Steinberg::Vst::ParameterInfo_::ParameterFlags_::kIsBypass as i32
             != 0
     );
+}
+
+fn dummy_synth_edit_controller(
+) -> impl IPluginBaseTrait + IEditControllerTrait + IMidiMappingTrait + GetStore {
+    super::create_internal(
+        create_parameter_model(
+            |_: &HostInfo| parameters::to_infos(&[]),
+            ExtraParameters::SynthControlParameters,
+        ),
+        "dummy_domain".to_string(),
+        ui::Size {
+            width: 0,
+            height: 0,
+        },
+        None,
+    )
+}
+
+#[test]
+fn synth_control_parameters_exposed() {
+    let ec = dummy_synth_edit_controller();
+    let host = ComWrapper::new(dummy_host::Host::default());
+    unsafe {
+        let check_assignment = |vst_id: std::ffi::c_uint, param_id| {
+            let mut id: vst3::Steinberg::Vst::ParamID = 0;
+            assert_eq!(
+                ec.getMidiControllerAssignment(0, 0, vst_id.try_into().unwrap(), &mut id as *mut _),
+                vst3::Steinberg::kResultTrue
+            );
+
+            assert_eq!(hash_id(param_id), id);
+        };
+        check_assignment(
+            vst3::Steinberg::Vst::ControllerNumbers_::kPitchBend,
+            component::synth::PITCH_BEND_PARAMETER,
+        );
+        check_assignment(
+            vst3::Steinberg::Vst::ControllerNumbers_::kCtrlModWheel,
+            component::synth::MOD_WHEEL_PARAMETER,
+        );
+        check_assignment(
+            vst3::Steinberg::Vst::ControllerNumbers_::kCtrlExpression,
+            component::synth::EXPRESSION_PARAMETER,
+        );
+        check_assignment(
+            vst3::Steinberg::Vst::ControllerNumbers_::kCtrlSustainOnOff,
+            component::synth::SUSTAIN_PARAMETER,
+        );
+        check_assignment(
+            vst3::Steinberg::Vst::ControllerNumbers_::kAfterTouch,
+            component::synth::AFTERTOUCH_PARAMETER,
+        );
+
+        assert_eq!(ec.initialize(host.as_com_ref().unwrap().as_ptr()), 0);
+        let store = ec.get_store().unwrap();
+        assert_eq!(
+            store.get(component::synth::PITCH_BEND_PARAMETER),
+            Some(parameters::Value::Numeric(0.0))
+        );
+    }
+}
+
+#[test]
+fn midi_mapping_bad_context_false() {
+    let ec = dummy_synth_edit_controller();
+    let host = ComWrapper::new(dummy_host::Host::default());
+    unsafe {
+        assert_eq!(ec.initialize(host.as_com_ref().unwrap().as_ptr()), 0);
+        let mut id: vst3::Steinberg::Vst::ParamID = 0;
+        assert_eq!(
+            ec.getMidiControllerAssignment(
+                1,
+                0,
+                vst3::Steinberg::Vst::ControllerNumbers_::kCtrlModWheel
+                    .try_into()
+                    .unwrap(),
+                &mut id as *mut _
+            ),
+            vst3::Steinberg::kResultFalse
+        );
+        assert_eq!(
+            ec.getMidiControllerAssignment(
+                0,
+                1,
+                vst3::Steinberg::Vst::ControllerNumbers_::kCtrlModWheel
+                    .try_into()
+                    .unwrap(),
+                &mut id as *mut _
+            ),
+            vst3::Steinberg::kResultFalse
+        );
+        assert_eq!(
+            ec.getMidiControllerAssignment(
+                0,
+                0,
+                // This test will have to change if we ever support kCtrlGPC8...
+                vst3::Steinberg::Vst::ControllerNumbers_::kCtrlGPC8
+                    .try_into()
+                    .unwrap(),
+                &mut id as *mut _
+            ),
+            vst3::Steinberg::kResultFalse
+        );
+    }
 }
