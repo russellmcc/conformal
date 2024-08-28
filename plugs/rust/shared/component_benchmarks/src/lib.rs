@@ -8,7 +8,7 @@ use component::{
         test_utils::{override_defaults, RampedStatesMap, StatesMap},
         InternalValue,
     },
-    synth::Synth,
+    synth::{Synth, CONTROLLER_PARAMETERS},
     Component, ProcessingEnvironment, ProcessingMode, Processor,
 };
 use criterion::{black_box, BenchmarkId, Criterion, Throughput};
@@ -123,8 +123,14 @@ pub fn benchmark_synth_process<C: Component<Processor: Synth>>(
             |b, &buffer_size| {
                 let mut output = BufferData::new(channel_layout, buffer_size);
                 let component = f();
+                let user_params = {
+                    let mut user_params: Vec<component::parameters::Info> =
+                        component.parameter_infos();
+                    user_params.extend(CONTROLLER_PARAMETERS.iter().map(|info| info.into()));
+                    user_params
+                };
                 let params = RampedStatesMap::new_const(
-                    component.parameter_infos().iter().map(|info| info.into()),
+                    user_params.iter().map(|info| info.into()),
                     &overrides,
                 );
                 let mut synth = component.create_processor(&ProcessingEnvironment {

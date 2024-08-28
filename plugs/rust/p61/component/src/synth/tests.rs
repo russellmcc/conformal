@@ -7,7 +7,7 @@ use component::{
     audio::{util::slice_buffer_mut, Buffer as _, BufferData, ChannelLayout},
     events::{Data, Event, Events, NoteData, NoteID},
     parameters::{
-        test_utils::{override_defaults, ConstantBufferStates, StatesMap},
+        test_utils::{override_synth_defaults, ConstantBufferStates, StatesMap},
         InternalValue,
     },
     synth::Synth as _,
@@ -16,7 +16,7 @@ use component::{
 use snapshots::assert_snapshot;
 
 fn dummy_params_map() -> StatesMap {
-    StatesMap::from(override_defaults(
+    StatesMap::from(override_synth_defaults(
         PARAMETERS.iter().cloned(),
         &HashMap::from_iter([
             ("dco1_width", InternalValue::Numeric(25.0)),
@@ -133,7 +133,7 @@ fn snapshot_pwm() {
         generate_snapshot_with_params(
             &mut synth,
             48000,
-            ConstantBufferStates::new(StatesMap::from(override_defaults(
+            ConstantBufferStates::new(StatesMap::from(override_synth_defaults(
                 PARAMETERS.iter().cloned(),
                 &HashMap::from_iter([
                     (
@@ -174,7 +174,7 @@ fn snapshot_defaults() {
         generate_snapshot_with_params(
             &mut synth,
             48000,
-            ConstantBufferStates::new(StatesMap::from(override_defaults(
+            ConstantBufferStates::new(StatesMap::from(override_synth_defaults(
                 PARAMETERS.iter().cloned(),
                 &HashMap::new()
             )))
