@@ -4,10 +4,16 @@ use std::{
     rc,
 };
 
-use component::parameters::{
-    self,
-    serialization::{DeserializationError, ReadInfoRef},
-    InfoRef, TypeSpecificInfo, TypeSpecificInfoRef,
+use component::{
+    parameters::{
+        self,
+        serialization::{DeserializationError, ReadInfoRef},
+        InfoRef, TypeSpecificInfo, TypeSpecificInfoRef,
+    },
+    synth::{
+        AFTERTOUCH_PARAMETER, CONTROLLER_PARAMETERS, EXPRESSION_PARAMETER, MOD_WHEEL_PARAMETER,
+        PITCH_BEND_PARAMETER, SUSTAIN_PARAMETER,
+    },
 };
 
 #[cfg(target_os = "macos")]
@@ -20,12 +26,12 @@ use vst3::{
         IPluginBase, IPluginBaseTrait,
         Vst::{
             IComponentHandler, IComponentHandlerTrait, IEditController, IEditControllerTrait,
-            IHostApplication,
+            IHostApplication, IMidiMapping, IMidiMappingTrait,
         },
     },
 };
 
-use crate::HostInfo;
+use crate::{ExtraParameters, ParameterModel};
 
 use super::{
     from_utf16_ptr, host_info,
@@ -76,9 +82,9 @@ struct SharedStore {
     store: rc::Rc<RefCell<ParameterStore>>,
 }
 
-struct Initialized<CF> {
+struct Initialized {
     store: SharedStore,
-    factory: CF,
+    parameter_model: ParameterModel,
     pref_domain: String,
 }
 
@@ -90,40 +96,43 @@ fn lookup_by_hash<'a, T>(
     hash_to_id.get(&hash).and_then(|id| values.get(id))
 }
 
-enum State<CF> {
-    ReadyForInitialization(CF, String),
-    Initialized(Initialized<CF>),
+enum State {
+    ReadyForInitialization(ParameterModel, String),
+    Initialized(Initialized),
 }
 
-struct EditController<CF> {
-    s: RefCell<Option<State<CF>>>,
+struct EditController {
+    s: RefCell<Option<State>>,
     host: RefCell<Option<ComPtr<IHostApplication>>>,
     ui_initial_size: Size,
     bypass_id: Option<&'static str>,
 }
 
 // Brought out to a separate function for ease of testing
-fn create_internal<'a, CF: Fn(&HostInfo) -> Vec<parameters::Info> + 'a>(
-    factory: CF,
+fn create_internal(
+    parameter_model: ParameterModel,
     pref_domain: String,
     ui_initial_size: Size,
     bypass_id: Option<&'static str>,
-) -> EditController<CF> {
+) -> EditController {
     EditController {
-        s: Some(State::ReadyForInitialization(factory, pref_domain)).into(),
+        s: Some(State::ReadyForInitialization(parameter_model, pref_domain)).into(),
         host: Default::default(),
         ui_initial_size,
         bypass_id,
     }
 }
 
-pub fn create<'a, CF: Fn(&HostInfo) -> Vec<parameters::Info> + 'a>(
-    factory: CF,
+pub fn create(
+    parameter_model: ParameterModel,
     ui_initial_size: Size,
     bypass_id: Option<&'static str>,
-) -> impl Class<Interfaces = (IPluginBase, IEditController)> + IEditControllerTrait + 'a {
+) -> impl Class<Interfaces = (IPluginBase, IEditController, IMidiMapping)>
+       + IEditControllerTrait
+       + IMidiMappingTrait
+       + 'static {
     create_internal(
-        factory,
+        parameter_model,
         get_current_bundle_info()
             .expect("Could not find bundle info")
             .identifier,
@@ -316,7 +325,7 @@ trait GetStore {
 }
 
 #[cfg(test)]
-impl<C> GetStore for EditController<C> {
+impl GetStore for EditController {
     type Store = SharedStore;
     fn get_store(&self) -> Option<Self::Store> {
         if let State::Initialized(Initialized { store, .. }) = self.s.borrow().as_ref().unwrap() {
@@ -327,7 +336,7 @@ impl<C> GetStore for EditController<C> {
     }
 }
 
-impl<CF: Fn(&HostInfo) -> Vec<parameters::Info>> IPluginBaseTrait for EditController<CF> {
+impl IPluginBaseTrait for EditController {
     unsafe fn initialize(
         &self,
         context: *mut vst3::Steinberg::FUnknown,
@@ -345,8 +354,14 @@ impl<CF: Fn(&HostInfo) -> Vec<parameters::Info>> IPluginBaseTrait for EditContro
             self.s.replace(None).unwrap(),
             host_info::get(&self.host.borrow().clone().unwrap()),
         ) {
-            (State::ReadyForInitialization(factory, pref_domain), Some(host_info)) => {
-                let parameter_infos = factory(&host_info);
+            (State::ReadyForInitialization(parameter_model, pref_domain), Some(host_info)) => {
+                let parameter_infos = {
+                    let mut infos = (parameter_model.parameter_infos)(&host_info);
+                    if parameter_model.extra_parameters == ExtraParameters::SynthControlParameters {
+                        infos.extend(CONTROLLER_PARAMETERS.iter().map(parameters::Info::from));
+                    }
+                    infos
+                };
                 let parameters: HashMap<String, parameters::Info> = parameter_infos
                     .iter()
                     .map(|info| {
@@ -394,7 +409,7 @@ impl<CF: Fn(&HostInfo) -> Vec<parameters::Info>> IPluginBaseTrait for EditContro
                         component_handler: Default::default(),
                         listener: Default::default(),
                     }))},
-                    factory,
+                    parameter_model,
                     pref_domain,
                 });
                 (s, vst3::Steinberg::kResultOk)
@@ -409,12 +424,14 @@ impl<CF: Fn(&HostInfo) -> Vec<parameters::Info>> IPluginBaseTrait for EditContro
         self.host.replace(None);
         match self.s.take() {
             Some(State::Initialized(Initialized {
-                factory,
+                parameter_model,
                 pref_domain,
                 ..
             })) => {
-                self.s
-                    .replace(Some(State::ReadyForInitialization(factory, pref_domain)));
+                self.s.replace(Some(State::ReadyForInitialization(
+                    parameter_model,
+                    pref_domain,
+                )));
                 vst3::Steinberg::kResultOk
             }
             _ => vst3::Steinberg::kInvalidArgument,
@@ -448,7 +465,7 @@ fn apply_values<'a>(
     }
 }
 
-impl<CF: Fn(&HostInfo) -> Vec<parameters::Info>> IEditControllerTrait for EditController<CF> {
+impl IEditControllerTrait for EditController {
     unsafe fn setComponentState(
         &self,
         stream: *mut vst3::Steinberg::IBStream,
@@ -866,6 +883,43 @@ impl<CF: Fn(&HostInfo) -> Vec<parameters::Info>> IEditControllerTrait for EditCo
     }
 }
 
-impl<CF: Fn(&HostInfo) -> Vec<parameters::Info>> Class for EditController<CF> {
-    type Interfaces = (IPluginBase, IEditController);
+impl IMidiMappingTrait for EditController {
+    unsafe fn getMidiControllerAssignment(
+        &self,
+        bus_index: vst3::Steinberg::int32,
+        channel_index: vst3::Steinberg::int16,
+        midi_controller_number: vst3::Steinberg::Vst::CtrlNumber,
+        id: *mut vst3::Steinberg::Vst::ParamID,
+    ) -> vst3::Steinberg::tresult {
+        if bus_index != 0 {
+            return vst3::Steinberg::kResultFalse;
+        }
+        if channel_index != 0 {
+            return vst3::Steinberg::kResultFalse;
+        }
+        match match midi_controller_number.try_into() {
+            Ok(vst3::Steinberg::Vst::ControllerNumbers_::kPitchBend) => Some(PITCH_BEND_PARAMETER),
+            Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlModWheel) => {
+                Some(MOD_WHEEL_PARAMETER)
+            }
+            Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlExpression) => {
+                Some(EXPRESSION_PARAMETER)
+            }
+            Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlSustainOnOff) => {
+                Some(SUSTAIN_PARAMETER)
+            }
+            Ok(vst3::Steinberg::Vst::ControllerNumbers_::kAfterTouch) => Some(AFTERTOUCH_PARAMETER),
+            _ => None,
+        } {
+            Some(param_id) => {
+                *id = parameters::hash_id(param_id);
+                vst3::Steinberg::kResultOk
+            }
+            _ => vst3::Steinberg::kResultFalse,
+        }
+    }
+}
+
+impl Class for EditController {
+    type Interfaces = (IPluginBase, IEditController, IMidiMapping);
 }

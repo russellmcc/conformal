@@ -6,8 +6,8 @@ use crate::{ClassID, ComponentFactory};
 use component::audio::{Buffer, BufferMut, ChannelLayout};
 use component::effect::Effect;
 use component::events::{Event, Events};
-use component::parameters::BufferStates;
-use component::synth::Synth;
+use component::parameters::{BufferStates, InfoRef};
+use component::synth::{Synth, CONTROLLER_PARAMETERS};
 use component::{Component, ProcessingEnvironment, ProcessingMode, Processor as ProcessorT};
 use serde::Serialize;
 use vst3::Steinberg::Vst::{
@@ -183,6 +183,8 @@ trait ProcessorCategory {
         outputs: *mut vst3::Steinberg::Vst::SpeakerArrangement,
         num_outs: vst3::Steinberg::int32,
     ) -> vst3::Steinberg::tresult;
+
+    fn get_extra_parameters(&self) -> impl Iterator<Item = InfoRef<'static, &'static str>> + Clone;
 }
 
 impl ProcessorCategory for SynthProcessorCategory {
@@ -355,6 +357,10 @@ impl ProcessorCategory for SynthProcessorCategory {
             }
             _ => vst3::Steinberg::kResultFalse,
         }
+    }
+
+    fn get_extra_parameters(&self) -> impl Iterator<Item = InfoRef<'static, &'static str>> + Clone {
+        CONTROLLER_PARAMETERS.iter().cloned()
     }
 }
 
@@ -563,6 +569,10 @@ impl ProcessorCategory for EffectProcessorCategory {
             _ => vst3::Steinberg::kResultFalse,
         }
     }
+
+    fn get_extra_parameters(&self) -> impl Iterator<Item = InfoRef<'static, &'static str>> + Clone {
+        core::iter::empty()
+    }
 }
 
 struct EffectProcessBuffer<'a, P> {
@@ -672,22 +682,22 @@ fn make_env(
 struct Processor<P, C, CF, PC, APC> {
     controller_cid: ClassID,
 
-    // NOTE - fairly subtle why we need `Option` here - this allows `initialize` and
-    // `terminate` to be panic-safe. See [this discussion](https://users.rust-lang.org/t/how-can-i-take-and-replace-the-value-of-a-refcell/75369)
+    /// NOTE - fairly subtle why we need `Option` here - this allows `initialize` and
+    /// `terminate` to be panic-safe. See [this discussion](https://users.rust-lang.org/t/how-can-i-take-and-replace-the-value-of-a-refcell/75369)
     s: RefCell<Option<State<C, CF>>>,
 
-    // NOTE - this could be part of `InitializedData`, but we are keeping it
-    // in a separate RefCell for now to make it easier in the future to
-    // use this from multiple threads.
+    /// NOTE - this could be part of `InitializedData`, but we are keeping it
+    /// in a separate `RefCell` for now to make it easier in the future to
+    /// use this from multiple threads.
     host: RefCell<Option<ComPtr<IHostApplication>>>,
 
-    // This stores data relevant to the current processor category
-    // (i.e., synth, effect, etc.). Note that this generally includes
-    // bus configuration data that may defer between categories.
+    /// This stores data relevant to the current processor category
+    /// (i.e., synth, effect, etc.). Note that this generally includes
+    /// bus configuration data that may defer between categories.
     //
-    // Note that conceptually this belongs in `InitializedData`, but we
-    // keep it separate for now to be permissive to non-conforming hosts
-    // who illegally query bus info before initialization.
+    /// Note that conceptually this belongs in `InitializedData`, but we
+    /// keep it separate for now to be permissive to non-conforming hosts
+    /// who illegally query bus info before initialization.
     category: RefCell<PC>,
 
     /// WATCH OUT - this member has very special rules for access.
@@ -791,6 +801,8 @@ pub fn create_effect<'a, CF: ComponentFactory<Component: Component<Processor: Ef
 
 impl<CF: ComponentFactory<Component: Component>, PC, APC> IPluginBaseTrait
     for Processor<<CF::Component as Component>::Processor, CF::Component, CF, PC, APC>
+where
+    PC: ProcessorCategory,
 {
     unsafe fn initialize(
         &self,
@@ -812,8 +824,20 @@ impl<CF: ComponentFactory<Component: Component>, PC, APC> IPluginBaseTrait
         ) {
             (State::ReadyForInitialization(factory), Some(host_info)) => {
                 let component = factory.create(&host_info);
-                let (params_main, params_processing) =
-                    parameters::create_stores(component.parameter_infos().iter().map(Into::into));
+                let (params_main, params_processing) = parameters::create_stores(
+                    {
+                        let mut infos = component.parameter_infos();
+                        infos.extend(
+                            self.category
+                                .borrow()
+                                .get_extra_parameters()
+                                .map(|info| (&info).into()),
+                        );
+                        infos
+                    }
+                    .iter()
+                    .map(Into::into),
+                );
                 let s = State::Initialized(InitializedData {
                     component,
                     params_main,

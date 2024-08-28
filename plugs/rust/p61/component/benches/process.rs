@@ -1,5 +1,5 @@
 use component::audio::ChannelLayout;
-use component::test_utils::{
+use component_benchmarks::{
     benchmark_initialize_mono, benchmark_initialize_stereo, benchmark_synth_process,
 };
 use criterion::{criterion_group, criterion_main, Criterion};

@@ -108,6 +108,8 @@ struct Params {
 
     mg_pitch: f32,
     mg_vcf: f32,
+
+    pitch_bend: f32,
 }
 
 fn per_sample_params(params: &impl parameters::BufferStates) -> impl Iterator<Item = Params> + '_ {
@@ -131,7 +133,9 @@ fn per_sample_params(params: &impl parameters::BufferStates) -> impl Iterator<It
                  numeric "vca_velocity",
                  numeric "vca_level",
                  numeric "mg_pitch",
-                 numeric "mg_vcf"])
+                 numeric "mg_vcf",
+                 numeric "pitch_bend"
+    ])
     .map(
         |(
             dco1_shape,
@@ -155,6 +159,7 @@ fn per_sample_params(params: &impl parameters::BufferStates) -> impl Iterator<It
             vca_level,
             mg_pitch,
             mg_vcf,
+            pitch_bend,
         )| Params {
             osc: OscSectionParams {
                 dco1_shape: FromPrimitive::from_u32(dco1_shape).unwrap(),
@@ -181,6 +186,8 @@ fn per_sample_params(params: &impl parameters::BufferStates) -> impl Iterator<It
             vca_level,
             mg_pitch,
             mg_vcf,
+
+            pitch_bend,
         },
     )
 }
@@ -272,6 +279,8 @@ impl Voice {
     }
 }
 
+const PITCH_BEND_WIDTH: f32 = 2.0;
+
 impl VoiceT for Voice {
     type SharedData<'a> = SharedData<'a>;
 
@@ -327,6 +336,7 @@ impl VoiceT for Voice {
                 vca_level,
                 mg_pitch,
                 mg_vcf,
+                pitch_bend,
             },
             mg,
         ) in izip!(
@@ -360,7 +370,8 @@ impl VoiceT for Voice {
                 self.sampling_rate,
             );
 
-            let osc_midi_number = lerp(0.0, 12.0, mg_pitch * 0.01) * mg + midi_number;
+            let osc_midi_number =
+                lerp(0.0, 12.0, mg_pitch * 0.01) * mg + PITCH_BEND_WIDTH * pitch_bend + midi_number;
             let env = self.adsr.process(&coeffs);
             let gate = self.gate.process(&self.gate_coeffs);
 
@@ -369,13 +380,15 @@ impl VoiceT for Voice {
             let vcf_mg = lerp(0.0, 12.0, mg_vcf * 0.01) * mg;
             let vcf_env = lerp(vcf_env, vcf_env * velocity, vcf_velocity * 0.01);
 
+            let vcf_midi_number = PITCH_BEND_WIDTH * pitch_bend + midi_number;
+
             let vcf_incr = {
                 const MIDI_TRACKING_BASE: f32 = 60.0;
                 increment(
                     vcf_mg
                         + vcf_cutoff
                         + 0.01
-                            * (vcf_tracking * (midi_number - MIDI_TRACKING_BASE)
+                            * (vcf_tracking * (vcf_midi_number - MIDI_TRACKING_BASE)
                                 + vcf_env * env * 128.0),
                     self.sampling_rate,
                 )

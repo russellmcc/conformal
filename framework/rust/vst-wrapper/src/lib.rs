@@ -53,6 +53,19 @@ pub struct ClassInfo<'a> {
 }
 
 #[doc(hidden)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum ExtraParameters {
+    None,
+    SynthControlParameters,
+}
+
+#[doc(hidden)]
+pub struct ParameterModel {
+    pub parameter_infos: Box<dyn Fn(&HostInfo) -> Vec<component::parameters::Info>>,
+    pub extra_parameters: ExtraParameters,
+}
+
+#[doc(hidden)]
 pub trait ClassCategory {
     fn create_processor(&self, controller_cid: ClassID) -> vst3::ComPtr<IPluginBase>;
 
@@ -60,7 +73,7 @@ pub trait ClassCategory {
 
     fn category_str(&self) -> &'static str;
 
-    fn create_parameter_model(&self) -> Box<dyn Fn(&HostInfo) -> Vec<component::parameters::Info>>;
+    fn create_parameter_model(&self) -> ParameterModel;
 
     fn get_bypass_id(&self) -> Option<&'static str>;
 }
@@ -68,6 +81,22 @@ pub trait ClassCategory {
 pub struct SynthClass<CF> {
     pub factory: CF,
     pub info: ClassInfo<'static>,
+}
+
+fn create_parameter_model_internal<CF: ComponentFactory + 'static>(
+    factory: CF,
+    extra_parameters: ExtraParameters,
+) -> ParameterModel
+where
+    CF::Component: Component,
+{
+    ParameterModel {
+        parameter_infos: Box::new(move |host_info| {
+            let component = factory.create(host_info);
+            component.parameter_infos()
+        }),
+        extra_parameters,
+    }
 }
 
 impl<CF: ComponentFactory + 'static> ClassCategory for SynthClass<CF>
@@ -83,12 +112,11 @@ where
         .unwrap()
     }
 
-    fn create_parameter_model(&self) -> Box<dyn Fn(&HostInfo) -> Vec<component::parameters::Info>> {
-        let factory = self.factory.clone();
-        Box::new(move |host_info| {
-            let component = factory.create(host_info);
-            component.parameter_infos()
-        })
+    fn create_parameter_model(&self) -> ParameterModel {
+        create_parameter_model_internal(
+            self.factory.clone(),
+            ExtraParameters::SynthControlParameters,
+        )
     }
 
     fn category_str(&self) -> &'static str {
@@ -137,12 +165,8 @@ impl<CF: ComponentFactory<Component: Component<Processor: Effect> + 'static> + '
         &self.info
     }
 
-    fn create_parameter_model(&self) -> Box<dyn Fn(&HostInfo) -> Vec<component::parameters::Info>> {
-        let factory = self.factory.clone();
-        Box::new(move |host_info| {
-            let component = factory.create(host_info);
-            component.parameter_infos()
-        })
+    fn create_parameter_model(&self) -> ParameterModel {
+        create_parameter_model_internal(self.factory.clone(), ExtraParameters::None)
     }
 
     fn get_bypass_id(&self) -> Option<&'static str> {

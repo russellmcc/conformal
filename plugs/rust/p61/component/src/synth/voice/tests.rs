@@ -3,7 +3,7 @@ use assert_approx_eq::assert_approx_eq;
 use component::{
     events::{Data, Event, NoteData, NoteID},
     parameters::{
-        test_utils::{override_defaults, ConstantBufferStates, StatesMap},
+        test_utils::{override_synth_defaults, ConstantBufferStates, StatesMap},
         InternalValue,
     },
 };
@@ -28,7 +28,7 @@ fn get_shared_data_from_mg(mg: &'_ Vec<f32>) -> SharedData<'_> {
 }
 
 fn dummy_params() -> ConstantBufferStates<StatesMap> {
-    ConstantBufferStates::new(StatesMap::from(override_defaults(
+    ConstantBufferStates::new(StatesMap::from(override_synth_defaults(
         PARAMETERS.iter().cloned(),
         &HashMap::from_iter([
             ("dco1_width", InternalValue::Numeric(25.0)),
