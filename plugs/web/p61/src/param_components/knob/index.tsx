@@ -27,6 +27,7 @@ export const ParamKnob = ({
     info: {
       title,
       valid_range: [min_value, max_value],
+      default: defaultValue,
       units,
     },
     value,
@@ -74,6 +75,7 @@ export const ParamKnob = ({
       }
       accessibilityLabel={accessibilityLabel}
       style={style}
+      defaultValue={defaultValue}
     />
   );
 };
