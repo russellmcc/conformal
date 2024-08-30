@@ -110,6 +110,10 @@ struct Params {
     mg_vcf: f32,
 
     pitch_bend: f32,
+
+    wheel: f32,
+    wheel_dco: f32,
+    wheel_vcf: f32,
 }
 
 fn per_sample_params(params: &impl parameters::BufferStates) -> impl Iterator<Item = Params> + '_ {
@@ -134,7 +138,10 @@ fn per_sample_params(params: &impl parameters::BufferStates) -> impl Iterator<It
                  numeric "vca_level",
                  numeric "mg_pitch",
                  numeric "mg_vcf",
-                 numeric "pitch_bend"
+                 numeric "pitch_bend",
+                 numeric "mod_wheel",
+                 numeric "wheel_dco",
+                 numeric "wheel_vcf"
     ])
     .map(
         |(
@@ -160,6 +167,9 @@ fn per_sample_params(params: &impl parameters::BufferStates) -> impl Iterator<It
             mg_pitch,
             mg_vcf,
             pitch_bend,
+            wheel,
+            wheel_dco,
+            wheel_vcf,
         )| Params {
             osc: OscSectionParams {
                 dco1_shape: FromPrimitive::from_u32(dco1_shape).unwrap(),
@@ -188,6 +198,10 @@ fn per_sample_params(params: &impl parameters::BufferStates) -> impl Iterator<It
             mg_vcf,
 
             pitch_bend,
+
+            wheel,
+            wheel_dco,
+            wheel_vcf,
         },
     )
 }
@@ -195,6 +209,9 @@ fn per_sample_params(params: &impl parameters::BufferStates) -> impl Iterator<It
 #[derive(Debug, Clone)]
 pub struct SharedData<'a> {
     pub mg_data: &'a [f32],
+
+    // Mod-wheel modulation data
+    pub wheel_data: &'a [f32],
 }
 
 impl Voice {
@@ -280,6 +297,65 @@ impl Voice {
 }
 
 const PITCH_BEND_WIDTH: f32 = 2.0;
+const MAX_WHEEL_DEPTH: f32 = 12.0;
+
+struct VcfIncrParams {
+    midi_number: f32,
+    velocity: f32,
+
+    env: f32,
+
+    mg: f32,
+    mg_vcf: f32,
+
+    vcf_cutoff: f32,
+    vcf_tracking: f32,
+    vcf_velocity: f32,
+    vcf_env: f32,
+
+    pitch_bend: f32,
+
+    wheel_mg: f32,
+    wheel: f32,
+    wheel_vcf: f32,
+
+    sampling_rate: f32,
+}
+fn vcf_incr(
+    VcfIncrParams {
+        midi_number,
+        velocity,
+        env,
+        mg,
+        mg_vcf,
+        vcf_cutoff,
+        vcf_tracking,
+        vcf_velocity,
+        vcf_env,
+        pitch_bend,
+        wheel_mg,
+        wheel,
+        wheel_vcf,
+        sampling_rate,
+    }: VcfIncrParams,
+) -> f32 {
+    let vcf_mg = lerp(0.0, 12.0, mg_vcf * 0.01) * mg;
+    let vcf_wheel = wheel_mg * wheel * lerp(0.0, MAX_WHEEL_DEPTH, wheel_vcf * 0.01);
+    let vcf_env = lerp(vcf_env, vcf_env * velocity, vcf_velocity * 0.01);
+    let vcf_midi_number = PITCH_BEND_WIDTH * pitch_bend + midi_number;
+    {
+        const MIDI_TRACKING_BASE: f32 = 60.0;
+        increment(
+            vcf_mg
+                + vcf_wheel
+                + vcf_cutoff
+                + 0.01
+                    * (vcf_tracking * (vcf_midi_number - MIDI_TRACKING_BASE)
+                        + vcf_env * env * 128.0),
+            sampling_rate,
+        )
+    }
+}
 
 impl VoiceT for Voice {
     type SharedData<'a> = SharedData<'a>;
@@ -321,7 +397,6 @@ impl VoiceT for Voice {
             (index, sample),
             Params {
                 osc,
-
                 vcf_cutoff,
                 vcf_resonance,
                 vcf_tracking,
@@ -337,12 +412,17 @@ impl VoiceT for Voice {
                 mg_pitch,
                 mg_vcf,
                 pitch_bend,
+                wheel,
+                wheel_dco,
+                wheel_vcf,
             },
             mg,
+            wheel_mg,
         ) in izip!(
             output.iter_mut().enumerate(),
             per_sample_params(params),
-            shared_data.mg_data
+            shared_data.mg_data,
+            shared_data.wheel_data
         ) {
             while let Some(Event {
                 sample_offset,
@@ -370,33 +450,37 @@ impl VoiceT for Voice {
                 self.sampling_rate,
             );
 
-            let osc_midi_number =
-                lerp(0.0, 12.0, mg_pitch * 0.01) * mg + PITCH_BEND_WIDTH * pitch_bend + midi_number;
-            let env = self.adsr.process(&coeffs);
-            let gate = self.gate.process(&self.gate_coeffs);
+            let osc_wheel = wheel_mg * wheel * lerp(0.0, MAX_WHEEL_DEPTH, wheel_dco * 0.01);
+            let osc_midi_number = lerp(0.0, 12.0, mg_pitch * 0.01) * mg
+                + PITCH_BEND_WIDTH * pitch_bend
+                + midi_number
+                + osc_wheel;
 
             let osc = self.osc_section_sample(&osc, osc_midi_number, *mg);
 
-            let vcf_mg = lerp(0.0, 12.0, mg_vcf * 0.01) * mg;
-            let vcf_env = lerp(vcf_env, vcf_env * velocity, vcf_velocity * 0.01);
+            let env = self.adsr.process(&coeffs);
+            let gate = self.gate.process(&self.gate_coeffs);
 
-            let vcf_midi_number = PITCH_BEND_WIDTH * pitch_bend + midi_number;
-
-            let vcf_incr = {
-                const MIDI_TRACKING_BASE: f32 = 60.0;
-                increment(
-                    vcf_mg
-                        + vcf_cutoff
-                        + 0.01
-                            * (vcf_tracking * (vcf_midi_number - MIDI_TRACKING_BASE)
-                                + vcf_env * env * 128.0),
-                    self.sampling_rate,
-                )
-            };
             *sample = self.vca.process(
                 self.vcf.process(
                     osc,
-                    vcf_incr.clamp(0.0, 0.4),
+                    vcf_incr(VcfIncrParams {
+                        midi_number,
+                        velocity,
+                        env,
+                        mg: *mg,
+                        mg_vcf,
+                        vcf_cutoff,
+                        vcf_tracking,
+                        vcf_velocity,
+                        vcf_env,
+                        pitch_bend,
+                        wheel_mg: *wheel_mg,
+                        wheel,
+                        wheel_vcf,
+                        sampling_rate: self.sampling_rate,
+                    })
+                    .clamp(0.0, 0.4),
                     // Optimization opportunity - rational polyonomial approximation
                     rescale(vcf_resonance, 0.0..=100.0, -0.5f32..=3f32).exp2(),
                 ),

@@ -29,7 +29,7 @@ const fn percentage(default: f32) -> TypeSpecificInfoRef<'static, &'static str> 
     }
 }
 
-static PARAMETERS: [InfoRef<'static, &'static str>; 23] = [
+static PARAMETERS: [InfoRef<'static, &'static str>; 26] = [
     InfoRef {
         title: "DCO1 Shape",
         short_title: "DCO1Shape",
@@ -226,6 +226,27 @@ static PARAMETERS: [InfoRef<'static, &'static str>; 23] = [
         title: "MG VCF",
         short_title: "MGVCF",
         unique_id: "mg_vcf",
+        flags: Flags { automatable: true },
+        type_specific: percentage(0.0),
+    },
+    InfoRef {
+        title: "Mod Wheel Rate",
+        short_title: "WheelRate",
+        unique_id: "wheel_rate",
+        flags: Flags { automatable: true },
+        type_specific: percentage(60.0),
+    },
+    InfoRef {
+        title: "Mod Wheel DCO Depth",
+        short_title: "WheelDCODepth",
+        unique_id: "wheel_dco",
+        flags: Flags { automatable: true },
+        type_specific: percentage(10.0),
+    },
+    InfoRef {
+        title: "Mod Wheel DCO Depth",
+        short_title: "WheelDCODepth",
+        unique_id: "wheel_vcf",
         flags: Flags { automatable: true },
         type_specific: percentage(0.0),
     },

@@ -24,8 +24,12 @@ mod tests;
 pub struct Synth {
     poly: Poly<voice::Voice>,
     mg: mg::Mg,
-    mg_scratch: Vec<f32>,
     mg_env: env::duck::Ar,
+    mg_scratch: Vec<f32>,
+
+    wheel_mg: mg::Mg,
+    wheel_scratch: Vec<f32>,
+
     sampling_rate: f32,
 }
 
@@ -34,8 +38,12 @@ impl Synth {
         Self {
             poly: Poly::new(env, 8),
             mg: Default::default(),
-            mg_scratch: vec![0f32; env.max_samples_per_process_call],
             mg_env: Default::default(),
+            mg_scratch: vec![0f32; env.max_samples_per_process_call],
+
+            wheel_mg: Default::default(),
+            wheel_scratch: vec![0f32; env.max_samples_per_process_call],
+
             sampling_rate: env.sampling_rate,
         }
     }
@@ -44,11 +52,18 @@ impl Synth {
 struct MgParams {
     rate: f32,
     delay: f32,
+
+    wheel_rate: f32,
 }
 
 fn mg_params(params: &impl parameters::BufferStates) -> impl Iterator<Item = MgParams> + '_ {
-    pzip!(params[numeric "mg_rate", numeric "mg_delay"])
-        .map(|(rate, delay)| MgParams { rate, delay })
+    pzip!(params[numeric "mg_rate", numeric "mg_delay", numeric "wheel_rate"]).map(
+        |(rate, delay, wheel_rate)| MgParams {
+            rate,
+            delay,
+            wheel_rate,
+        },
+    )
 }
 
 impl Processor for Synth {
@@ -57,6 +72,7 @@ impl Processor for Synth {
             self.poly.reset();
             self.mg.reset();
             self.mg_env.reset();
+            self.wheel_mg.reset();
         }
     }
 }
@@ -87,10 +103,19 @@ impl SynthT for Synth {
         output: &mut O,
     ) {
         let mg_scratch = &mut self.mg_scratch[..output.num_frames()];
+        let wheel_scratch = &mut self.wheel_scratch[..output.num_frames()];
         let mut mg_events = events.clone().into_iter().peekable();
-        for ((index, sample), MgParams { rate, delay }) in mg_scratch
+        for (
+            ((index, sample), wheel_sample),
+            MgParams {
+                rate,
+                delay,
+                wheel_rate,
+            },
+        ) in mg_scratch
             .iter_mut()
             .enumerate()
+            .zip(&mut wheel_scratch.iter_mut())
             .zip(mg_params(&parameters))
         {
             while let Some(Event {
@@ -122,12 +147,19 @@ impl SynthT for Synth {
                 self.sampling_rate,
             );
             *sample = self.mg_env.process(&coeffs) * self.mg.generate(incr);
+
+            // Note that we have a slightly different rate for the wheel,
+            // this adds a bit of detuning vs the MG.
+            let wheel_note = rescale(wheel_rate, 0.0..=100.0, -76.0..=15.0);
+            let wheel_incr = increment(wheel_note, self.sampling_rate);
+            *wheel_sample = self.wheel_mg.generate(wheel_incr);
         }
         self.poly.render_audio(
             events,
             &parameters,
             &SharedData {
                 mg_data: mg_scratch,
+                wheel_data: wheel_scratch,
             },
             output,
         );

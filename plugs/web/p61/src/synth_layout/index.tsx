@@ -5,6 +5,7 @@ import Logo from "./Logo";
 import Mg from "./Mg";
 import Vca from "./Vca";
 import Vcf from "./Vcf";
+import { Wheel } from "./Wheel";
 
 export const SynthLayout = () => (
   <div className="select-none">
@@ -15,6 +16,7 @@ export const SynthLayout = () => (
     </div>
     <div className="mt-[-207px] flex items-start">
       <Mg />
+      <Wheel />
       <Logo />
     </div>
     <div className="ml-[166px] mt-[-159px] flex items-start">
