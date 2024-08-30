@@ -9,10 +9,6 @@
   "author": "Bilinear Audio Authors",
   "main": "src/index.ts",
   "license": "ISC",
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
-  },
   "exports": {
     "./enum-slider": {
       "import": "./src/enum-slider/index.tsx"

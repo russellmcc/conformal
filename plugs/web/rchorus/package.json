@@ -16,8 +16,5 @@
   "dependencies": {
     "music-ui": "workspace:*"
   },
-  "type": "module",
-  "devDependencies": {
-    "rollup-plugin-license": "^3.4.0"
-  }
+  "type": "module"
 }
