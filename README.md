@@ -1,16 +1,12 @@
-# Build audio plug-ins with Rust and TypeScript!
+# Welcome to the Conformal Framework and Bilinear Audio Plug-ins
 
-This repo contains two open-source plug-ins built in Rust and TypeScript!
-
-Currently we support macOS VST3 format only.
-
-This repo contains _alpha_ software! This has known limitations, and there is no documentation on both the framework and the plug-ins themselves. Contributions are welcome.
-
-Eventually, we aspire to grow this codebase into a general purpose framework for building plug-ins using Rust and TypeScript, as well as add features and more plug-ins to the collection.
+This repo contains _alpha_ software!
 
 ## Repo organization
 
 Currently we have two top-level folders:
 
-- `framework`: this includes framework code that we hope to eventually publish to npm and cargo, although it's not quite ready yet. When and if this happens, this code may be moved to a separate repository.
-- `plugs`: this includes code specific to audio plug-ins currently built on this framework.
+- `framework`: This includes framework code that we hope to grow into a general-purpose framework for building audio plug-ins in Rust and TypeScript. The working title for the framework is "Conformal".
+- `plugs`: This includes a collection of open source plug-ins built with the Conformal framework. The working title of this collection is "Bilinear Audio".
+
+When the code in the `framework` folder becomes ready to publish, we will likely spin off the plug-in collection into a separate repo.

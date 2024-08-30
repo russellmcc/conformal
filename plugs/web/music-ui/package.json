@@ -6,7 +6,7 @@
     "check-format": "prettier --ignore-path .gitignore -c .",
     "format": "prettier --ignore-path .gitignore --write ."
   },
-  "author": "Russell McClellan",
+  "author": "Bilinear Audio Authors",
   "main": "src/index.ts",
   "license": "ISC",
   "dependencies": {

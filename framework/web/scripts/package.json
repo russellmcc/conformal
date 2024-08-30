@@ -8,7 +8,7 @@
     "format": "prettier --ignore-path .gitignore --write .",
     "validate": "echo 'dummy validation'"
   },
-  "author": "Russell McClellan",
+  "author": "Conformal Authors",
   "bin": {
     "scripts": "./src/index.ts"
   },

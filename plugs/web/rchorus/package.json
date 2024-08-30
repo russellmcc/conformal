@@ -11,7 +11,7 @@
     "package": "scripts package",
     "validate": "scripts validate"
   },
-  "author": "Russell McClellan",
+  "author": "Bilinear Audio Authors",
   "license": "ISC",
   "dependencies": {
     "music-ui": "workspace:*"
