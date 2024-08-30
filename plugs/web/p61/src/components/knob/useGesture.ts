@@ -7,13 +7,19 @@ const BIG_KEYBOARD_STEP = 25;
 
 export interface GestureProps {
   value: number;
+  defaultValue?: number;
   onGrabOrRelease?: (grabbed: boolean) => void;
   onValue?: (value: number) => void;
 }
 
 const sensitivity = 1.0;
 
-const useGesture = ({ value, onGrabOrRelease, onValue }: GestureProps) => {
+const useGesture = ({
+  value,
+  defaultValue,
+  onGrabOrRelease,
+  onValue,
+}: GestureProps) => {
   const valueSnapshot = useRef<number | undefined>(undefined);
   const lastValue = useRef<number>(value);
   lastValue.current = value;
@@ -92,6 +98,17 @@ const useGesture = ({ value, onGrabOrRelease, onValue }: GestureProps) => {
     [onValue, value],
   );
 
+  const onDoubleClick: React.MouseEventHandler = useCallback(
+    (event) => {
+      if (defaultValue !== undefined) {
+        event.preventDefault();
+        event.stopPropagation();
+        onValue?.(defaultValue);
+      }
+    },
+    [defaultValue, onValue],
+  );
+
   return {
     hover: hover || interacted,
     props: {
@@ -100,6 +117,7 @@ const useGesture = ({ value, onGrabOrRelease, onValue }: GestureProps) => {
       onMouseLeave,
       onBlur,
       onKeyDown,
+      onDoubleClick,
     },
   };
 };
