@@ -3,6 +3,7 @@ import { useCallback, useRef, useState } from "react";
 import { clamp } from "music-ui/util";
 
 const KEYBOARD_STEP = 10;
+const BIG_KEYBOARD_STEP = 25;
 
 export interface GestureProps {
   value: number;
@@ -59,16 +60,32 @@ const useGesture = ({ value, onGrabOrRelease, onValue }: GestureProps) => {
 
   const onKeyDown: React.KeyboardEventHandler = useCallback(
     (event) => {
+      const setValue = (v: number) => {
+        onValue?.(v);
+        setInteracted(true);
+        event.preventDefault();
+        event.stopPropagation();
+      };
       switch (event.code) {
         case "ArrowUp":
-          onValue?.(clamp(value + KEYBOARD_STEP, 0, 100));
-          setInteracted(true);
-          event.preventDefault();
+        case "ArrowRight":
+          setValue(clamp(value + KEYBOARD_STEP, 0, 100));
           break;
         case "ArrowDown":
-          onValue?.(clamp(value - KEYBOARD_STEP, 0, 100));
-          setInteracted(true);
-          event.preventDefault();
+        case "ArrowLeft":
+          setValue(clamp(value - KEYBOARD_STEP, 0, 100));
+          break;
+        case "PageUp":
+          setValue(clamp(value + BIG_KEYBOARD_STEP, 0, 100));
+          break;
+        case "PageDown":
+          setValue(clamp(value - BIG_KEYBOARD_STEP, 0, 100));
+          break;
+        case "End":
+          setValue(100);
+          break;
+        case "Home":
+          setValue(0);
           break;
       }
     },
