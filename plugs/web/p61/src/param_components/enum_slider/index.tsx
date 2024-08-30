@@ -25,7 +25,7 @@ export const ParamEnumSlider = ({
 }: ParamEnumSliderProps) => {
   const [grabbed, setGrabbed] = useState(false);
   const {
-    info: { title, values },
+    info: { title, values, default: defaultValue },
     value,
     set,
     grab,
@@ -46,6 +46,7 @@ export const ParamEnumSlider = ({
     <EnumSlider
       label={label ?? title}
       accessibilityLabel={accessibilityLabel}
+      defaultValue={defaultValue}
       value={value}
       values={values}
       onValue={(value) => {

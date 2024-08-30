@@ -48,6 +48,11 @@ export interface Props {
    */
   displayFormatter?: (value: string) => string;
 
+  /**
+   * Default value to reset to on reset-to-default gesture
+   */
+  defaultValue?: string;
+
   width?: "narrow" | "normal";
 
   textAlign?: "start" | "end";
@@ -112,9 +117,19 @@ const EnumSlider = ({
   accessibilityLabel,
   width = "normal",
   textAlign = "start",
+  defaultValue,
 }: Props) => {
   const valueLabel = useValueLabel(textAlign);
-
+  const onDoubleClick: React.MouseEventHandler = useCallback(
+    (event) => {
+      if (defaultValue !== undefined) {
+        event.stopPropagation();
+        event.preventDefault();
+        onValue?.(defaultValue);
+      }
+    },
+    [defaultValue, onValue],
+  );
   return (
     <div
       className={`cursor-default touch-none select-none flex-row items-stretch`}
@@ -130,7 +145,12 @@ const EnumSlider = ({
         onValue={onValue}
         onGrabOrRelease={onGrabOrRelease}
       />
-      <div className="text-border w-[31px] text-center">{label}</div>
+      <div
+        className="text-border w-[31px] text-center"
+        onDoubleClick={onDoubleClick}
+      >
+        {label}
+      </div>
     </div>
   );
 };
