@@ -23,27 +23,38 @@ fn get_sine_mg(incr: f32, len: usize) -> Vec<f32> {
         .collect()
 }
 
-fn get_shared_data_from_mg(mg: &'_ Vec<f32>) -> SharedData<'_> {
-    SharedData { mg_data: &mg }
+fn get_shared_data_from_mg<'a, 'b: 'a>(mg: &'a Vec<f32>, wheel_mg: &'b Vec<f32>) -> SharedData<'a> {
+    SharedData {
+        mg_data: &mg,
+        wheel_data: &wheel_mg,
+    }
 }
 
 fn dummy_params() -> ConstantBufferStates<StatesMap> {
+    dummy_params_with(&[])
+}
+
+fn dummy_params_with(extra_params: &[(&str, InternalValue)]) -> ConstantBufferStates<StatesMap> {
     ConstantBufferStates::new(StatesMap::from(override_synth_defaults(
         PARAMETERS.iter().cloned(),
-        &HashMap::from_iter([
-            ("dco1_width", InternalValue::Numeric(25.0)),
-            ("dco2_shape", InternalValue::Enum(Dco2Shape::Saw as u32)),
-            ("vcf_cutoff", InternalValue::Numeric(0.0)),
-            ("vcf_resonance", InternalValue::Numeric(14.2)),
-            ("vcf_tracking", InternalValue::Numeric(0.0)),
-            ("vcf_env", InternalValue::Numeric(100.0)),
-            ("attack", InternalValue::Numeric(0.01)),
-            ("decay", InternalValue::Numeric(0.1)),
-            ("sustain", InternalValue::Numeric(80.0)),
-            ("release", InternalValue::Numeric(0.2)),
-            ("vca_level", InternalValue::Numeric(100.0)),
-            ("mg_pitch", InternalValue::Numeric(100.0)),
-        ]),
+        &HashMap::from_iter(
+            [
+                ("dco1_width", InternalValue::Numeric(25.0)),
+                ("dco2_shape", InternalValue::Enum(Dco2Shape::Saw as u32)),
+                ("vcf_cutoff", InternalValue::Numeric(0.0)),
+                ("vcf_resonance", InternalValue::Numeric(14.2)),
+                ("vcf_tracking", InternalValue::Numeric(0.0)),
+                ("vcf_env", InternalValue::Numeric(100.0)),
+                ("attack", InternalValue::Numeric(0.01)),
+                ("decay", InternalValue::Numeric(0.1)),
+                ("sustain", InternalValue::Numeric(80.0)),
+                ("release", InternalValue::Numeric(0.2)),
+                ("vca_level", InternalValue::Numeric(100.0)),
+                ("mg_pitch", InternalValue::Numeric(100.0)),
+            ]
+            .into_iter()
+            .chain(extra_params.iter().cloned()),
+        ),
     )))
 }
 
@@ -68,7 +79,7 @@ fn reset_basics() {
     voice.render_audio(
         events.iter().cloned(),
         &params,
-        get_shared_data_from_mg(&get_silent_mg(output.len())),
+        get_shared_data_from_mg(&get_silent_mg(output.len()), &get_silent_mg(output.len())),
         &mut output,
     );
     voice.reset();
@@ -76,7 +87,7 @@ fn reset_basics() {
     voice.render_audio(
         events.iter().cloned(),
         &params,
-        get_shared_data_from_mg(&get_silent_mg(output.len())),
+        get_shared_data_from_mg(&get_silent_mg(output.len()), &get_silent_mg(output.len())),
         &mut reset,
     );
     for (a, b) in output.iter().zip(reset.iter()) {
@@ -84,7 +95,10 @@ fn reset_basics() {
     }
 }
 
-fn snapshot_for_data(data: SharedData<'_>) -> Vec<f32> {
+fn snapshot_for_data_and_params(
+    data: SharedData<'_>,
+    params: ConstantBufferStates<StatesMap>,
+) -> Vec<f32> {
     let num_samples = data.mg_data.len();
     let mut voice = Voice::new(num_samples, 48000.0);
     let mut output = vec![0f32; num_samples];
@@ -115,9 +129,12 @@ fn snapshot_for_data(data: SharedData<'_>) -> Vec<f32> {
         },
     ];
 
-    let params = dummy_params();
     voice.render_audio(events.iter().cloned(), &params, data, &mut output);
     output
+}
+
+fn snapshot_for_data(data: SharedData<'_>) -> Vec<f32> {
+    snapshot_for_data_and_params(data, dummy_params())
 }
 
 #[test]
@@ -126,7 +143,10 @@ fn basic_snapshot() {
     assert_snapshot!(
         "basic",
         48000,
-        snapshot_for_data(get_shared_data_from_mg(&get_silent_mg(48000)))
+        snapshot_for_data(get_shared_data_from_mg(
+            &get_silent_mg(48000),
+            &get_silent_mg(48000)
+        ))
     );
 }
 
@@ -136,6 +156,22 @@ fn modulated_snapshot() {
     assert_snapshot!(
         "modulated",
         48000,
-        snapshot_for_data(get_shared_data_from_mg(&get_sine_mg(4.0 / 48000.0, 48000)))
+        snapshot_for_data(get_shared_data_from_mg(
+            &get_sine_mg(4.0 / 48000.0, 48000),
+            &get_silent_mg(48000)
+        ))
+    );
+}
+
+#[test]
+#[cfg_attr(miri, ignore)]
+fn wheel_snapshot() {
+    assert_snapshot!(
+        "wheel",
+        48000,
+        snapshot_for_data_and_params(
+            get_shared_data_from_mg(&get_silent_mg(48000), &get_sine_mg(4.0 / 48000.0, 48000)),
+            dummy_params_with(&[("mod_wheel", InternalValue::Numeric(1.0))])
+        )
     );
 }
