@@ -88,12 +88,6 @@ struct OscSectionParams {
     dco2_interval: Dco2Interval,
 }
 
-#[derive(FromPrimitive, Copy, Clone, Debug, PartialEq)]
-pub(crate) enum WheelTarget {
-    Pitch,
-    Vcf,
-}
-
 struct Params {
     osc: OscSectionParams,
 
@@ -118,8 +112,8 @@ struct Params {
     pitch_bend: f32,
 
     wheel: f32,
-    wheel_depth: f32,
-    wheel_target: WheelTarget,
+    wheel_dco: f32,
+    wheel_vcf: f32,
 }
 
 fn per_sample_params(params: &impl parameters::BufferStates) -> impl Iterator<Item = Params> + '_ {
@@ -146,8 +140,8 @@ fn per_sample_params(params: &impl parameters::BufferStates) -> impl Iterator<It
                  numeric "mg_vcf",
                  numeric "pitch_bend",
                  numeric "mod_wheel",
-                 numeric "wheel_depth",
-                 enum "wheel_target"
+                 numeric "wheel_dco",
+                 numeric "wheel_vcf"
     ])
     .map(
         |(
@@ -174,8 +168,8 @@ fn per_sample_params(params: &impl parameters::BufferStates) -> impl Iterator<It
             mg_vcf,
             pitch_bend,
             wheel,
-            wheel_depth,
-            wheel_target,
+            wheel_dco,
+            wheel_vcf,
         )| Params {
             osc: OscSectionParams {
                 dco1_shape: FromPrimitive::from_u32(dco1_shape).unwrap(),
@@ -206,8 +200,8 @@ fn per_sample_params(params: &impl parameters::BufferStates) -> impl Iterator<It
             pitch_bend,
 
             wheel,
-            wheel_depth,
-            wheel_target: FromPrimitive::from_u32(wheel_target).unwrap(),
+            wheel_dco,
+            wheel_vcf,
         },
     )
 }
@@ -323,8 +317,7 @@ struct VcfIncrParams {
 
     wheel_mg: f32,
     wheel: f32,
-    wheel_depth: f32,
-    wheel_target: WheelTarget,
+    wheel_vcf: f32,
 
     sampling_rate: f32,
 }
@@ -342,16 +335,12 @@ fn vcf_incr(
         pitch_bend,
         wheel_mg,
         wheel,
-        wheel_depth,
-        wheel_target,
+        wheel_vcf,
         sampling_rate,
     }: VcfIncrParams,
 ) -> f32 {
     let vcf_mg = lerp(0.0, 12.0, mg_vcf * 0.01) * mg;
-    let vcf_wheel = match wheel_target {
-        WheelTarget::Pitch => 0.0,
-        WheelTarget::Vcf => wheel_mg * wheel * lerp(0.0, MAX_WHEEL_DEPTH, wheel_depth * 0.01),
-    };
+    let vcf_wheel = wheel_mg * wheel * lerp(0.0, MAX_WHEEL_DEPTH, wheel_vcf * 0.01);
     let vcf_env = lerp(vcf_env, vcf_env * velocity, vcf_velocity * 0.01);
     let vcf_midi_number = PITCH_BEND_WIDTH * pitch_bend + midi_number;
     {
@@ -425,8 +414,8 @@ impl VoiceT for Voice {
                 mg_vcf,
                 pitch_bend,
                 wheel,
-                wheel_target,
-                wheel_depth,
+                wheel_dco,
+                wheel_vcf,
             },
             mg,
             wheel_mg,
@@ -462,12 +451,7 @@ impl VoiceT for Voice {
                 self.sampling_rate,
             );
 
-            let osc_wheel = match wheel_target {
-                WheelTarget::Pitch => {
-                    wheel_mg * wheel * lerp(0.0, MAX_WHEEL_DEPTH, wheel_depth * 0.01)
-                }
-                WheelTarget::Vcf => 0.0,
-            };
+            let osc_wheel = wheel_mg * wheel * lerp(0.0, MAX_WHEEL_DEPTH, wheel_dco * 0.01);
             let osc_midi_number = lerp(0.0, 12.0, mg_pitch * 0.01) * mg
                 + PITCH_BEND_WIDTH * pitch_bend
                 + midi_number
@@ -494,8 +478,7 @@ impl VoiceT for Voice {
                         pitch_bend,
                         wheel_mg: *wheel_mg,
                         wheel,
-                        wheel_depth,
-                        wheel_target,
+                        wheel_vcf,
                         sampling_rate: self.sampling_rate,
                     })
                     .clamp(0.0, 0.4),

@@ -237,21 +237,18 @@ static PARAMETERS: [InfoRef<'static, &'static str>; 26] = [
         type_specific: percentage(60.0),
     },
     InfoRef {
-        title: "Mod Wheel Depth",
-        short_title: "WheelDepth",
-        unique_id: "wheel_depth",
+        title: "Mod Wheel DCO Depth",
+        short_title: "WheelDCODepth",
+        unique_id: "wheel_dco",
         flags: Flags { automatable: true },
         type_specific: percentage(10.0),
     },
     InfoRef {
-        title: "Mod Wheel Target",
-        short_title: "WheelTarget",
-        unique_id: "wheel_target",
+        title: "Mod Wheel DCO Depth",
+        short_title: "WheelDCODepth",
+        unique_id: "wheel_vcf",
         flags: Flags { automatable: true },
-        type_specific: TypeSpecificInfoRef::Enum {
-            default: 0,
-            values: &["DCO", "VCF"],
-        },
+        type_specific: percentage(0.0),
     },
 ];
 
