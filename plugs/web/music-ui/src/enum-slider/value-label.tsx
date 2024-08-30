@@ -37,40 +37,36 @@ export const ValueLabelInternal = ({
   );
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === "Space" || e.key === " ") {
+      const doSelect = (index: number) => {
         e.preventDefault();
         e.stopPropagation();
         selectIndex?.(index);
+      };
+      if (e.key === "Space" || e.key === " ") {
+        doSelect(index);
         return;
       }
-      const directions: Record<string, number> =
-        document.dir === "rtl"
-          ? {
-              Up: -1,
-              ArrowUp: -1,
-              Down: 1,
-              ArrowDown: 1,
-              Left: 1,
-              ArrowLeft: 1,
-              Right: -1,
-              ArrowRight: -1,
-            }
-          : {
-              Up: -1,
-              ArrowUp: -1,
-              Down: 1,
-              ArrowDown: 1,
-              Left: -1,
-              ArrowLeft: -1,
-              Right: 1,
-              ArrowRight: 1,
-            };
+      const directions: Record<string, number> = {
+        Up: -1,
+        ArrowUp: -1,
+        Down: 1,
+        ArrowDown: 1,
+        Left: -1,
+        ArrowLeft: -1,
+        Right: 1,
+        ArrowRight: 1,
+      };
       const direction = directions[e.key];
       if (direction !== undefined) {
-        e.preventDefault();
-        e.stopPropagation();
         const newIndex = (index + directions[e.key] + numValues) % numValues;
-        selectIndex?.(newIndex);
+        doSelect(newIndex);
+      }
+
+      if (e.key === "Home") {
+        doSelect(0);
+      }
+      if (e.key === "End") {
+        doSelect(numValues - 1);
       }
     },
     [index, numValues, selectIndex],
