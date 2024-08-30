@@ -19,8 +19,8 @@ export const Vcf = () => (
           accessibilityLabel="Filter Resonance"
         />
       </div>
-      <div className="flex flex-col items-start px-[15px] pb-[8px] pt-[13px]">
-        <div className="flex flex-row pb-[13px]">
+      <div className="flex flex-col items-start px-[15px] pb-[8px] pt-[21px]">
+        <div className="flex flex-row pb-[5px]">
           <ParamKnob
             param="vcf_tracking"
             label="key"

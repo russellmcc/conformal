@@ -203,6 +203,33 @@ const infos = new Map<string, Info>(
         units: "%",
       },
     },
+    wheel_rate: {
+      title: "Wheel Rate",
+      type_specific: {
+        t: "numeric",
+        default: 0.0,
+        valid_range: [0.0, 100.0],
+        units: "%",
+      },
+    },
+    wheel_dco: {
+      title: "Wheel DCO Depth",
+      type_specific: {
+        t: "numeric",
+        default: 0.0,
+        valid_range: [0.0, 100.0],
+        units: "%",
+      },
+    },
+    wheel_vcf: {
+      title: "Wheel VCF Depth",
+      type_specific: {
+        t: "numeric",
+        default: 0.0,
+        valid_range: [0.0, 100.0],
+        units: "%",
+      },
+    },
   }),
 );
 
