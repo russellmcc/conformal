@@ -1,4 +1,4 @@
-import { DragState, useDrag } from "@use-gesture/react";
+import { Handler, useDrag } from "@use-gesture/react";
 import { useCallback, useRef, useState } from "react";
 import { clamp } from "music-ui/util";
 
@@ -13,6 +13,7 @@ export interface GestureProps {
 }
 
 const sensitivity = 1.0;
+const shiftSensitivity = 0.1;
 
 const useGesture = ({
   value,
@@ -20,27 +21,22 @@ const useGesture = ({
   onGrabOrRelease,
   onValue,
 }: GestureProps) => {
-  const valueSnapshot = useRef<number | undefined>(undefined);
   const lastValue = useRef<number>(value);
   lastValue.current = value;
-  const grabCallback = useCallback(
-    ({ active, movement }: DragState) => {
-      if (active && valueSnapshot.current === undefined) {
-        valueSnapshot.current = lastValue.current;
-      } else if (!active) {
-        valueSnapshot.current = undefined;
+  const grabCallback: Handler<"drag"> = useCallback(
+    ({ active, delta, memo, shiftKey }) => {
+      if (memo === undefined) {
+        memo = lastValue.current;
       }
 
-      if (valueSnapshot.current !== undefined) {
-        const diff = movement[1] * -sensitivity;
-        const newValue = Math.min(
-          100,
-          Math.max(0, valueSnapshot.current + diff),
-        );
+      const last = memo as number;
 
-        onValue?.(newValue);
-      }
+      const diff = delta[1] * -(shiftKey ? shiftSensitivity : sensitivity);
+      const newValue = Math.min(100, Math.max(0, last + diff));
+
+      onValue?.(newValue);
       onGrabOrRelease?.(active);
+      return newValue;
     },
     [onGrabOrRelease, onValue],
   );
