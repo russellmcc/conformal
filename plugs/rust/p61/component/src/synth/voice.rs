@@ -397,7 +397,6 @@ impl VoiceT for Voice {
             (index, sample),
             Params {
                 osc,
-
                 vcf_cutoff,
                 vcf_resonance,
                 vcf_tracking,
