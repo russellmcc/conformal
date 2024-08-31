@@ -7,7 +7,7 @@ license = "ISC"
 publish = false
 
 [target.'cfg(target_os = "macos")'.dependencies]
-macos_bundle = { path = "../macos-bundle" }
+conformal_macos_bundle = { path = "../macos-bundle" }
 
 [dependencies]
 vst3 = "0.1.2"

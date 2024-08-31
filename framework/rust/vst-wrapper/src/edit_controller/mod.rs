@@ -17,7 +17,7 @@ use conformal_component::{
 };
 
 #[cfg(target_os = "macos")]
-use macos_bundle::get_current_bundle_info;
+use conformal_macos_bundle::get_current_bundle_info;
 
 use ui::Size;
 use vst3::{
