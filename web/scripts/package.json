@@ -1,18 +1,19 @@
 {
   "name": "@conformal/scripts",
   "version": "0.0.0",
-  "private": true,
+  "description": "Build scripts for the conformal audio plug-in framework",
+  "homepage": "https://github.com/russellmcc/conformal",
+  "bugs": "https://github.com/russellmcc/conformal/issues",
+  "license": "ISC",
   "scripts": {
     "lint": "tsc && eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "check-format": "prettier --ignore-path .gitignore -c .",
     "format": "prettier --ignore-path .gitignore --write .",
     "validate": "echo 'dummy validation'"
   },
-  "author": "Conformal Authors",
   "bin": {
     "conformal-scripts": "./src/index.ts"
   },
-  "license": "ISC",
   "type": "module",
   "dependencies": {
     "@commander-js/extra-typings": "^12.1.0",
