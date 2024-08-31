@@ -8,7 +8,13 @@ export const execute = async (
   script: string,
   args: string[],
 ) => {
-  await runShell(["bun", "run", "--filter", whichPackage, script, ...args]);
+  if (whichPackage.includes("*")) {
+    await runShell(["bun", "run", "--filter", whichPackage, script, ...args]);
+  } else {
+    await runShell(["bun", "run", script, ...args], {
+      cwd: `web/${whichPackage}`,
+    });
+  }
 };
 
 export const addWebScriptCommand = (command: Command): void => {

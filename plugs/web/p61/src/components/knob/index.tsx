@@ -50,6 +50,11 @@ export interface Props {
    * Label for accessibility (can contain more information than `label`)
    */
   accessibilityLabel?: string;
+
+  /**
+   * Value to reset the knob to on reset-to-default gesture (double click)
+   */
+  defaultValue?: number;
 }
 
 const PRIMARY_KNOB_SIZE = 61;
@@ -67,8 +72,14 @@ const Knob = ({
   showLabel = true,
   style = "primary",
   accessibilityLabel,
+  defaultValue,
 }: Props) => {
-  const { hover, props } = useGesture({ value, onGrabOrRelease, onValue });
+  const { hover, props } = useGesture({
+    value,
+    onGrabOrRelease,
+    onValue,
+    defaultValue,
+  });
   const valueLabel = useMemo(
     () => (valueFormatter ? valueFormatter(value) : label),
     [valueFormatter, value, label],
