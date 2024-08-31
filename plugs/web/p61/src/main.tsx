@@ -6,7 +6,7 @@ import App from "./App.tsx";
 import * as Jotai from "jotai";
 import { StrictMode, Suspense } from "react";
 import * as Client from "react-dom/client";
-import { Provider } from "plugin";
+import { Provider } from "@conformal/plugin";
 import "./index.css";
 import infos from "./mock_infos.ts";
 

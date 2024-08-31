@@ -15,8 +15,8 @@
     "format": "prettier --ignore-path .gitignore --write .",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "package": "scripts package",
-    "validate": "scripts validate"
+    "package": "conformal-scripts package",
+    "validate": "conformal-scripts validate"
   },
   "author": "",
   "license": "ISC",

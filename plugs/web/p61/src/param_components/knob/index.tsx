@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { useNumericParam } from "plugin";
+import { useNumericParam } from "@conformal/plugin";
 import Knob, { Props } from "../../components/knob";
 import { Scale } from "../../scale";
 

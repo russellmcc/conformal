@@ -1,4 +1,4 @@
-import { Info } from "plugin";
+import { Info } from "@conformal/plugin";
 
 const infos = new Map<string, Info>(
   Object.entries({

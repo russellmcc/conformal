@@ -8,8 +8,8 @@
     "preview": "vite preview",
     "check-format": "prettier --ignore-path .gitignore -c .",
     "format": "prettier --ignore-path .gitignore --write .",
-    "package": "scripts package",
-    "validate": "scripts validate"
+    "package": "conformal-scripts package",
+    "validate": "conformal-scripts validate"
   },
   "author": "Bilinear Audio Authors",
   "license": "ISC",

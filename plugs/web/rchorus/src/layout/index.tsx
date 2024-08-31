@@ -1,4 +1,4 @@
-import { useSwitchParam } from "plugin";
+import { useSwitchParam } from "@conformal/plugin";
 import logo from "../assets/logo.svg";
 import { forwardRef, useCallback } from "react";
 import EnumSlider, { ValueLabelProps } from "music-ui/enum-slider";

@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { useEnumParam } from "plugin";
+import { useEnumParam } from "@conformal/plugin";
 import EnumSlider, { Props } from "../../components/enum_slider";
 
 export interface ParamEnumSliderProps {

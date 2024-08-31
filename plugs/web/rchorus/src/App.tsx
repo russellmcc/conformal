@@ -1,4 +1,4 @@
-import { DevModeTools } from "plugin";
+import { DevModeTools } from "@conformal/plugin";
 import Layout from "./layout";
 
 const App = () => (
