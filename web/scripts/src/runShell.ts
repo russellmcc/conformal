@@ -1,9 +1,13 @@
 // Various utilities for running a shell and printing arguments.
 
-const runShell = async (args: readonly string[]) => {
+const runShell = async (
+  args: readonly string[],
+  options: { cwd?: string } = {},
+) => {
   const proc = Bun.spawn(args as string[], {
     stdio: ["inherit", "inherit", "inherit"],
     env: process.env,
+    ...options,
   });
   console.log(`$ ${args.map((x) => `"${x}"`).join(" ")}`);
   await proc.exited;
