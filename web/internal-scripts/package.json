@@ -1,0 +1,25 @@
+{
+  "name": "conformal-internal-scripts",
+  "version": "0.0.0",
+  "description": "Build scripts for building the conformal audio framework itself",
+  "private": true,
+  "homepage": "https://github.com/russellmcc/conformal",
+  "bugs": "https://github.com/russellmcc/conformal/issues",
+  "license": "ISC",
+  "scripts": {
+    "lint": "tsc && eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "check-format": "prettier --ignore-path .gitignore -c .",
+    "format": "prettier --ignore-path .gitignore --write .",
+    "validate": "echo 'dummy validation'"
+  },
+  "bin": {
+    "conformal-internal-scripts": "./src/index.ts"
+  },
+  "type": "module",
+  "dependencies": {
+    "@commander-js/extra-typings": "^12.1.0",
+    "commander": "^12.1.0",
+    "tmp-promise": "^3.0.3",
+    "zod": "^3.23.8"
+  }
+}

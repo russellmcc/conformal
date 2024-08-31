@@ -6,6 +6,7 @@
     "web/*"
   ],
   "devDependencies": {
+    "@morlay/bunpublish": "^0.4.1",
     "@testing-library/react": "^15.0.7",
     "@testing-library/user-event": "^14.5.2",
     "@types/bun": "1.1.0",
@@ -35,7 +36,7 @@
     "web-storybook": "conformal-scripts web-script -s storybook",
     "web-build-storybook": "conformal-scripts web-script -s build-storybook",
     "web-build": "conformal-scripts web-script -s build",
-    "web-lint": "bun run --filter '*' lint",
+    "web-lint": "conformal-scripts web-script -s lint",
     "web-test": "bun test",
     "rust-miri": "PROPTEST_DISABLE_FAILURE_PERSISTENCE=true MIRIFLAGS='-Zmiri-env-forward=PROPTEST_DISABLE_FAILURE_PERSISTENCE' conformal-scripts cargo +nightly miri test",
     "rust-build": "conformal-scripts cargo build",
@@ -44,6 +45,7 @@
     "rust-bench": "conformal-scripts cargo bench",
     "rust-snapshot-update": "UPDATE_SNAPSHOTS=1 bun run rust-test",
     "package": "conformal-scripts web-script -s package",
-    "validate": "conformal-scripts web-script -s validate"
+    "validate": "conformal-scripts web-script -s validate",
+    "release": "conformal-internal-scripts release"
   }
 }
