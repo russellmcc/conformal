@@ -18,14 +18,14 @@ use conformal_component::parameters::{
 use super::{ResponseSender, Server};
 struct ResponseSenderSpy<'a> {
     sent: &'a RefCell<Vec<Response>>,
-    pref_updates: &'a RefCell<Vec<(String, preferences::Value)>>,
+    pref_updates: &'a RefCell<Vec<(String, conformal_preferences::Value)>>,
 }
 
 impl<'a> ResponseSender for ResponseSenderSpy<'a> {
     fn send(&mut self, response: Response) {
         self.sent.borrow_mut().push(response);
     }
-    fn on_pref_update(&mut self, unique_id: &str, value: &preferences::Value) {
+    fn on_pref_update(&mut self, unique_id: &str, value: &conformal_preferences::Value) {
         self.pref_updates
             .borrow_mut()
             .push((unique_id.to_string(), value.clone()));
@@ -110,9 +110,9 @@ fn subscribing_to_parameter() {
     };
     let mut server = Server::new(
         store.clone(),
-        Box::new(RefCell::new(preferences::create_with_fake_os_store(
-            Default::default(),
-        ))),
+        Box::new(RefCell::new(
+            conformal_preferences::create_with_fake_os_store(Default::default()),
+        )),
         sender,
     );
     server.handle_request(&Request::Subscribe {
@@ -167,9 +167,9 @@ fn defends_against_subscriptions_to_non_existing_paths() {
     };
     let mut server = Server::new(
         store.clone(),
-        Box::new(RefCell::new(preferences::create_with_fake_os_store(
-            Default::default(),
-        ))),
+        Box::new(RefCell::new(
+            conformal_preferences::create_with_fake_os_store(Default::default()),
+        )),
         sender,
     );
     let nonsense_path = "nonsense path that does not exist".to_string();
@@ -196,9 +196,9 @@ fn defends_against_subscription_to_parameter_with_invalid_path() {
     };
     let mut server = Server::new(
         store.clone(),
-        Box::new(RefCell::new(preferences::create_with_fake_os_store(
-            Default::default(),
-        ))),
+        Box::new(RefCell::new(
+            conformal_preferences::create_with_fake_os_store(Default::default()),
+        )),
         sender,
     );
     server.handle_request(&Request::Subscribe {
@@ -224,9 +224,9 @@ fn set_does_not_echo_value() {
     };
     let mut server = Server::new(
         store.clone(),
-        Box::new(RefCell::new(preferences::create_with_fake_os_store(
-            Default::default(),
-        ))),
+        Box::new(RefCell::new(
+            conformal_preferences::create_with_fake_os_store(Default::default()),
+        )),
         sender,
     );
     server.handle_request(&Request::Subscribe {
@@ -252,9 +252,9 @@ fn set_changes_store() {
     };
     let mut server = Server::new(
         store.clone(),
-        Box::new(RefCell::new(preferences::create_with_fake_os_store(
-            Default::default(),
-        ))),
+        Box::new(RefCell::new(
+            conformal_preferences::create_with_fake_os_store(Default::default()),
+        )),
         sender,
     );
     server.handle_request(&Request::Subscribe {
@@ -283,9 +283,9 @@ fn grab_basics() {
     };
     let mut server = Server::new(
         store.clone(),
-        Box::new(RefCell::new(preferences::create_with_fake_os_store(
-            Default::default(),
-        ))),
+        Box::new(RefCell::new(
+            conformal_preferences::create_with_fake_os_store(Default::default()),
+        )),
         sender,
     );
     server.handle_request(&Request::Set {
@@ -312,9 +312,9 @@ fn get_info() {
     };
     let mut server = Server::new(
         store.clone(),
-        Box::new(RefCell::new(preferences::create_with_fake_os_store(
-            Default::default(),
-        ))),
+        Box::new(RefCell::new(
+            conformal_preferences::create_with_fake_os_store(Default::default()),
+        )),
         sender,
     );
     server.handle_request(&Request::Subscribe {
@@ -369,9 +369,12 @@ fn get_set_preferences() {
     };
     let mut server = Server::new(
         store.clone(),
-        Box::new(RefCell::new(preferences::create_with_fake_os_store(
-            HashMap::from_iter([("a".to_string(), preferences::Value::Switch(false))]),
-        ))),
+        Box::new(RefCell::new(
+            conformal_preferences::create_with_fake_os_store(HashMap::from_iter([(
+                "a".to_string(),
+                conformal_preferences::Value::Switch(false),
+            )])),
+        )),
         sender,
     );
     server.handle_request(&Request::Subscribe {
@@ -399,7 +402,7 @@ fn get_set_preferences() {
     });
     assert_eq!(
         pref_updates.borrow().as_slice(),
-        &[("a".to_string(), preferences::Value::Switch(true))]
+        &[("a".to_string(), conformal_preferences::Value::Switch(true))]
     );
     assert!(sent.borrow().iter().any(|m| {
         match m {

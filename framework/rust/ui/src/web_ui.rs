@@ -13,7 +13,7 @@ use wry::{
 use conformal_component::parameters;
 #[cfg(target_os = "macos")]
 use conformal_macos_bundle::get_current_bundle_info;
-use preferences::Store;
+use conformal_preferences::Store;
 
 use super::{protocol, server};
 
@@ -35,8 +35,8 @@ struct ResponseSender {
 const DEV_MODE_KEY: &str = "dev_mode";
 const USE_WEB_DEV_SERVER_KEY: &str = "use_web_dev_server";
 
-fn app_url(use_web_dev_server_pref: &preferences::Value) -> String {
-    if *use_web_dev_server_pref == preferences::Value::Switch(true) {
+fn app_url(use_web_dev_server_pref: &conformal_preferences::Value) -> String {
+    if *use_web_dev_server_pref == conformal_preferences::Value::Switch(true) {
         "http://localhost:5173".to_owned()
     } else {
         format!("rsrc://{RESOURCES_HOST}")
@@ -53,7 +53,7 @@ impl server::ResponseSender for ResponseSender {
         }
     }
 
-    fn on_pref_update(&mut self, unique_id: &str, value: &preferences::Value) {
+    fn on_pref_update(&mut self, unique_id: &str, value: &conformal_preferences::Value) {
         if unique_id == USE_WEB_DEV_SERVER_KEY {
             if let Some(web_view) = self.web_view.borrow().upgrade() {
                 let _ = web_view.load_url(&app_url(value));
@@ -121,12 +121,15 @@ fn get_rsrc_root_or_panic() -> std::path::PathBuf {
         .expect("Could not find bundle resources")
 }
 
-fn default_preferences() -> HashMap<String, preferences::Value> {
+fn default_preferences() -> HashMap<String, conformal_preferences::Value> {
     HashMap::from_iter([
-        (DEV_MODE_KEY.to_owned(), preferences::Value::Switch(false)),
+        (
+            DEV_MODE_KEY.to_owned(),
+            conformal_preferences::Value::Switch(false),
+        ),
         (
             USE_WEB_DEV_SERVER_KEY.to_owned(),
-            preferences::Value::Switch(false),
+            conformal_preferences::Value::Switch(false),
         ),
     ])
 }
@@ -153,16 +156,16 @@ impl<S: super::ParameterStore + 'static> Ui<S> {
         size: Size,
     ) -> Result<Self, UiError> {
         let server_web_view = Rc::new(RefCell::new(Default::default()));
-        let pref_store = Box::new(RefCell::new(preferences::create_store(
+        let pref_store = Box::new(RefCell::new(conformal_preferences::create_store(
             domain,
             default_preferences(),
         )));
         let dev_mode_enabled =
-            pref_store.borrow().get(DEV_MODE_KEY) == Ok(preferences::Value::Switch(true));
+            pref_store.borrow().get(DEV_MODE_KEY) == Ok(conformal_preferences::Value::Switch(true));
         let web_dev_server = pref_store
             .borrow()
             .get(USE_WEB_DEV_SERVER_KEY)
-            .unwrap_or(preferences::Value::Switch(false));
+            .unwrap_or(conformal_preferences::Value::Switch(false));
         let server = Rc::new(RefCell::new(server::Server::new(
             store,
             pref_store,

@@ -3,7 +3,7 @@ use std::collections::HashSet;
 
 use super::protocol;
 use conformal_component::parameters;
-use preferences::Store as PreferenceStore;
+use conformal_preferences::Store as PreferenceStore;
 
 /// It is the job of the server to connect the UI to the state of the plug-in.
 pub struct Server<S, R> {
@@ -15,7 +15,7 @@ pub struct Server<S, R> {
 
 pub trait ResponseSender {
     fn send(&mut self, response: protocol::Response);
-    fn on_pref_update(&mut self, unique_id: &str, value: &preferences::Value);
+    fn on_pref_update(&mut self, unique_id: &str, value: &conformal_preferences::Value);
 }
 
 impl<S: super::ParameterStore, R: ResponseSender> Server<S, R> {
@@ -117,7 +117,7 @@ impl<S: super::ParameterStore, R: ResponseSender> Server<S, R> {
         }
     }
 
-    pub fn update_preference(&mut self, unique_id: &str, value: &preferences::Value) {
+    pub fn update_preference(&mut self, unique_id: &str, value: &conformal_preferences::Value) {
         let path = format!("prefs/{unique_id}");
         if self.subscriptions.contains(&path) {
             self.response_sender.send(protocol::Response::Values {

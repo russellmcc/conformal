@@ -298,6 +298,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "conformal_preferences"
+version = "0.1.0"
+dependencies = [
+ "objc",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1697,15 +1706,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "925383efa346730478fb4838dbe9137d2a47675ad789c546d150a6e1dd4ab31c"
 
 [[package]]
-name = "preferences"
-version = "0.1.0"
-dependencies = [
- "objc",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "primal-check"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2509,8 +2509,8 @@ dependencies = [
  "base64",
  "conformal_component",
  "conformal_macos_bundle",
+ "conformal_preferences",
  "mime_guess",
- "preferences",
  "rmp-serde",
  "serde",
  "serde_bytes",
