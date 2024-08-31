@@ -12,7 +12,7 @@ macos_bundle = { path = "../macos-bundle" }
 [dependencies]
 vst3 = "0.1.2"
 serde = { version = "1.0.193", features = ["derive"] }
-component = { path = "../component" }
+conformal_component = { path = "../component" }
 ui = { path = "../ui" }
 rmp-serde = "1.1.2"
 

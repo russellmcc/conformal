@@ -1,11 +1,11 @@
 use super::Factory;
 use crate::{ClassInfo, Info};
 use crate::{HostInfo, SynthClass};
-use component::audio::BufferMut;
-use component::events::{Data, Event, Events};
-use component::parameters::{BufferStates, States};
-use component::synth::Synth;
-use component::{Component, ProcessingEnvironment, Processor};
+use conformal_component::audio::BufferMut;
+use conformal_component::events::{Data, Event, Events};
+use conformal_component::parameters::{BufferStates, States};
+use conformal_component::synth::Synth;
+use conformal_component::{Component, ProcessingEnvironment, Processor};
 use vst3::Steinberg::Vst::{IComponent, IComponentTrait};
 use vst3::Steinberg::{IPluginFactory2Trait, IPluginFactoryTrait};
 use vst3::{ComPtr, Interface};

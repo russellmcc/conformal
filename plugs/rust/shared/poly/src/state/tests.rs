@@ -1,5 +1,5 @@
 use super::State;
-use component::events::{Data, Event, NoteData, NoteID};
+use conformal_component::events::{Data, Event, NoteData, NoteID};
 
 fn example_note_data(pitch: u8) -> NoteData {
     NoteData {

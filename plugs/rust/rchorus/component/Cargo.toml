@@ -11,7 +11,7 @@ num-traits = "0.2.19"
 itertools = "0.13.0"
 vst_wrapper = { path = "../../../../framework/rust/vst-wrapper" }
 vst3 = "0.1.2"
-component = { path = "../../../../framework/rust/component" }
+conformal_component = { path = "../../../../framework/rust/component" }
 util = { path = "../../shared/util" }
 iir = { path = "../../shared/iir" }
 

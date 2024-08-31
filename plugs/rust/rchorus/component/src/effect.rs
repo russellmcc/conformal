@@ -1,7 +1,7 @@
 use crate::compander::{compress, expand, PeakLevelDetector};
 use crate::nonlinearity::nonlinearity;
 use crate::{anti_aliasing_filter::AntiAliasingFilter, lfo, modulated_delay};
-use component::{
+use conformal_component::{
     audio::{Buffer, BufferMut, ChannelLayout},
     effect::Effect as EffectT,
     parameters::{self, BufferStates},

@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashSet;
 
-use component::effect::Effect;
+use conformal_component::effect::Effect;
 use vst3::ComWrapper;
 use vst3::Steinberg::{
     IBStreamTrait, IPluginBaseTrait,
@@ -19,14 +19,18 @@ use crate::processor::test_utils::{
 use crate::HostInfo;
 use crate::{dummy_host, from_utf16_buffer};
 use assert_approx_eq::assert_approx_eq;
-use component;
-use component::audio::{channels, channels_mut, BufferMut};
-use component::events::{Data, Event, Events, NoteData, NoteID};
-use component::parameters::utils::{enum_per_sample, numeric_per_sample, switch_per_sample};
-use component::parameters::{
+use conformal_component;
+use conformal_component::audio::{channels, channels_mut, BufferMut};
+use conformal_component::events::{Data, Event, Events, NoteData, NoteID};
+use conformal_component::parameters::utils::{
+    enum_per_sample, numeric_per_sample, switch_per_sample,
+};
+use conformal_component::parameters::{
     BufferStates, Flags, InfoRef, States, StaticInfoRef, TypeSpecificInfoRef,
 };
-use component::{synth::Synth, Component, ProcessingEnvironment, ProcessingMode, Processor};
+use conformal_component::{
+    synth::Synth, Component, ProcessingEnvironment, ProcessingMode, Processor,
+};
 
 #[derive(Default)]
 struct FakeSynthComponent<'a> {
@@ -171,8 +175,8 @@ impl<'a> Component for FakeSynthComponent<'a> {
         }
     }
 
-    fn parameter_infos(&self) -> Vec<component::parameters::Info> {
-        component::parameters::to_infos(&PARAMETERS)
+    fn parameter_infos(&self) -> Vec<conformal_component::parameters::Info> {
+        conformal_component::parameters::to_infos(&PARAMETERS)
     }
 }
 
@@ -227,12 +231,12 @@ impl Processor for FakeEffect {
 }
 
 impl Effect for FakeEffect {
-    fn handle_parameters<P: component::parameters::States>(&mut self, _parameters: P) {}
+    fn handle_parameters<P: conformal_component::parameters::States>(&mut self, _parameters: P) {}
 
     fn process<
-        P: component::parameters::BufferStates,
-        I: component::audio::Buffer,
-        O: component::audio::BufferMut,
+        P: conformal_component::parameters::BufferStates,
+        I: conformal_component::audio::Buffer,
+        O: conformal_component::audio::BufferMut,
     >(
         &mut self,
         parameters: P,
@@ -265,8 +269,8 @@ impl Component for FakeEffectComponent {
         FakeEffect {}
     }
 
-    fn parameter_infos(&self) -> Vec<component::parameters::Info> {
-        component::parameters::to_infos(&PARAMETERS)
+    fn parameter_infos(&self) -> Vec<conformal_component::parameters::Info> {
+        conformal_component::parameters::to_infos(&PARAMETERS)
     }
 }
 
@@ -2478,8 +2482,8 @@ impl Component for IncompatibleComponent {
         Default::default()
     }
 
-    fn parameter_infos(&self) -> Vec<component::parameters::Info> {
-        component::parameters::to_infos(&INCOMPATIBLE_PARAMETERS)
+    fn parameter_infos(&self) -> Vec<conformal_component::parameters::Info> {
+        conformal_component::parameters::to_infos(&INCOMPATIBLE_PARAMETERS)
     }
 }
 
@@ -2592,8 +2596,8 @@ impl Component for NewerComponent {
         Default::default()
     }
 
-    fn parameter_infos(&self) -> Vec<component::parameters::Info> {
-        component::parameters::to_infos(&NEWER_PARAMETERS)
+    fn parameter_infos(&self) -> Vec<conformal_component::parameters::Info> {
+        conformal_component::parameters::to_infos(&NEWER_PARAMETERS)
     }
 }
 
@@ -2729,8 +2733,8 @@ impl Component for DuplicateParameterComponent {
         Default::default()
     }
 
-    fn parameter_infos(&self) -> Vec<component::parameters::Info> {
-        component::parameters::to_infos(&DUPLICATE_PARAMETERS)
+    fn parameter_infos(&self) -> Vec<conformal_component::parameters::Info> {
+        conformal_component::parameters::to_infos(&DUPLICATE_PARAMETERS)
     }
 }
 

@@ -12,9 +12,9 @@
     clippy::default_trait_access
 )]
 
-use component::parameters::{self, InfoRef};
-use component::parameters::{Flags, TypeSpecificInfoRef};
-use component::{Component as ComponentT, ProcessingEnvironment};
+use conformal_component::parameters::{self, InfoRef};
+use conformal_component::parameters::{Flags, TypeSpecificInfoRef};
+use conformal_component::{Component as ComponentT, ProcessingEnvironment};
 
 mod synth;
 

@@ -269,24 +269,24 @@ dependencies = [
 ]
 
 [[package]]
-name = "component"
-version = "0.1.0"
-dependencies = [
- "fxhash",
- "itertools 0.13.0",
- "serde",
-]
-
-[[package]]
 name = "component_benchmarks"
 version = "0.1.0"
 dependencies = [
- "component",
+ "conformal_component",
  "criterion",
  "fxhash",
  "itertools 0.13.0",
  "serde",
  "util",
+]
+
+[[package]]
+name = "conformal_component"
+version = "0.1.0"
+dependencies = [
+ "fxhash",
+ "itertools 0.13.0",
+ "serde",
 ]
 
 [[package]]
@@ -1453,8 +1453,8 @@ name = "p61_component"
 version = "0.1.0"
 dependencies = [
  "assert_approx_eq",
- "component",
  "component_benchmarks",
+ "conformal_component",
  "criterion",
  "iir",
  "itertools 0.13.0",
@@ -1677,7 +1677,7 @@ dependencies = [
 name = "poly"
 version = "0.1.0"
 dependencies = [
- "component",
+ "conformal_component",
  "util",
 ]
 
@@ -1954,8 +1954,8 @@ name = "rchorus_component"
 version = "0.1.0"
 dependencies = [
  "assert_approx_eq",
- "component",
  "component_benchmarks",
+ "conformal_component",
  "criterion",
  "iir",
  "itertools 0.13.0",
@@ -2507,7 +2507,7 @@ name = "ui"
 version = "0.1.0"
 dependencies = [
  "base64",
- "component",
+ "conformal_component",
  "macos_bundle",
  "mime_guess",
  "preferences",
@@ -2597,7 +2597,7 @@ dependencies = [
 name = "vst_wrapper"
 version = "0.1.0"
 dependencies = [
- "component",
+ "conformal_component",
  "macos_bundle",
  "rmp-serde",
  "serde",

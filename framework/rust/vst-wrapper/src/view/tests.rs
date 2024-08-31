@@ -1,10 +1,10 @@
 use vst3::Steinberg::IPlugViewTrait;
 
 use super::create;
-use component::parameters;
+use conformal_component::parameters;
 struct DummyStore;
 
-impl component::parameters::store::Store for DummyStore {
+impl conformal_component::parameters::store::Store for DummyStore {
     fn get(&self, _unique_id: &str) -> Option<parameters::Value> {
         None
     }

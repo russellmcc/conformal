@@ -10,7 +10,7 @@ publish = false
 itertools = "0.13.0"
 num-derive = "0.4.2"
 num-traits = "0.2.19"
-component = { path = "../../../../framework/rust/component" }
+conformal_component = { path = "../../../../framework/rust/component" }
 poly = { path = "../../shared/poly" }
 util = { path = "../../shared/util" }
 iir = { path = "../../shared/iir" }

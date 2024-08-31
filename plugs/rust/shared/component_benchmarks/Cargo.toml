@@ -7,7 +7,7 @@ license = "ISC"
 publish = false
 
 [dependencies]
-component = { path = "../../../../framework/rust/component", features = ["test-utils"] }
+conformal_component = { path = "../../../../framework/rust/component", features = ["test-utils"] }
 fxhash = "0.2.1"
 serde = { version = "1.0.193", features = ["derive"] }
 itertools = "0.13.0"

@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 
 use super::protocol;
-use component::parameters;
+use conformal_component::parameters;
 use preferences::Store as PreferenceStore;
 
 /// It is the job of the server to connect the UI to the state of the plug-in.

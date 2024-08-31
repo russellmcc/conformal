@@ -10,7 +10,7 @@ use wry::{
     raw_window_handle,
 };
 
-use component::parameters;
+use conformal_component::parameters;
 #[cfg(target_os = "macos")]
 use macos_bundle::get_current_bundle_info;
 use preferences::Store;

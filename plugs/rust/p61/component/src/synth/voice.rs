@@ -1,7 +1,7 @@
 use poly::Voice as VoiceT;
 use util::f32::{lerp, rescale};
 
-use component::{
+use conformal_component::{
     events::{Data, Event},
     parameters, pzip,
 };

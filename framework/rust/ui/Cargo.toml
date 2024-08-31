@@ -8,7 +8,7 @@ publish = false
 
 [dependencies]
 base64 = "0.22.1"
-component = { path = "../component" }
+conformal_component = { path = "../component" }
 wry = { version = "0.40.0", features = ["devtools"] }
 preferences = { path = "../preferences" }
 serde = { version = "1.0.193", features = ["derive"] }

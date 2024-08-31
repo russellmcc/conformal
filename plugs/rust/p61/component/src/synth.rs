@@ -1,4 +1,4 @@
-use component::{
+use conformal_component::{
     audio::BufferMut,
     events::{Data, Event, Events},
     parameters::{self},

@@ -10,7 +10,7 @@ use std::{
 };
 
 use crate::protocol::{self, Request, Response};
-use component::parameters::{
+use conformal_component::parameters::{
     store::{SetError, SetGrabbedError},
     Value,
 };
@@ -34,11 +34,13 @@ impl<'a> ResponseSender for ResponseSenderSpy<'a> {
 
 #[derive(Clone, Default)]
 struct StubStoreData {
-    values: HashMap<String, component::parameters::Value>,
+    values: HashMap<String, conformal_component::parameters::Value>,
     grabbed: HashSet<String>,
 }
 
-impl<I: IntoIterator<Item = (String, component::parameters::Value)>> From<I> for StubStoreData {
+impl<I: IntoIterator<Item = (String, conformal_component::parameters::Value)>> From<I>
+    for StubStoreData
+{
     fn from(values: I) -> Self {
         StubStoreData {
             values: values.into_iter().collect(),
@@ -77,14 +79,14 @@ impl crate::ParameterStore for StubStore {
         Ok(())
     }
 
-    fn get_info(&self, unique_id: &str) -> Option<component::parameters::Info> {
+    fn get_info(&self, unique_id: &str) -> Option<conformal_component::parameters::Info> {
         if unique_id == "a" {
-            Some(component::parameters::Info {
+            Some(conformal_component::parameters::Info {
                 title: "Test Title".to_string(),
                 short_title: "Test Short Title".to_string(),
                 unique_id: "a".to_string(),
-                flags: component::parameters::Flags { automatable: true },
-                type_specific: component::parameters::TypeSpecificInfo::Numeric {
+                flags: conformal_component::parameters::Flags { automatable: true },
+                type_specific: conformal_component::parameters::TypeSpecificInfo::Numeric {
                     default: 1.0,
                     valid_range: 0.0..=10.0,
                     units: "Hz".to_string(),
@@ -265,7 +267,7 @@ fn set_changes_store() {
     });
     assert_eq!(
         store.values.borrow().values.get("a"),
-        Some(&component::parameters::Value::Numeric(2.0))
+        Some(&conformal_component::parameters::Value::Numeric(2.0))
     );
 }
 

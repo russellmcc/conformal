@@ -1,4 +1,4 @@
-use component::events::{Data, Event, NoteData, NoteID};
+use conformal_component::events::{Data, Event, NoteData, NoteID};
 
 #[derive(Clone, Debug, PartialEq)]
 enum VoiceState {

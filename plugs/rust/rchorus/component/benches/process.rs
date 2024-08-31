@@ -1,4 +1,4 @@
-use component::test_utils::{
+use conformal_component::test_utils::{
     benchmark_effect_mono_process, benchmark_effect_stereo_process, benchmark_initialize_mono,
     benchmark_initialize_stereo,
 };

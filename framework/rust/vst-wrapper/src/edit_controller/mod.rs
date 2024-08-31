@@ -4,7 +4,7 @@ use std::{
     rc,
 };
 
-use component::{
+use conformal_component::{
     parameters::{
         self,
         serialization::{DeserializationError, ReadInfoRef},

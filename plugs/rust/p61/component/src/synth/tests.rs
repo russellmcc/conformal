@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use super::{voice, Synth};
 use crate::PARAMETERS;
 use assert_approx_eq::assert_approx_eq;
-use component::{
+use conformal_component::{
     audio::{util::slice_buffer_mut, Buffer as _, BufferData, ChannelLayout},
     events::{Data, Event, Events, NoteData, NoteID},
     parameters::{

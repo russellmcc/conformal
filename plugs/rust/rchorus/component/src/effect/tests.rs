@@ -4,7 +4,7 @@ use crate::PARAMETERS;
 
 use super::*;
 use assert_approx_eq::assert_approx_eq;
-use component::{
+use conformal_component::{
     audio::BufferData,
     parameters::test_utils::{override_defaults, ConstantBufferStates, StatesMap},
     ProcessingMode,

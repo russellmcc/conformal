@@ -1,7 +1,7 @@
-use component::audio::ChannelLayout;
 use component_benchmarks::{
     benchmark_initialize_mono, benchmark_initialize_stereo, benchmark_synth_process,
 };
+use conformal_component::audio::ChannelLayout;
 use criterion::{criterion_group, criterion_main, Criterion};
 use p61_component::Component;
 

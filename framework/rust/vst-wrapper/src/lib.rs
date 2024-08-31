@@ -61,7 +61,7 @@ pub enum ExtraParameters {
 
 #[doc(hidden)]
 pub struct ParameterModel {
-    pub parameter_infos: Box<dyn Fn(&HostInfo) -> Vec<component::parameters::Info>>,
+    pub parameter_infos: Box<dyn Fn(&HostInfo) -> Vec<conformal_component::parameters::Info>>,
     pub extra_parameters: ExtraParameters,
 }
 
@@ -184,9 +184,9 @@ pub struct Info<'a> {
     pub version: &'a str,
 }
 
-use component::effect::Effect;
-use component::synth::Synth;
-use component::Component;
+use conformal_component::effect::Effect;
+use conformal_component::synth::Synth;
+use conformal_component::Component;
 
 use vst3::Steinberg::{IPluginBase, IPluginFactory2, IPluginFactory2Trait};
 use vst3::{Class, Steinberg::IPluginFactory};

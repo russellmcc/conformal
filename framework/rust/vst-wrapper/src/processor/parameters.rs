@@ -15,9 +15,9 @@ use vst3::{
 };
 
 use crate::parameters::{convert_enum, convert_numeric, convert_switch};
-use component::parameters as cp;
+use conformal_component::parameters as cp;
 
-use component::parameters::{
+use conformal_component::parameters::{
     BufferState, BufferStates, EnumBufferState, NumericBufferState, PiecewiseLinearCurve,
     PiecewiseLinearCurvePoint, States as ParameterStates, SwitchBufferState, TimedEnumValues,
     TimedSwitchValues, TimedValue, TypeSpecificInfoRef,
@@ -417,7 +417,7 @@ impl MainStore {
     ///
     /// If the snapshot is incompatible (meaning either there was a programmer error,
     /// a data model change that was disallowed by the rules in
-    /// `component::parameters::serialization`, a corrupt snapshot, or a
+    /// `conformal_component::parameters::serialization`, a corrupt snapshot, or a
     /// snapshot from a newer version of the plug-in), we will reset to default
     /// state.
     pub fn apply_snapshot(

@@ -13,7 +13,7 @@
 )]
 
 use self::state::State;
-use component::{
+use conformal_component::{
     audio::{channels_mut, BufferMut},
     events::{Data, Event},
     parameters, ProcessingEnvironment,

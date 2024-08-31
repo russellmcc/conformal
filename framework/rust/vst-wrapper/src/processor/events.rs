@@ -3,7 +3,7 @@ use vst3::{
     Steinberg::Vst::{IEventList, IEventListTrait},
 };
 
-use component::events::{Data, Event, NoteData, NoteID};
+use conformal_component::events::{Data, Event, NoteData, NoteID};
 
 unsafe fn get_event(
     event_list: ComRef<'_, IEventList>,

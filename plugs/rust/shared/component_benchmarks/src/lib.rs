@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
-use component::{
+use conformal_component::{
     audio::{BufferData, BufferMut, ChannelLayout},
     effect::Effect,
     events,
     parameters::{
+        self,
         test_utils::{override_defaults, RampedStatesMap, StatesMap},
         InternalValue,
     },
@@ -124,8 +125,7 @@ pub fn benchmark_synth_process<C: Component<Processor: Synth>>(
                 let mut output = BufferData::new(channel_layout, buffer_size);
                 let component = f();
                 let user_params = {
-                    let mut user_params: Vec<component::parameters::Info> =
-                        component.parameter_infos();
+                    let mut user_params: Vec<parameters::Info> = component.parameter_infos();
                     user_params.extend(CONTROLLER_PARAMETERS.iter().map(|info| info.into()));
                     user_params
                 };

@@ -4,7 +4,7 @@ use vst3::{
     Steinberg::{IPlugView, IPlugViewTrait},
 };
 
-use component::parameters;
+use conformal_component::parameters;
 use ui::{self, raw_window_handle, Size, Ui};
 
 // Only include tests in test config on macos

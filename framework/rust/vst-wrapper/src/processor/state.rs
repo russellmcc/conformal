@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use component::parameters;
+use conformal_component::parameters;
 
 #[derive(Serialize, Deserialize)]
 pub struct State {
