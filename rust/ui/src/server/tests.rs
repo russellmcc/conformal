@@ -10,7 +10,7 @@ use std::{
 };
 
 use crate::protocol::{self, Request, Response};
-use component::parameters::{
+use conformal_component::parameters::{
     store::{SetError, SetGrabbedError},
     Value,
 };
@@ -18,14 +18,14 @@ use component::parameters::{
 use super::{ResponseSender, Server};
 struct ResponseSenderSpy<'a> {
     sent: &'a RefCell<Vec<Response>>,
-    pref_updates: &'a RefCell<Vec<(String, preferences::Value)>>,
+    pref_updates: &'a RefCell<Vec<(String, conformal_preferences::Value)>>,
 }
 
 impl<'a> ResponseSender for ResponseSenderSpy<'a> {
     fn send(&mut self, response: Response) {
         self.sent.borrow_mut().push(response);
     }
-    fn on_pref_update(&mut self, unique_id: &str, value: &preferences::Value) {
+    fn on_pref_update(&mut self, unique_id: &str, value: &conformal_preferences::Value) {
         self.pref_updates
             .borrow_mut()
             .push((unique_id.to_string(), value.clone()));
@@ -34,11 +34,13 @@ impl<'a> ResponseSender for ResponseSenderSpy<'a> {
 
 #[derive(Clone, Default)]
 struct StubStoreData {
-    values: HashMap<String, component::parameters::Value>,
+    values: HashMap<String, conformal_component::parameters::Value>,
     grabbed: HashSet<String>,
 }
 
-impl<I: IntoIterator<Item = (String, component::parameters::Value)>> From<I> for StubStoreData {
+impl<I: IntoIterator<Item = (String, conformal_component::parameters::Value)>> From<I>
+    for StubStoreData
+{
     fn from(values: I) -> Self {
         StubStoreData {
             values: values.into_iter().collect(),
@@ -77,14 +79,14 @@ impl crate::ParameterStore for StubStore {
         Ok(())
     }
 
-    fn get_info(&self, unique_id: &str) -> Option<component::parameters::Info> {
+    fn get_info(&self, unique_id: &str) -> Option<conformal_component::parameters::Info> {
         if unique_id == "a" {
-            Some(component::parameters::Info {
+            Some(conformal_component::parameters::Info {
                 title: "Test Title".to_string(),
                 short_title: "Test Short Title".to_string(),
                 unique_id: "a".to_string(),
-                flags: component::parameters::Flags { automatable: true },
-                type_specific: component::parameters::TypeSpecificInfo::Numeric {
+                flags: conformal_component::parameters::Flags { automatable: true },
+                type_specific: conformal_component::parameters::TypeSpecificInfo::Numeric {
                     default: 1.0,
                     valid_range: 0.0..=10.0,
                     units: "Hz".to_string(),
@@ -108,9 +110,9 @@ fn subscribing_to_parameter() {
     };
     let mut server = Server::new(
         store.clone(),
-        Box::new(RefCell::new(preferences::create_with_fake_os_store(
-            Default::default(),
-        ))),
+        Box::new(RefCell::new(
+            conformal_preferences::create_with_fake_os_store(Default::default()),
+        )),
         sender,
     );
     server.handle_request(&Request::Subscribe {
@@ -165,9 +167,9 @@ fn defends_against_subscriptions_to_non_existing_paths() {
     };
     let mut server = Server::new(
         store.clone(),
-        Box::new(RefCell::new(preferences::create_with_fake_os_store(
-            Default::default(),
-        ))),
+        Box::new(RefCell::new(
+            conformal_preferences::create_with_fake_os_store(Default::default()),
+        )),
         sender,
     );
     let nonsense_path = "nonsense path that does not exist".to_string();
@@ -194,9 +196,9 @@ fn defends_against_subscription_to_parameter_with_invalid_path() {
     };
     let mut server = Server::new(
         store.clone(),
-        Box::new(RefCell::new(preferences::create_with_fake_os_store(
-            Default::default(),
-        ))),
+        Box::new(RefCell::new(
+            conformal_preferences::create_with_fake_os_store(Default::default()),
+        )),
         sender,
     );
     server.handle_request(&Request::Subscribe {
@@ -222,9 +224,9 @@ fn set_does_not_echo_value() {
     };
     let mut server = Server::new(
         store.clone(),
-        Box::new(RefCell::new(preferences::create_with_fake_os_store(
-            Default::default(),
-        ))),
+        Box::new(RefCell::new(
+            conformal_preferences::create_with_fake_os_store(Default::default()),
+        )),
         sender,
     );
     server.handle_request(&Request::Subscribe {
@@ -250,9 +252,9 @@ fn set_changes_store() {
     };
     let mut server = Server::new(
         store.clone(),
-        Box::new(RefCell::new(preferences::create_with_fake_os_store(
-            Default::default(),
-        ))),
+        Box::new(RefCell::new(
+            conformal_preferences::create_with_fake_os_store(Default::default()),
+        )),
         sender,
     );
     server.handle_request(&Request::Subscribe {
@@ -265,7 +267,7 @@ fn set_changes_store() {
     });
     assert_eq!(
         store.values.borrow().values.get("a"),
-        Some(&component::parameters::Value::Numeric(2.0))
+        Some(&conformal_component::parameters::Value::Numeric(2.0))
     );
 }
 
@@ -281,9 +283,9 @@ fn grab_basics() {
     };
     let mut server = Server::new(
         store.clone(),
-        Box::new(RefCell::new(preferences::create_with_fake_os_store(
-            Default::default(),
-        ))),
+        Box::new(RefCell::new(
+            conformal_preferences::create_with_fake_os_store(Default::default()),
+        )),
         sender,
     );
     server.handle_request(&Request::Set {
@@ -310,9 +312,9 @@ fn get_info() {
     };
     let mut server = Server::new(
         store.clone(),
-        Box::new(RefCell::new(preferences::create_with_fake_os_store(
-            Default::default(),
-        ))),
+        Box::new(RefCell::new(
+            conformal_preferences::create_with_fake_os_store(Default::default()),
+        )),
         sender,
     );
     server.handle_request(&Request::Subscribe {
@@ -367,9 +369,12 @@ fn get_set_preferences() {
     };
     let mut server = Server::new(
         store.clone(),
-        Box::new(RefCell::new(preferences::create_with_fake_os_store(
-            HashMap::from_iter([("a".to_string(), preferences::Value::Switch(false))]),
-        ))),
+        Box::new(RefCell::new(
+            conformal_preferences::create_with_fake_os_store(HashMap::from_iter([(
+                "a".to_string(),
+                conformal_preferences::Value::Switch(false),
+            )])),
+        )),
         sender,
     );
     server.handle_request(&Request::Subscribe {
@@ -397,7 +402,7 @@ fn get_set_preferences() {
     });
     assert_eq!(
         pref_updates.borrow().as_slice(),
-        &[("a".to_string(), preferences::Value::Switch(true))]
+        &[("a".to_string(), conformal_preferences::Value::Switch(true))]
     );
     assert!(sent.borrow().iter().any(|m| {
         match m {

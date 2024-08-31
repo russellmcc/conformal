@@ -159,13 +159,17 @@ pub fn switch_per_sample<I: IntoIterator<Item = TimedValue<bool>, IntoIter: Clon
 #[doc(hidden)]
 macro_rules! pzip_part {
     (numeric $path:literal $params:ident) => {
-        component::parameters::utils::numeric_per_sample($params.get_numeric($path).unwrap())
+        conformal_component::parameters::utils::numeric_per_sample(
+            $params.get_numeric($path).unwrap(),
+        )
     };
     (enum $path:literal $params:ident) => {
-        component::parameters::utils::enum_per_sample($params.get_enum($path).unwrap())
+        conformal_component::parameters::utils::enum_per_sample($params.get_enum($path).unwrap())
     };
     (switch $path:literal $params:ident) => {
-        component::parameters::utils::switch_per_sample($params.get_switch($path).unwrap())
+        conformal_component::parameters::utils::switch_per_sample(
+            $params.get_switch($path).unwrap(),
+        )
     };
 }
 
@@ -175,9 +179,9 @@ macro_rules! pzip_part {
 #[macro_export]
 macro_rules! pzip {
     ($params:ident[$($kind:ident $path:literal),+]) => {
-        component::itertools::izip!(
+        conformal_component::itertools::izip!(
             $(
-                component::pzip_part!($kind $path $params),
+                conformal_component::pzip_part!($kind $path $params),
             )+
         )
     };

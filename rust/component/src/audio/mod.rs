@@ -1,24 +1,10 @@
-#![warn(
-    nonstandard_style,
-    rust_2018_idioms,
-    future_incompatible,
-    clippy::pedantic,
-    clippy::todo
-)]
-#![allow(
-    clippy::type_complexity,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::default_trait_access
-)]
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ChannelLayout {
     Mono,
     Stereo,
 }
 
-#[cfg(feature = "test-utils")]
+#[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
 
 pub mod util;

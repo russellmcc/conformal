@@ -12,7 +12,7 @@
     clippy::default_trait_access
 )]
 
-use component::parameters;
+use conformal_component::parameters;
 
 mod preferences_convert;
 mod protocol;

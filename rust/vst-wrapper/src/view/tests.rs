@@ -1,10 +1,10 @@
 use vst3::Steinberg::IPlugViewTrait;
 
 use super::create;
-use component::parameters;
+use conformal_component::parameters;
 struct DummyStore;
 
-impl component::parameters::store::Store for DummyStore {
+impl conformal_component::parameters::store::Store for DummyStore {
     fn get(&self, _unique_id: &str) -> Option<parameters::Value> {
         None
     }
@@ -37,7 +37,7 @@ fn nsview_platform_supported() {
     let v = create(
         DummyStore {},
         "test".to_string(),
-        ui::Size {
+        conformal_ui::Size {
             width: 100,
             height: 100,
         },
@@ -56,7 +56,7 @@ fn bananas_platform_not_supported() {
     let v = create(
         DummyStore {},
         "test".to_string(),
-        ui::Size {
+        conformal_ui::Size {
             width: 100,
             height: 100,
         },
@@ -76,7 +76,7 @@ fn defends_against_null_parent() {
     let v = create(
         DummyStore {},
         "test".to_string(),
-        ui::Size {
+        conformal_ui::Size {
             width: 100,
             height: 100,
         },

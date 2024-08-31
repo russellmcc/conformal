@@ -4,8 +4,8 @@ use vst3::{
     Steinberg::{IPlugView, IPlugViewTrait},
 };
 
-use component::parameters;
-use ui::{self, raw_window_handle, Size, Ui};
+use conformal_component::parameters;
+use conformal_ui::{self, raw_window_handle, Size, Ui};
 
 // Only include tests in test config on macos
 #[cfg(all(test, target_os = "macos"))]
@@ -55,7 +55,7 @@ impl<S> Deref for SharedView<S> {
     }
 }
 
-impl<S: parameters::store::Store> ui::ParameterStore for SharedStore<S> {
+impl<S: parameters::store::Store> conformal_ui::ParameterStore for SharedStore<S> {
     fn get(&self, unique_id: &str) -> Option<parameters::Value> {
         self.0.borrow().get(unique_id)
     }

@@ -12,8 +12,8 @@
     clippy::default_trait_access
 )]
 
+pub use conformal_ui::Size as UiSize;
 use core::slice;
-pub use ui::Size as UiSize;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HostInfo {
@@ -61,7 +61,7 @@ pub enum ExtraParameters {
 
 #[doc(hidden)]
 pub struct ParameterModel {
-    pub parameter_infos: Box<dyn Fn(&HostInfo) -> Vec<component::parameters::Info>>,
+    pub parameter_infos: Box<dyn Fn(&HostInfo) -> Vec<conformal_component::parameters::Info>>,
     pub extra_parameters: ExtraParameters,
 }
 
@@ -184,9 +184,9 @@ pub struct Info<'a> {
     pub version: &'a str,
 }
 
-use component::effect::Effect;
-use component::synth::Synth;
-use component::Component;
+use conformal_component::effect::Effect;
+use conformal_component::synth::Synth;
+use conformal_component::Component;
 
 use vst3::Steinberg::{IPluginBase, IPluginFactory2, IPluginFactory2Trait};
 use vst3::{Class, Steinberg::IPluginFactory};
@@ -259,7 +259,7 @@ macro_rules! wrap_factory {
         #[no_mangle]
         #[allow(non_snake_case, clippy::missing_safety_doc, clippy::missing_panics_doc)]
         pub unsafe extern "system" fn GetPluginFactory() -> *mut core::ffi::c_void {
-            let factory = vst_wrapper::_wrap_factory($CLASSES, $INFO);
+            let factory = conformal_vst_wrapper::_wrap_factory($CLASSES, $INFO);
             vst3::ComWrapper::new(factory)
                 .to_com_ptr::<vst3::Steinberg::IPluginFactory>()
                 .unwrap()

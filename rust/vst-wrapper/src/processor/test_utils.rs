@@ -6,7 +6,7 @@ use vst3::{
     },
 };
 
-use component::{
+use conformal_component::{
     events::{to_vst_note_id, Data, Event},
     parameters::hash_id,
     ProcessingMode,

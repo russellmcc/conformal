@@ -3,12 +3,14 @@
 use std::cell::RefCell;
 
 use crate::{ClassID, ComponentFactory};
-use component::audio::{Buffer, BufferMut, ChannelLayout};
-use component::effect::Effect;
-use component::events::{Event, Events};
-use component::parameters::{BufferStates, InfoRef};
-use component::synth::{Synth, CONTROLLER_PARAMETERS};
-use component::{Component, ProcessingEnvironment, ProcessingMode, Processor as ProcessorT};
+use conformal_component::audio::{Buffer, BufferMut, ChannelLayout};
+use conformal_component::effect::Effect;
+use conformal_component::events::{Event, Events};
+use conformal_component::parameters::{BufferStates, InfoRef};
+use conformal_component::synth::{Synth, CONTROLLER_PARAMETERS};
+use conformal_component::{
+    Component, ProcessingEnvironment, ProcessingMode, Processor as ProcessorT,
+};
 use serde::Serialize;
 use vst3::Steinberg::Vst::{
     IHostApplication, IProcessContextRequirements, IProcessContextRequirementsTrait,
@@ -36,7 +38,7 @@ pub mod state;
 mod parameters;
 
 struct InitializedData<C, CF> {
-    component: C,
+    conformal_component: C,
     params_main: parameters::MainStore,
     processing_environment: Option<PartialProcessingEnvironment>,
 
@@ -126,8 +128,8 @@ trait ActiveProcessorCategory<P> {
     ) -> Option<Self::ProcessBuffer<'a>>;
 
     fn handle_events<
-        E: IntoIterator<Item = component::events::Data> + Clone,
-        Parameters: component::parameters::States,
+        E: IntoIterator<Item = conformal_component::events::Data> + Clone,
+        Parameters: conformal_component::parameters::States,
     >(
         &self,
         processor: &mut P,
@@ -143,7 +145,7 @@ trait ProcessorCategory {
 
     fn create_processor<C: Component>(
         &self,
-        component: &C,
+        conformal_component: &C,
         env: &PartialProcessingEnvironment,
     ) -> C::Processor;
 
@@ -330,10 +332,10 @@ impl ProcessorCategory for SynthProcessorCategory {
 
     fn create_processor<C: Component>(
         &self,
-        component: &C,
+        conformal_component: &C,
         env: &PartialProcessingEnvironment,
     ) -> C::Processor {
-        component.create_processor(&make_env(env, self.channel_layout))
+        conformal_component.create_processor(&make_env(env, self.channel_layout))
     }
 
     unsafe fn set_bus_arrangements(
@@ -408,10 +410,10 @@ impl ProcessorCategory for EffectProcessorCategory {
 
     fn create_processor<C: Component>(
         &self,
-        component: &C,
+        conformal_component: &C,
         env: &PartialProcessingEnvironment,
     ) -> C::Processor {
-        component.create_processor(&make_env(env, self.channel_layout))
+        conformal_component.create_processor(&make_env(env, self.channel_layout))
     }
 
     unsafe fn get_bus_count(
@@ -621,8 +623,8 @@ impl<P: Effect> ActiveProcessorCategory<P> for ActiveEffectProcessorCategory {
     }
 
     fn handle_events<
-        E: IntoIterator<Item = component::events::Data> + Clone,
-        Parameters: component::parameters::States,
+        E: IntoIterator<Item = conformal_component::events::Data> + Clone,
+        Parameters: conformal_component::parameters::States,
     >(
         &self,
         processor: &mut P,
@@ -823,10 +825,10 @@ where
             host_info::get(&self.host.borrow().clone().unwrap()),
         ) {
             (State::ReadyForInitialization(factory), Some(host_info)) => {
-                let component = factory.create(&host_info);
+                let conformal_component = factory.create(&host_info);
                 let (params_main, params_processing) = parameters::create_stores(
                     {
-                        let mut infos = component.parameter_infos();
+                        let mut infos = conformal_component.parameter_infos();
                         infos.extend(
                             self.category
                                 .borrow()
@@ -839,7 +841,7 @@ where
                     .map(Into::into),
                 );
                 let s = State::Initialized(InitializedData {
-                    component,
+                    conformal_component,
                     params_main,
                     processing_environment: None,
                     process_context_active: false,
@@ -955,7 +957,7 @@ impl<CF: ComponentFactory<Component: Component<Processor: ProcessorT>>, PC: Proc
 
     unsafe fn setActive(&self, state: vst3::Steinberg::TBool) -> vst3::Steinberg::tresult {
         if let Some(State::Initialized(InitializedData {
-            component,
+            conformal_component,
             processing_environment: Some(env),
             process_context_active,
             ..
@@ -987,7 +989,10 @@ impl<CF: ComponentFactory<Component: Component<Processor: ProcessorT>>, PC: Proc
                 }
                 (ProcessContext::Inactive { params, processing }, true) => {
                     if let Some(category) = self.category.borrow().activate() {
-                        let mut processor = self.category.borrow().create_processor(component, env);
+                        let mut processor = self
+                            .category
+                            .borrow()
+                            .create_processor(conformal_component, env);
                         if processing {
                             processor.set_processing(true);
                         }
@@ -1149,7 +1154,7 @@ trait InternalProcessHelper<H> {
     ) -> vst3::Steinberg::tresult;
 }
 
-impl<H: ProcessBuffer, I: Iterator<Item = component::events::Event> + Clone>
+impl<H: ProcessBuffer, I: Iterator<Item = conformal_component::events::Event> + Clone>
     InternalProcessHelper<H> for Events<I>
 {
     unsafe fn do_process(
@@ -1184,7 +1189,7 @@ struct NoAudioProcessHelper<'a, P, C> {
 impl<
         'a,
         P: ProcessorT,
-        Iter: Iterator<Item = component::events::Data> + Clone,
+        Iter: Iterator<Item = conformal_component::events::Data> + Clone,
         C: ActiveProcessorCategory<P>,
     > InternalProcessHelper<NoAudioProcessHelper<'a, P, C>> for Iter
 {
@@ -1240,8 +1245,8 @@ impl<P: Synth> ActiveProcessorCategory<P> for ActiveSynthProcessorCategory {
     }
 
     fn handle_events<
-        E: IntoIterator<Item = component::events::Data> + Clone,
-        Parameters: component::parameters::States,
+        E: IntoIterator<Item = conformal_component::events::Data> + Clone,
+        Parameters: conformal_component::parameters::States,
     >(
         &self,
         processor: &mut P,

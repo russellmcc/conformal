@@ -11,8 +11,8 @@ import { addCICommand } from "./ci";
 import { addWebScriptCommand } from "./webScript";
 
 export const command = () => {
-  const command = new Command("scripts").description(
-    "This is a CLI entry point for various build-related scripts.",
+  const command = new Command("conformal-scripts").description(
+    "This is a CLI entry point for various build-related scripts related to the conformal audio framework.",
   );
 
   addBootstrapCommand(command);

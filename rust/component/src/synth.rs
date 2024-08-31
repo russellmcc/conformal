@@ -1,9 +1,9 @@
 use crate::{
+    audio::BufferMut,
     events::{self, Event, Events},
     parameters::{self, BufferStates, Flags, InfoRef, TypeSpecificInfoRef},
     Processor,
 };
-use audio::BufferMut;
 
 pub const PITCH_BEND_PARAMETER: &str = "pitch_bend";
 pub const MOD_WHEEL_PARAMETER: &str = "mod_wheel";

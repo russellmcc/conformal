@@ -1,5 +1,5 @@
 use super::protocol;
-use preferences::Value;
+use conformal_preferences::Value;
 
 impl From<Value> for protocol::Value {
     fn from(value: Value) -> Self {

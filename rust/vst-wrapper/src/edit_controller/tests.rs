@@ -16,10 +16,10 @@ use crate::processor::test_utils::{
 use crate::HostInfo;
 use crate::{dummy_host, from_utf16_buffer, to_utf16};
 use crate::{processor, ExtraParameters, ParameterModel};
-use component::audio::BufferMut;
-use component::events::{Data, Event, Events};
-use component::parameters::{self, hash_id, BufferStates, Flags, States, StaticInfoRef};
-use component::{
+use conformal_component::audio::BufferMut;
+use conformal_component::events::{Data, Event, Events};
+use conformal_component::parameters::{self, hash_id, BufferStates, Flags, States, StaticInfoRef};
+use conformal_component::{
     parameters::{store::Store, InfoRef, TypeSpecificInfoRef},
     synth::Synth,
     Component, ProcessingEnvironment, Processor,
@@ -234,7 +234,7 @@ fn dummy_edit_controller() -> impl IPluginBaseTrait + IEditControllerTrait + Get
             ExtraParameters::None,
         ),
         "dummy_domain".to_string(),
-        ui::Size {
+        conformal_ui::Size {
             width: 0,
             height: 0,
         },
@@ -1112,7 +1112,7 @@ fn panic_on_duplicate_ids() {
             ExtraParameters::None,
         ),
         "test_prefs".to_string(),
-        ui::Size {
+        conformal_ui::Size {
             width: 0,
             height: 0,
         },
@@ -1481,7 +1481,7 @@ fn defends_against_missing_bypass_param() {
             ExtraParameters::None,
         ),
         "dummy_domain".to_string(),
-        ui::Size {
+        conformal_ui::Size {
             width: 0,
             height: 0,
         },
@@ -1502,7 +1502,7 @@ fn defends_against_non_switch_bypass_param() {
             ExtraParameters::None,
         ),
         "dummy_domain".to_string(),
-        ui::Size {
+        conformal_ui::Size {
             width: 0,
             height: 0,
         },
@@ -1531,7 +1531,7 @@ fn defends_against_default_on_bypass_param() {
             ExtraParameters::None,
         ),
         "dummy_domain".to_string(),
-        ui::Size {
+        conformal_ui::Size {
             width: 0,
             height: 0,
         },
@@ -1559,7 +1559,7 @@ fn bypass_parameter_exposed() {
             ExtraParameters::None,
         ),
         "dummy_domain".to_string(),
-        ui::Size {
+        conformal_ui::Size {
             width: 0,
             height: 0,
         },
@@ -1607,7 +1607,7 @@ fn dummy_synth_edit_controller(
             ExtraParameters::SynthControlParameters,
         ),
         "dummy_domain".to_string(),
-        ui::Size {
+        conformal_ui::Size {
             width: 0,
             height: 0,
         },
@@ -1631,29 +1631,29 @@ fn synth_control_parameters_exposed() {
         };
         check_assignment(
             vst3::Steinberg::Vst::ControllerNumbers_::kPitchBend,
-            component::synth::PITCH_BEND_PARAMETER,
+            conformal_component::synth::PITCH_BEND_PARAMETER,
         );
         check_assignment(
             vst3::Steinberg::Vst::ControllerNumbers_::kCtrlModWheel,
-            component::synth::MOD_WHEEL_PARAMETER,
+            conformal_component::synth::MOD_WHEEL_PARAMETER,
         );
         check_assignment(
             vst3::Steinberg::Vst::ControllerNumbers_::kCtrlExpression,
-            component::synth::EXPRESSION_PARAMETER,
+            conformal_component::synth::EXPRESSION_PARAMETER,
         );
         check_assignment(
             vst3::Steinberg::Vst::ControllerNumbers_::kCtrlSustainOnOff,
-            component::synth::SUSTAIN_PARAMETER,
+            conformal_component::synth::SUSTAIN_PARAMETER,
         );
         check_assignment(
             vst3::Steinberg::Vst::ControllerNumbers_::kAfterTouch,
-            component::synth::AFTERTOUCH_PARAMETER,
+            conformal_component::synth::AFTERTOUCH_PARAMETER,
         );
 
         assert_eq!(ec.initialize(host.as_com_ref().unwrap().as_ptr()), 0);
         let store = ec.get_store().unwrap();
         assert_eq!(
-            store.get(component::synth::PITCH_BEND_PARAMETER),
+            store.get(conformal_component::synth::PITCH_BEND_PARAMETER),
             Some(parameters::Value::Numeric(0.0))
         );
     }

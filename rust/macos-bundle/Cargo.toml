@@ -1,5 +1,5 @@
 [package]
-name = "macos_bundle"
+name = "conformal_macos_bundle"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.79.0"

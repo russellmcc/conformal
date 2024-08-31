@@ -37,24 +37,24 @@ impl From<bool> for Value {
     }
 }
 
-impl From<component::parameters::Value> for Value {
-    fn from(value: component::parameters::Value) -> Self {
+impl From<conformal_component::parameters::Value> for Value {
+    fn from(value: conformal_component::parameters::Value) -> Self {
         match value {
-            component::parameters::Value::Numeric(value) => Value::Numeric(value),
-            component::parameters::Value::Enum(value) => Value::String(value),
-            component::parameters::Value::Switch(value) => Value::Bool(value),
+            conformal_component::parameters::Value::Numeric(value) => Value::Numeric(value),
+            conformal_component::parameters::Value::Enum(value) => Value::String(value),
+            conformal_component::parameters::Value::Switch(value) => Value::Bool(value),
         }
     }
 }
 
-impl TryFrom<Value> for component::parameters::Value {
+impl TryFrom<Value> for conformal_component::parameters::Value {
     type Error = ();
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         match value {
-            Value::Numeric(value) => Ok(component::parameters::Value::Numeric(value)),
-            Value::String(value) => Ok(component::parameters::Value::Enum(value)),
+            Value::Numeric(value) => Ok(conformal_component::parameters::Value::Numeric(value)),
+            Value::String(value) => Ok(conformal_component::parameters::Value::Enum(value)),
             Value::Bytes(_) => Err(()),
-            Value::Bool(value) => Ok(component::parameters::Value::Switch(value)),
+            Value::Bool(value) => Ok(conformal_component::parameters::Value::Switch(value)),
         }
     }
 }
@@ -125,10 +125,10 @@ pub mod parameter_info {
         Switch { default: bool },
     }
 
-    impl From<component::parameters::TypeSpecificInfo> for TypeSpecific {
-        fn from(info: component::parameters::TypeSpecificInfo) -> Self {
+    impl From<conformal_component::parameters::TypeSpecificInfo> for TypeSpecific {
+        fn from(info: conformal_component::parameters::TypeSpecificInfo) -> Self {
             match info {
-                component::parameters::TypeSpecificInfo::Numeric {
+                conformal_component::parameters::TypeSpecificInfo::Numeric {
                     default,
                     valid_range,
                     units,
@@ -137,11 +137,13 @@ pub mod parameter_info {
                     valid_range: (*valid_range.start(), *valid_range.end()),
                     units,
                 },
-                component::parameters::TypeSpecificInfo::Enum { default, values } => Self::Enum {
-                    default: values[default as usize].clone(),
-                    values,
-                },
-                component::parameters::TypeSpecificInfo::Switch { default } => {
+                conformal_component::parameters::TypeSpecificInfo::Enum { default, values } => {
+                    Self::Enum {
+                        default: values[default as usize].clone(),
+                        values,
+                    }
+                }
+                conformal_component::parameters::TypeSpecificInfo::Switch { default } => {
                     Self::Switch { default }
                 }
             }
@@ -154,8 +156,8 @@ pub mod parameter_info {
         pub type_specific: TypeSpecific,
     }
 
-    impl From<component::parameters::Info> for Info {
-        fn from(info: component::parameters::Info) -> Self {
+    impl From<conformal_component::parameters::Info> for Info {
+        fn from(info: conformal_component::parameters::Info) -> Self {
             Self {
                 title: info.title,
                 type_specific: info.type_specific.into(),

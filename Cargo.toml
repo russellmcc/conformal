@@ -4,7 +4,6 @@ members = [
     "rust/vst-wrapper",
     "rust/macos-bundle",
     "rust/preferences",
-    "rust/audio",
     "rust/component",
     "rust/ui",
 ]
