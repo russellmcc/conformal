@@ -5,8 +5,6 @@ runs:
   steps:
     - run: brew install oven-sh/bun/bun
       shell: bash
-    - run: bun run --if-present prepare
-      shell: bash
     - run: bun install --frozen-lockfile
       shell: bash
     - run: bun run bootstrap
