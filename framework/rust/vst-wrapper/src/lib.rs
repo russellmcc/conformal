@@ -259,7 +259,7 @@ macro_rules! wrap_factory {
         #[no_mangle]
         #[allow(non_snake_case, clippy::missing_safety_doc, clippy::missing_panics_doc)]
         pub unsafe extern "system" fn GetPluginFactory() -> *mut core::ffi::c_void {
-            let factory = vst_wrapper::_wrap_factory($CLASSES, $INFO);
+            let factory = conformal_vst_wrapper::_wrap_factory($CLASSES, $INFO);
             vst3::ComWrapper::new(factory)
                 .to_com_ptr::<vst3::Steinberg::IPluginFactory>()
                 .unwrap()

@@ -11,5 +11,5 @@ crate-type = ["cdylib"]
 
 [dependencies]
 p61_component = { path = "../component" }
-vst_wrapper = { path = "../../../../framework/rust/vst-wrapper" }
+conformal_vst_wrapper = { path = "../../../../framework/rust/vst-wrapper" }
 vst3 = "0.1.2"

@@ -246,6 +246,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "conformal_vst_wrapper"
+version = "0.1.0"
+dependencies = [
+ "assert_approx_eq",
+ "conformal_component",
+ "conformal_macos_bundle",
+ "conformal_ui",
+ "rmp-serde",
+ "serde",
+ "vst3",
+]
+
+[[package]]
 name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1944,19 +1957,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37c2c1284b0b2d0a1ddcd5ea7b1f74ea766a9a52e376f5402f02f217a629eee6"
 dependencies = [
  "com-scrape",
-]
-
-[[package]]
-name = "vst_wrapper"
-version = "0.1.0"
-dependencies = [
- "assert_approx_eq",
- "conformal_component",
- "conformal_macos_bundle",
- "conformal_ui",
- "rmp-serde",
- "serde",
- "vst3",
 ]
 
 [[package]]

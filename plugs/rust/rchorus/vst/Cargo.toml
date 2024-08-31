@@ -10,6 +10,6 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
-vst_wrapper = { path = "../../../../framework/rust/vst-wrapper" }
+conformal_vst_wrapper = { path = "../../../../framework/rust/vst-wrapper" }
 vst3 = "0.1.2"
 rchorus_component = { path = "../component" }
