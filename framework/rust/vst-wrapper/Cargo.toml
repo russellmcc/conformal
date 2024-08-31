@@ -13,7 +13,7 @@ conformal_macos_bundle = { path = "../macos-bundle" }
 vst3 = "0.1.2"
 serde = { version = "1.0.193", features = ["derive"] }
 conformal_component = { path = "../component" }
-ui = { path = "../ui" }
+conformal_ui = { path = "../ui" }
 rmp-serde = "1.1.2"
 
 [dev-dependencies]

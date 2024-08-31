@@ -234,7 +234,7 @@ fn dummy_edit_controller() -> impl IPluginBaseTrait + IEditControllerTrait + Get
             ExtraParameters::None,
         ),
         "dummy_domain".to_string(),
-        ui::Size {
+        conformal_ui::Size {
             width: 0,
             height: 0,
         },
@@ -1112,7 +1112,7 @@ fn panic_on_duplicate_ids() {
             ExtraParameters::None,
         ),
         "test_prefs".to_string(),
-        ui::Size {
+        conformal_ui::Size {
             width: 0,
             height: 0,
         },
@@ -1481,7 +1481,7 @@ fn defends_against_missing_bypass_param() {
             ExtraParameters::None,
         ),
         "dummy_domain".to_string(),
-        ui::Size {
+        conformal_ui::Size {
             width: 0,
             height: 0,
         },
@@ -1502,7 +1502,7 @@ fn defends_against_non_switch_bypass_param() {
             ExtraParameters::None,
         ),
         "dummy_domain".to_string(),
-        ui::Size {
+        conformal_ui::Size {
             width: 0,
             height: 0,
         },
@@ -1531,7 +1531,7 @@ fn defends_against_default_on_bypass_param() {
             ExtraParameters::None,
         ),
         "dummy_domain".to_string(),
-        ui::Size {
+        conformal_ui::Size {
             width: 0,
             height: 0,
         },
@@ -1559,7 +1559,7 @@ fn bypass_parameter_exposed() {
             ExtraParameters::None,
         ),
         "dummy_domain".to_string(),
-        ui::Size {
+        conformal_ui::Size {
             width: 0,
             height: 0,
         },
@@ -1607,7 +1607,7 @@ fn dummy_synth_edit_controller(
             ExtraParameters::SynthControlParameters,
         ),
         "dummy_domain".to_string(),
-        ui::Size {
+        conformal_ui::Size {
             width: 0,
             height: 0,
         },

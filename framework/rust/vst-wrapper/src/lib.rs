@@ -12,8 +12,8 @@
     clippy::default_trait_access
 )]
 
+pub use conformal_ui::Size as UiSize;
 use core::slice;
-pub use ui::Size as UiSize;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HostInfo {

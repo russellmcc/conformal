@@ -37,7 +37,7 @@ fn nsview_platform_supported() {
     let v = create(
         DummyStore {},
         "test".to_string(),
-        ui::Size {
+        conformal_ui::Size {
             width: 100,
             height: 100,
         },
@@ -56,7 +56,7 @@ fn bananas_platform_not_supported() {
     let v = create(
         DummyStore {},
         "test".to_string(),
-        ui::Size {
+        conformal_ui::Size {
             width: 100,
             height: 100,
         },
@@ -76,7 +76,7 @@ fn defends_against_null_parent() {
     let v = create(
         DummyStore {},
         "test".to_string(),
-        ui::Size {
+        conformal_ui::Size {
             width: 100,
             height: 100,
         },
