@@ -52,10 +52,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "audio"
-version = "0.1.0"
-
-[[package]]
 name = "autocfg"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -276,7 +272,6 @@ dependencies = [
 name = "component"
 version = "0.1.0"
 dependencies = [
- "audio",
  "fxhash",
  "itertools 0.13.0",
  "serde",
@@ -286,7 +281,6 @@ dependencies = [
 name = "component_benchmarks"
 version = "0.1.0"
 dependencies = [
- "audio",
  "component",
  "criterion",
  "fxhash",

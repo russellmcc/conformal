@@ -7,7 +7,6 @@ license = "ISC"
 publish = false
 
 [dependencies]
-audio = { path = "../../../../framework/rust/audio" }
 component = { path = "../../../../framework/rust/component", features = ["test-utils"] }
 fxhash = "0.2.1"
 serde = { version = "1.0.193", features = ["derive"] }

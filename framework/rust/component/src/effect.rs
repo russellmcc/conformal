@@ -1,5 +1,5 @@
+use crate::audio::{Buffer, BufferMut};
 use crate::{parameters, parameters::BufferStates, Processor};
-use audio::{Buffer, BufferMut};
 
 pub trait Effect: Processor {
     /// Handle parameter changes without processing any data.

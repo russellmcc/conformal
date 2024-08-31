@@ -7,14 +7,9 @@ license = "ISC"
 publish = false
 
 [dependencies]
-audio = { path = "../audio" }
 fxhash = "0.2.1"
 serde = { version = "1.0.193", features = ["derive"] }
 itertools = "0.13.0"
 
 [features]
 test-utils = []
-
-[dev-dependencies]
-audio = { path = "../audio", features = ["test-utils"] }
-criterion = { version = "0.3" }

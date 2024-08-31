@@ -14,11 +14,11 @@
     clippy::default_trait_access
 )]
 
+pub mod audio;
 pub mod effect;
 pub mod events;
 pub mod parameters;
 pub mod synth;
-pub use audio;
 
 #[doc(hidden)]
 pub use itertools;

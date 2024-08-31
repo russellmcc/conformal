@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use audio::{BufferData, BufferMut, ChannelLayout};
 use component::{
+    audio::{BufferData, BufferMut, ChannelLayout},
     effect::Effect,
     events,
     parameters::{
