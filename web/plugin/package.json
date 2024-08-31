@@ -7,7 +7,7 @@
     "check-format": "prettier --ignore-path .gitignore -c .",
     "format": "prettier --ignore-path .gitignore --write ."
   },
-  "author": "",
+  "author": "Conformal Authors",
   "main": "src/index.ts",
   "license": "ISC",
   "dependencies": {
