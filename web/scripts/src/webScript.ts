@@ -4,10 +4,11 @@ import runShell from "./runShell";
 import { Command } from "@commander-js/extra-typings";
 
 export const execute = async (
-  whichPackage: string,
+  whichPackage: string | undefined,
   script: string,
   args: string[],
 ) => {
+  whichPackage ??= "*";
   if (whichPackage.includes("*")) {
     await runShell(["bun", "run", "--filter", whichPackage, script, ...args]);
   } else {
@@ -22,7 +23,7 @@ export const addWebScriptCommand = (command: Command): void => {
     .command("web-script")
     .description("Run a script in a specific web package")
     .requiredOption("-s, --script <script>", "The script to run")
-    .arguments("<package>")
+    .arguments("[package]")
     .arguments("[args...]")
     .allowUnknownOption()
     .action(async (p, args, { script }) => {

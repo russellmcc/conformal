@@ -1,7 +1,8 @@
 {
-  "name": "@conformal/scripts",
+  "name": "conformal-internal-scripts",
   "version": "0.0.0",
-  "description": "Build scripts for the conformal audio plug-in framework",
+  "description": "Build scripts for building the conformal audio framework itself",
+  "private": true,
   "homepage": "https://github.com/russellmcc/conformal",
   "bugs": "https://github.com/russellmcc/conformal/issues",
   "license": "ISC",
@@ -12,7 +13,7 @@
     "validate": "echo 'dummy validation'"
   },
   "bin": {
-    "conformal-scripts": "./src/index.ts"
+    "conformal-internal-scripts": "./src/index.ts"
   },
   "type": "module",
   "dependencies": {

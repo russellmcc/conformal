@@ -1,7 +1,11 @@
 [package]
 name = "conformal_preferences"
-version = "0.1.0"
+version = "0.0.0"
 edition = "2021"
+license = "ISC"
+description = "Utilities for persistent user preferences used by the conformal audio plug-in framework."
+repository = "https://github.com/russellmcc/conformal"
+readme = "../../README.md"
 
 [dependencies]
 serde = { version = "1.0.193", features = ["derive"] }

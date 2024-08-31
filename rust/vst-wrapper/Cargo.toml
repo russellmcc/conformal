@@ -1,19 +1,21 @@
 [package]
 name = "conformal_vst_wrapper"
-version = "0.1.0"
+version = "0.0.0"
 edition = "2021"
 rust-version = "1.79.0"
 license = "ISC"
-publish = false
+description = "Implements a VST3-compatible plug-in for audio processors implemented with the conformal audio plug-in framework."
+repository = "https://github.com/russellmcc/conformal"
+readme = "../../README.md"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-conformal_macos_bundle = { path = "../macos-bundle" }
+conformal_macos_bundle = { version = "0.0.0",  path = "../macos-bundle" }
 
 [dependencies]
 vst3 = "0.1.2"
 serde = { version = "1.0.193", features = ["derive"] }
-conformal_component = { path = "../component" }
-conformal_ui = { path = "../ui" }
+conformal_component = { version = "0.0.0", path = "../component" }
+conformal_ui = { version = "0.0.0", path = "../ui" }
 rmp-serde = "1.1.2"
 
 [dev-dependencies]
