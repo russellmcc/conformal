@@ -1,0 +1,5 @@
+/target
+.DS_Store
+/node_modules/
+/.env
+/web/**/installer_resources/license.txt

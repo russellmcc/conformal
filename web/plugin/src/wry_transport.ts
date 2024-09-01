@@ -5,6 +5,7 @@ import Transport from "./transport";
 
 // Declare the the special IPC type from Wry.
 declare global {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
   interface Window {
     ipc:
       | {

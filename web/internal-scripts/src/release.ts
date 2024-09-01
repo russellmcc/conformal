@@ -2,12 +2,21 @@ import { Command } from "@commander-js/extra-typings";
 import { setVersion } from "./setVersion";
 import { $ } from "bun";
 
-export const release = async (tag: string) => {
+export const release = async (
+  tag: string,
+  { skipPublish }: { skipPublish?: boolean },
+) => {
+  skipPublish ??= false;
+
   if (!tag.startsWith("v")) {
     throw new Error("Version tag must start with 'v'");
   }
   const version = tag.slice(1);
   await setVersion(version);
+
+  if (skipPublish) {
+    return;
+  }
 
   // Publish cargo packages
   // Note that because of https://github.com/rust-lang/cargo/issues/1169
@@ -26,7 +35,8 @@ export const addReleaseCommand = (command: Command) => {
     .command("release")
     .description("Release a new version to match the given tag")
     .arguments("<tag>")
-    .action(async (tag) => {
-      await release(tag);
+    .option("--skip-publish", "Skip publishing to npm and cargo")
+    .action(async (tag, opts) => {
+      await release(tag, opts);
     });
 };

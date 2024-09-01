@@ -85,16 +85,16 @@ More info [here](https://developer.apple.com/documentation/security/notarizing_m
     );
   }
 
-  interface ManifestEntry {
+  type ManifestEntry = {
     local: string;
     dest: string;
     sign: boolean;
-  }
+  };
 
-  interface InternalPkgData {
+  type InternalPkgData = {
     ident: string;
     path: string;
-  }
+  };
 
   const makeInternalPkg = async (
     items: ManifestEntry[],

@@ -9,7 +9,7 @@ export type Family<T> = (
 // Note that this can throw on error.
 export type ExtendedInfo<T> = (b: Uint8Array) => T;
 
-export interface Stores {
+export type Stores = {
   generic: Family<Value>;
   numeric: Family<number>;
   string: Family<string>;
@@ -17,12 +17,12 @@ export interface Stores {
   bytes: Family<Uint8Array>;
   grabbed: (path: string) => WritableAtom<null, [boolean], void>;
   extended: <T>(pathInfo: [string, ExtendedInfo<T>]) => Atom<Promise<T> | T>;
-}
+};
 
-interface TypedInfo<T> {
+type TypedInfo<T> = {
   to: (x: Value) => T | undefined;
   from(x: T): Value;
-}
+};
 
 const numberInfo: TypedInfo<number> = {
   to: (x) => {

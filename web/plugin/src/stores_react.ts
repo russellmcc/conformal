@@ -41,10 +41,10 @@ export const useBytesValue = (path: string): Uint8Array =>
 
 export const useBytesAtom = (path: string) => useAtom(useStores().bytes(path));
 
-export interface Grab {
+export type Grab = {
   grab: () => void;
   release: () => void;
-}
+};
 
 export const useGrab = (path: string): Grab => {
   const storage = useStores();

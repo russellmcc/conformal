@@ -1,12 +1,12 @@
 import React, { ReactNode } from "react";
 
-export interface Props {
+export type Props = {
   children?: ReactNode;
-}
+};
 
-interface State {
+type State = {
   hasError: boolean;
-}
+};
 
 class IgnoreErrorBoundary extends React.Component<Props, State> {
   constructor(props: Props) {

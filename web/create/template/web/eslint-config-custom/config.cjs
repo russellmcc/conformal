@@ -35,6 +35,7 @@ module.exports = {
       },
     ],
     "@typescript-eslint/consistent-type-definitions": ["error", "type"],
+    "no-warning-comments": "error",
   },
   settings: {
     react: {
