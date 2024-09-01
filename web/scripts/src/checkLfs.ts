@@ -19,7 +19,9 @@ const lfsFiles = async function* () {
     if (line === "") continue;
     const fullRepoPath = line.split(" ").slice(2).join(" ");
     if (!fullRepoPath.startsWith(relPath)) continue;
-    yield fullRepoPath.slice(relPath.length + 1);
+    yield relPath.length
+      ? fullRepoPath.slice(relPath.length + 1)
+      : fullRepoPath;
   }
 };
 
