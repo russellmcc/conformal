@@ -1,0 +1,9 @@
+[package]
+name = "{{plug_slug}}_component"
+edition = "2021"
+rust-version = "1.79.0"
+publish = false
+
+[dependencies]
+conformal_vst_wrapper = "0.1.0"
+conformal_component = "0.1.0"

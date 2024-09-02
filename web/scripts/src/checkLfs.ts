@@ -5,6 +5,7 @@ import { Command } from "@commander-js/extra-typings";
 
 // Note this is totally cromulent in bun
 declare global {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
   interface Set<T> {
     difference(other: Set<T>): Set<T>;
   }

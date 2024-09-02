@@ -1,0 +1,47 @@
+{
+  "name": "{{proj_slug}}",
+  "private": true,
+  "workspaces": [
+    "web/*"
+  ],
+  "scripts": {
+    "bootstrap": "conformal-scripts bootstrap",
+    "ci": "conformal-scripts ci",
+    "check-lfs": "conformal-scripts check-lfs",
+    "check-todo": "conformal-scripts check-todo",
+    "check-format": "conformal-scripts check-format",
+    "format": "conformal-scripts format",
+    "web-dev": "conformal-scripts web-script -s dev",
+    "web-build": "conformal-scripts web-script -s build",
+    "web-lint": "conformal-scripts web-script -s lint",
+    "web-test": "bun test",
+    "rust-miri": "PROPTEST_DISABLE_FAILURE_PERSISTENCE=true MIRIFLAGS='-Zmiri-env-forward=PROPTEST_DISABLE_FAILURE_PERSISTENCE' conformal-scripts cargo +nightly miri test",
+    "rust-build": "conformal-scripts cargo build",
+    "rust-lint": "conformal-scripts cargo clippy",
+    "rust-test": "conformal-scripts cargo test",
+    "rust-bench": "conformal-scripts cargo bench",
+    "package": "conformal-scripts web-script -s package",
+    "validate": "conformal-scripts web-script -s validate"
+  },
+  "devDependencies": {
+    "@types/bun": "1.1.0",
+    "@typescript-eslint/eslint-plugin": "^7.7.0",
+    "@typescript-eslint/parser": "^7.7.0",
+    "@vitejs/plugin-react-swc": "^3.6.0",
+    "@types/react": "^18.2.79",
+    "@types/react-dom": "^18.2.25",
+    "eslint": "^8.57.0",
+    "eslint-plugin-prefer-arrow-functions": "^3.3.2",
+    "eslint-plugin-react": "^7.34.1",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.6",
+    "prettier": "^3.2.5",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.9",
+    "@conformal/scripts": "workspace:*",
+    "@conformal/plugin": "workspace:*",
+    "rollup-plugin-license": "^3.4.0"
+  }
+}

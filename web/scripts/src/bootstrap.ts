@@ -5,11 +5,11 @@ import { Command } from "@commander-js/extra-typings";
 const RUST_VERSION = "1.79.0";
 const VST3_VERSION = "v3.7.8_build_34";
 
-interface Tool {
+type Tool = {
   name: string;
   check(): Promise<boolean>;
   install(): Promise<void>;
-}
+};
 
 // Note that we work around some odd ld behavior by using `lld`
 const brew = (name: string): Tool => ({

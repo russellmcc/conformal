@@ -9,10 +9,10 @@ import {
 } from "./stores_react";
 
 const infoExtended = (b: Uint8Array) => Info.parse(decode(b));
-interface TypedInfo<T, I> {
+type TypedInfo<T, I> = {
   infoTransformer: (info: Info) => I;
   atomGetter: (path: string) => [T, (v: T) => void];
-}
+};
 
 const makeUseParam =
   <T, I>(typedInfo: TypedInfo<T, I>) =>

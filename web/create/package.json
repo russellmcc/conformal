@@ -1,6 +1,7 @@
 {
-  "name": "conformal-internal-scripts",
-  "description": "Build scripts for building the conformal audio framework itself",
+  "name": "create-conformal",
+  "version": "0.0.0",
+  "description": "Project generator script for conformal projects",
   "private": true,
   "homepage": "https://github.com/russellmcc/conformal",
   "bugs": "https://github.com/russellmcc/conformal/issues",
@@ -8,15 +9,14 @@
   "scripts": {
     "lint": "tsc && eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "check-format": "prettier --ignore-path .gitignore -c .",
-    "format": "prettier --ignore-path .gitignore --write .",
-    "validate": "echo 'dummy validation'"
+    "format": "prettier --ignore-path .gitignore --write ."
   },
   "bin": "./src/index.ts",
   "type": "module",
   "dependencies": {
     "@commander-js/extra-typings": "^12.1.0",
+    "@inquirer/prompts": "^5.3.8",
     "commander": "^12.1.0",
-    "tmp-promise": "^3.0.3",
-    "zod": "^3.23.8"
+    "handlebars": "^4.7.8"
   }
 }
