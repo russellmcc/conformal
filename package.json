@@ -1,6 +1,5 @@
 {
-  "name": "framework",
-  "version": "0.0.0",
+  "name": "conformal",
   "private": true,
   "workspaces": [
     "web/*"

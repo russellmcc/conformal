@@ -1,6 +1,5 @@
 {
   "name": "conformal-internal-scripts",
-  "version": "0.0.0",
   "description": "Build scripts for building the conformal audio framework itself",
   "private": true,
   "homepage": "https://github.com/russellmcc/conformal",
