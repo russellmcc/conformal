@@ -1,15 +1,13 @@
-{{task_marker}}: Add end-user license information here! This file will be shown in the installer.
-
-This program was created using a variety of open source software,
-whose licenses are listed below. All distributions of this software
+{{task_marker}}: Add end-user license information here! This file will be shown
+in the installer. This program was created using a variety of open source
+software, whose licenses are listed below. All distributions of this software
 must contain these license notices.
 
 \{{#each licenses}}
-\{{#each used_by}}
------
-\{{crate.name}} \{{crate.version}} (\{{{../name}}})
+\{{#each used_by}} -----
+\{{crate.name}}
+\{{crate.version}} (\{{{../name}}})
 
 \{{{../text}}}
 \{{/each}}
 \{{/each}}
-
