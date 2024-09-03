@@ -1,0 +1,68 @@
+name: Release
+run-name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: "true"
+      # This is from https://docs.github.com/en/actions/use-cases-and-examples/deploying/installing-an-apple-certificate-on-macos-runners-for-xcode-development
+      - name: Install the Apple certificate and provisioning profile
+        env:
+          APPLICATION_P12_BASE64: $\{{ secrets.APPLICATION_P12_BASE64 }}
+          APPLICATION_P12_PASSWORD: $\{{ secrets.APPLICATION_P12_PASSWORD }}
+          INSTALLER_P12_BASE64: $\{{ secrets.INSTALLER_P12_BASE64 }}
+          INSTALLER_P12_PASSWORD: $\{{ secrets.INSTALLER_P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: $\{{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          # create variables
+          APPLICATION_PATH=$RUNNER_TEMP/application.p12
+          INSTALLER_PATH=$RUNNER_TEMP/installer.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+          # import certificate and provisioning profile from secrets
+          echo -n "$APPLICATION_P12_BASE64" | base64 --decode -o $APPLICATION_PATH
+          echo -n "$INSTALLER_P12_BASE64" | base64 --decode -o $INSTALLER_PATH
+
+          # create temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          # import certificate to keychain
+          security import $APPLICATION_PATH -P "$APPLICATION_P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security import $INSTALLER_PATH -P "$INSTALLER_P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH > /dev/null
+      - name: Log in to notarytool
+        env:
+          NOTARYTOOL_CREDENTIALS_KEYCHAIN_ITEM: $\{{ secrets.NOTARYTOOL_CREDENTIALS_KEYCHAIN_ITEM }}
+          NOTARYTOOL_APPLE_ID: $\{{ secrets.NOTARYTOOL_APPLE_ID }}
+          NOTARYTOOL_DEVELOPER_TEAM_ID: $\{{ secrets.NOTARYTOOL_DEVELOPER_TEAM_ID }}
+          NOTARYTOOL_PASSWORD: $\{{ secrets.NOTARYTOOL_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db        
+          xcrun notarytool store-credentials "$NOTARYTOOL_CREDENTIALS_KEYCHAIN_ITEM" --apple-id "$NOTARYTOOL_APPLE_ID" --team-id "$NOTARYTOOL_DEVELOPER_TEAM_ID" --password "$NOTARYTOOL_PASSWORD" --keychain "$KEYCHAIN_PATH"
+      - uses: ./.github/actions/bootstrap
+      - run: bun run ci
+      - run: NOTARYTOOL_KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db bun run package {{plug_slug}} --dist
+        env:
+          DEVELOPER_ID_APPLICATION: $\{{ secrets.DEVELOPER_ID_APPLICATION }}
+          DEVELOPER_ID_INSTALLER: $\{{ secrets.DEVELOPER_INSTALLER_ID }}
+          NOTARYTOOL_CREDENTIALS_KEYCHAIN_ITEM: $\{{ secrets.NOTARYTOOL_CREDENTIALS_KEYCHAIN_ITEM }}
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: $\{{ contains(github.ref, '-') }}
+          body: "Release $\{{ github.ref_name }}" # Prevent auto generation of release notes
+          files: |
+            target/release/{{plug_name}}.dmg
