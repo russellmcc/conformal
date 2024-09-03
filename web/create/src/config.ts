@@ -6,6 +6,7 @@ export type Config = {
   proj_slug: string;
   plug_slug: string;
   plug_name: string;
+  vendor_name: string;
 };
 
 type ConfigMetadata = {
@@ -28,15 +29,24 @@ export const toEnv = (
 const metadatas: ConfigMetadata[] = [
   {
     key: "proj_slug",
-    prompt: "Project slug (lower snake_case, e.g. `my_project`)?",
+    prompt: "Project slug (lower snake_case, e.g. `my_project`)",
     description: "Slug for the project in lower snake_case, e.g. `my_project`",
+    default: "my_project",
   },
   {
     key: "plug_slug",
-    prompt: "Plug-in slug (lower snake_case, e.g. `my_plugin`)?",
+    prompt: "Plug-in slug (lower snake_case, e.g. `my_plugin`)",
     description:
       "The name of the first plug-in in lower snake_case, e.g. `my_plugin`",
     default: "my_plugin",
+  },
+  {
+    key: "vendor_name",
+    prompt:
+      'Human-readable vendor name (DAWs often present plug-ins grouped by vendor).  e.g., "My Project"?',
+    description:
+      "Human-readable vendor name, e.g. `My Project`. DAWs often present plug-ins grouped by vendor",
+    default: "My Project",
   },
   {
     key: "plug_name",
