@@ -2,7 +2,6 @@
   "name": "create-conformal",
   "version": "0.0.0",
   "description": "Project generator script for conformal projects",
-  "private": true,
   "homepage": "https://github.com/russellmcc/conformal",
   "bugs": "https://github.com/russellmcc/conformal/issues",
   "license": "ISC",
