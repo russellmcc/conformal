@@ -9,6 +9,7 @@ const TEST_CONFIG: Config = {
   proj_slug: "test",
   plug_slug: "test_plug",
   plug_name: "Test Plug",
+  vendor_name: "Test Project",
 };
 
 const MINUTE = 60_000;

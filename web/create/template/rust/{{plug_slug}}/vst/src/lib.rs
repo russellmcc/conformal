@@ -41,7 +41,7 @@ conformal_vst_wrapper::wrap_factory!(
         }]
     },
     Info {
-        vendor: "{{task_marker}} add vendor",
+        vendor: "{{vendor_name}}",
         url: "{{task_marker}} add URL",
         email: "test@example.com",
         version: "1.0.0",
