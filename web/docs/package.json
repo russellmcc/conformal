@@ -1,0 +1,16 @@
+{
+  "name": "docs",
+  "description": "Documentation site",
+  "private": true,
+  "homepage": "https://github.com/russellmcc/conformal",
+  "bugs": "https://github.com/russellmcc/conformal/issues",
+  "license": "ISC",
+  "scripts": {
+    "lint": "tsc && eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "check-format": "prettier -c .",
+    "format": "prettier --write .",
+    "dev": "bun x --bun next dev",
+    "build": "bun x --bun next build"
+  },
+  "type": "module"
+}
