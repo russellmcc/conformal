@@ -3,7 +3,10 @@ import { Command } from "@commander-js/extra-typings";
 
 export const execute = async (args: readonly string[]) => {
   const cargoArgs: string[] = ["cargo", ...args];
-  if (!args.includes("+nightly")) {
+  // Disallow warnings if the CI environment variable is set.
+  // exception - never disallow warnings when building on nightly,
+  // because the set of available warnings changes every night!
+  if (process.env.CI && !args.includes("+nightly")) {
     cargoArgs.push(
       '--config=target.\'cfg(all())\'.rustflags = ["-D", "warnings"]',
     );
