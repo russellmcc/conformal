@@ -17,10 +17,7 @@ unsafe fn autoreleased_nsstring(s: &str) -> *mut Object {
 
 unsafe fn with_user_defaults<F: FnOnce(*mut Object)>(f: F, domain: &str) {
     let user_defaults_class = objc::class!(NSUserDefaults);
-    let nsstring = objc::class!(NSString);
-
-    let domain_string: *mut Object =
-        objc::msg_send![nsstring, stringWithUTF8String: domain.as_ptr()];
+    let domain_string = autoreleased_nsstring(domain);
     let user_defaults_alloc: *mut Object = objc::msg_send![user_defaults_class, alloc];
     let user_defaults: *mut Object =
         objc::msg_send![user_defaults_alloc, initWithSuiteName: domain_string];
