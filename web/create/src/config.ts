@@ -23,6 +23,7 @@ export const toEnv = (
   ...config,
   class_id: uuidHex(),
   edit_class_id: uuidHex(),
+  gitignore: ".gitignore",
   task_marker: skipTodo ? "DONE" : "TOD" + "O",
 });
 
