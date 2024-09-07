@@ -23,7 +23,7 @@ export const checkTodos = async (): Promise<boolean> => {
   }
 
   const relevantFiles = await Array.fromAsync(
-    filter($`git ls-files -oc`.lines(), (f) =>
+    filter($`git ls-files -oc --exclude-standard`.lines(), (f) =>
       [".rs", ".hbs", ".json"].some((ext) => f.endsWith(ext)),
     ),
   );
