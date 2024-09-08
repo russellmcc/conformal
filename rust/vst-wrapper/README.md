@@ -1,0 +1,1 @@
+This crate contains code to wrap a [conformal_component::Component] in a [VST3](https://steinbergmedia.github.io/vst3_dev_portal/pages/index.html)-compatible plug-in.

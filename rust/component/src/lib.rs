@@ -1,5 +1,3 @@
-//! This crate defines abstractions for audio processing components.
-
 #![warn(
     nonstandard_style,
     rust_2018_idioms,
@@ -13,6 +11,8 @@
     clippy::cast_possible_wrap,
     clippy::default_trait_access
 )]
+#![doc = include_str!("../../docs_boilerplate.md")]
+#![doc = include_str!("../README.md")]
 
 pub mod audio;
 pub mod effect;
