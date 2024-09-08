@@ -19,7 +19,7 @@ export const deployDocs = async () => {
       await $`cp -r target/doc ${tmpDir}/rust-doc`.cwd(workspacePath);
 
       // Deploy the temporary diretory
-      console.log("Deploying documentation...");
+      console.log("Deploying documentation...", Date.now());
       await publish(
         tmpDir,
         {
@@ -32,7 +32,7 @@ export const deployDocs = async () => {
           // do nothing
         },
       );
-      console.log("Documentation deployed!");
+      console.log("Documentation deployed!", Date.now());
     },
     { unsafeCleanup: true },
   );

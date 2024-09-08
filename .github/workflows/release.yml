@@ -19,5 +19,6 @@ jobs:
       - run: bun run release ${{ github.ref_name }}
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_DEBUG: gh-pages
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
