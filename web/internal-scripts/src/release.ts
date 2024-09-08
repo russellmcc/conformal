@@ -21,6 +21,9 @@ export const release = async (
 
   await deployDocs();
 
+  // For testing, do not publish any packages!
+  return;
+
   // Publish cargo packages
   // Note that because of https://github.com/rust-lang/cargo/issues/1169
   // We can't do this natively in cargo but have to use some third-party tool.
