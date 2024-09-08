@@ -27,6 +27,7 @@ export const deployDocs = async () => {
             name: "github-actions-bot",
             email: "support+actions@github.com",
           },
+          repo: `https://git:${process.env.GITHUB_TOKEN}@github.com/${process.env.GITHUB_REPOSITORY}.git`,
         },
         () => {
           // do nothing
