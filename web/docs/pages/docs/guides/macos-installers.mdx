@@ -1,1 +1,146 @@
-yo
+import { Callout, Steps } from "nextra/components";
+
+# Building macOS Installers for Conformal Projects
+
+Confromal contains helpers to build macOS installers for your project, although a bit of set-up is required. There are two ways you can make an installer:
+
+1.  Locally, on your own macOS computer
+2.  With GitHub Actions
+
+This guide will cover both methods.
+
+## Common Set-up
+
+These steps need to be done regardless of the method you choose.
+
+<Steps>
+### Enroll in the Apple Developer Program
+
+To sign and notarize your plug-in, it's required to enroll in the [Apple Developer Program](https://developer.apple.com/programs/). This program costs money 💸. It is possible to distribute unsigned software on macOS platforms, but this use-case is not currently supported by the Conformal's scripts (PRs welcome!)
+
+### Add license information to `about.hbs`
+
+This guide is not legal advice!
+
+It's important to set licensing terms before distributing your plug-in. Any license information in `about.hbs` will be shown to users as part of the install process. Note that required license information for dependencies directly included in `Cargo.toml` or `package.json` files will be automatically included, but it pays to double check as **you** are responsible for satisfying the license requirements of any dependencies you distribute as part of the installer.
+
+<Callout type="warning">
+  Your installer package *will* include code derived from Steinberg's VST3 SDK,
+  so absent a special arrangement with Steinberg, you must distribute your
+  plug-in under the GNU Public License (GPL) version 3 or later.
+</Callout>
+
+### Ensure `bundle.json` metadata is correct
+
+In `web/<your-plugin-name>/bundle.json`, ensure that the `id` and `sig` fields are unique to your project.
+
+- `sig` is a four-character code that refers to your plug-in vendor in some formats. While it can be shared between _plug-ins_, it should be unique to you.
+- `id` is the bundle identifier for your plug-in. This should be unique to your plug-in and scoped to your project, something like `com.yourvendor.yourplugin`.
+
+### Install Xcode
+
+The full version of Xcode (not only the command line tools) is required. The easiest way to get Xcode is through the App Store application, but you can use any method you are comfortable with.
+
+### Add Signing Certificates to Keychain
+
+- Open Xcode
+- In the Menu Bar, go to "Xcode" -> "Settings"
+- In the settings window, go to "Accounts"
+- Click the `+` button in the bottom left corner and add your Apple ID, then sign-in.
+- After the account loads, select your "Team" and click "Manage Certificates" in the lower right
+- Click the `+` button in the lower left corner and add a "Developer ID Application" certificate
+- Click the `+` button in the lower left corner and add a "Developer ID Installer" certificate
+- To ensure these certificates are in your Keychain, open the "Keychain Access" application. They should be in the "My Certificates" category of the "login" keychain.
+
+</Steps>
+
+## Building Installer Locally
+
+To build an installer on your macOS computer, follow these steps. Apple seems to change UI placement quite often, so if anything seems out of date please provide feedback on GitHub.
+
+<Steps>
+### Add Certificates to your `.env` file
+
+- Open the `.env` file in the root of your project, or create one if it doesn't exist.
+- In the `.env` file, set the `DEVELOPER_ID_APPLICATION` and `DEVELOPER_ID_INSTALLER` variables to the names of the certificates in the keychain. The names should be the same as they appear in the "Keychain Access" application:
+
+```
+DEVELOPER_ID_APPLICATION="Developer ID Application: <Team Name> (<DeveloperTeamID>)"
+DEVELOPER_ID_INSTALLER="Developer ID Installer: <Team Name> (<DeveloperTeamID>)"
+```
+
+### Sign in to notarization with an app-specific password
+
+Notarizing the installer requires an app-specific password. Apple provides documentation [here](https://support.apple.com/en-us/HT204397) on how to create one. Once you have it, we can store notarization authorization in the keychain by running the following command
+
+```sh copy
+xcrun notarytool store-credentials "notarytool-auth"
+               --apple-id "<AppleID>"
+               --team-id "<DeveloperTeamID>"
+               --password "<AppSpecificPassword>"
+```
+
+Here :
+
+- `notarytool-auth` is the name of the keychain item that we will create, and this is arbitrary, feel free to change this.
+- `<AppleID>` is your Apple ID, usually an e-mail address.
+- `<DeveloperTeamID>` is your Apple Developer Team ID. This is shown in the Apple Developer Portal, and also it appears in parentheses in the certificate names in the previous step.
+
+### Add the notary tool auth to your `.env` file
+
+In the `.env` file, set the `NOTARYTOOL_CREDENTIALS_KEYCHAIN_ITEM` variable to the name of the keychain item you created in the previous step:
+
+```
+NOTARYTOOL_CREDENTIALS_KEYCHAIN_ITEM="notarytool-auth"
+```
+
+### Build the Installer
+
+With that set-up out of the way, you should be able to build an installer by running the following command from the root of your project, with `<plugin_slug>` set to the name of the web package for the plug-in.
+
+```sh copy
+bun run package "<plugin_slug>" --dist
+```
+
+</Steps>
+
+## Building Installer with GitHub Actions
+
+A workflow to build an installer with GitHub Actions is provided in the template project, so it should already be there if you used `bun create conformal` to create your project. In the template, this workflow will run whenever a version tag is pushed to the repo. If you set-up your project some other way, you can copy the workflow in `web/create/template/.github/workflows/release.yml`.
+
+The workflow needs to access several secrets in the repository. This guide will describe which secrets are needed, but please follow GitHub's documentation for how to add repository secrets.
+
+<Steps>
+### Add a password for the temporary keychain
+
+The action will create a temporary keychain to store credentials. This keychain will be guarded by a password stored in a GitHub repository secret named `KEYCHAIN_PASSWORD`. This can be any password you choose.
+
+### Add certificates in Base64-encoded `p12` format
+
+Using [github documentation](https://docs.github.com/en/actions/use-cases-and-examples/deploying/installing-an-apple-certificate-on-macos-runners-for-xcode-development#creating-secrets-for-your-certificate-and-provisioning-profile), add the follwing secrets to your repo:
+
+- `APPLICATION_P12_BASE64`: A Base64-encoded `.p12` file containing the "Developer ID Application" certificate.
+- `APPLICATION_P12_PASSWORD`: The password for the `.p12` file.
+- `DEVELOPER_ID_APPLICATION`: The name of the "Developer ID Application" certificate, which should look like `Developer ID Application: <Team Name> (<DeveloperTeamID>)`.
+- `INSTALLER_P12_BASE64`: A Base64-encoded `.p12` file containing the "Developer ID Installer" certificate.
+- `INSTALLER_P12_PASSWORD`: The password for the `.p12` file.
+- `DEVELOPER_ID_INSTALLER`: The name of the "Developer ID Installer" certificate, which should look like `Developer ID Installer: <Team Name> (<DeveloperTeamID>)`.
+
+### Add notarization authorization
+
+Finally, we need to add secrets to allow us to notarize the installer:
+
+- `NOTARYTOOL_APPLE_ID` - the Apple ID to use for notarization (usually an e-mail)
+- `NOTARYTOOL_CREDENTIALS_KEYCHAIN_ITEM` - an arbitrary name to use to store notarization credentials in the keychain. You can use `notarytool-auth` here, but any valid keychain item name will work.
+- `NOTARYTOOL_DEVELOPER_TEAM_ID` - your Apple Developer Team ID. This is shown in the Apple Developer Portal, and also it appears in parentheses in the certificate names in the previous step.
+- `NOTARYTOOL_PASSWORD` - an app-specific password for notarization. You can create one of these by following [Apple's documentation](https://support.apple.com/en-us/HT204397).
+
+### Push a tag
+
+With all the secrets set, building an installer should happen automatically when you push a version tag to the repository:
+
+```sh copy
+git tag v0.1.0 && git push --tag
+```
+
+</Steps>
