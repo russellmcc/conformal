@@ -7,7 +7,7 @@ description = "Utilities for persistent user preferences used by the conformal a
 repository = "https://github.com/russellmcc/conformal"
 readme = "../../README.md"
 documentation = "https://russellmcc.github.io/conformal/rust-doc/conformal_preferences"
-website = "https://russellmcc.github.io/conformal"
+homepage = "https://russellmcc.github.io/conformal"
 
 [dependencies]
 serde = { version = "1.0.193", features = ["derive"] }

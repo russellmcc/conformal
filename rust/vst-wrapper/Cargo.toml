@@ -8,7 +8,7 @@ description = "Implements a VST3-compatible plug-in for audio processors impleme
 repository = "https://github.com/russellmcc/conformal"
 readme = "../../README.md"
 documentation = "https://russellmcc.github.io/conformal/rust-doc/conformal_vst_wrapper"
-website = "https://russellmcc.github.io/conformal"
+homepage = "https://russellmcc.github.io/conformal"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 conformal_macos_bundle = { version = "0.0.0",  path = "../macos-bundle" }

@@ -8,7 +8,7 @@ description = "Defines basic audio component abstraction for conformal audio plu
 repository = "https://github.com/russellmcc/conformal"
 readme = "../../README.md"
 documentation = "https://russellmcc.github.io/conformal/rust-doc/conformal_component"
-website = "https://russellmcc.github.io/conformal"
+homepage = "https://russellmcc.github.io/conformal"
 
 [dependencies]
 fxhash = "0.2.1"
