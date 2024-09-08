@@ -1,6 +1,7 @@
 import { Command } from "@commander-js/extra-typings";
 import { setVersion } from "./setVersion";
 import { $ } from "bun";
+import { deployDocs } from "./deployDocs";
 
 export const release = async (
   tag: string,
@@ -17,6 +18,11 @@ export const release = async (
   if (skipPublish) {
     return;
   }
+
+  await deployDocs();
+
+  // For testing, do not publish any packages!
+  return;
 
   // Publish cargo packages
   // Note that because of https://github.com/rust-lang/cargo/issues/1169
