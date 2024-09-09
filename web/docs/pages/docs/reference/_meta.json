@@ -1,7 +1,7 @@
 {
   "rust": {
     "title": "Rust API",
-    "href": "/conformal/rust-doc/conformal_component"
+    "href": "/rust-doc/conformal_component"
   },
   "ts": "TypeScript APIs (coming soon!)"
 }
