@@ -19,7 +19,7 @@ export const release = async (
     return;
   }
 
-  await deployDocs();
+  await deployDocs(`Release ${tag}`);
 
   // For testing, do not publish any packages!
   return;

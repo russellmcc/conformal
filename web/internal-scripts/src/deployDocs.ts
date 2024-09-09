@@ -3,7 +3,7 @@ import path from "node:path";
 import { $ } from "bun";
 import { publish } from "gh-pages";
 
-export const deployDocs = async () => {
+export const deployDocs = async (message?: string) => {
   await withDir(
     async ({ path: tmpDir }) => {
       const workspacePath = path.join(import.meta.path, "..", "..", "..", "..");
@@ -22,6 +22,7 @@ export const deployDocs = async () => {
       await publish(
         tmpDir,
         {
+          message,
           user: {
             name: "github-actions-bot",
             email: "support+actions@github.com",
