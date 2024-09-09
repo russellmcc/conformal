@@ -21,7 +21,9 @@ export const execute = async (
 export const addWebScriptCommand = (command: Command): void => {
   command
     .command("web-script")
-    .description("Run a script in a specific web package")
+    .description(
+      "Run a script defined in a specific web-package. If no package is provided, it will run on all packages that define the script.",
+    )
     .requiredOption("-s, --script <script>", "The script to run")
     .arguments("[package]")
     .arguments("[args...]")

@@ -57,7 +57,7 @@ jobs:
       - run: NOTARYTOOL_KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db bun run package {{plug_slug}} --dist
         env:
           DEVELOPER_ID_APPLICATION: $\{{ secrets.DEVELOPER_ID_APPLICATION }}
-          DEVELOPER_ID_INSTALLER: $\{{ secrets.DEVELOPER_INSTALLER_ID }}
+          DEVELOPER_ID_INSTALLER: $\{{ secrets.DEVELOPER_ID_INSTALLER }}
           NOTARYTOOL_CREDENTIALS_KEYCHAIN_ITEM: $\{{ secrets.NOTARYTOOL_CREDENTIALS_KEYCHAIN_ITEM }}
       - name: Release
         uses: softprops/action-gh-release@v2

@@ -1,6 +1,7 @@
 import { Command } from "@commander-js/extra-typings";
 import { setVersion } from "./setVersion";
 import { $ } from "bun";
+import { deployDocs } from "./deployDocs";
 
 export const release = async (
   tag: string,
@@ -28,6 +29,9 @@ export const release = async (
 
   // Publish npm packages
   await $`bunx @morlay/bunpublish`;
+
+  // Publish documentation
+  await deployDocs(`Release ${tag}`);
 };
 
 export const addReleaseCommand = (command: Command) => {

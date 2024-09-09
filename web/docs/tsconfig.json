@@ -1,0 +1,12 @@
+{
+  "extends": "tsconfig/tsconfig.json",
+  "include": ["theme.config.tsx", "pages", "src", "next-env.d.ts"],
+  "compilerOptions": {
+    "allowJs": false,
+    "incremental": false,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "jsx": "preserve"
+  },
+  "exclude": ["node_modules"]
+}

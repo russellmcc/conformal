@@ -2,6 +2,6 @@
 
 This repo contains a nascent framework for building audio plug-ins in Rust and TypeScript! The working title of this framework is "Conformal".
 
-We currently only support the VST3 format on macOS, but we hope to add support for other common formats and operating systems over time.
+See our [documentation website](https://russellmcc.github.io/conformal) for information about how to use thie framework.
 
-Right now we're just in the beginning stages, so there's no documentation and plenty of limitations. Feedback is welcome!
+Right now this project is just in the beginning stages, so there's plenty of limitations. Feedback and contributions are welcome!
