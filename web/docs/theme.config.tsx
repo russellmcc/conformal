@@ -13,6 +13,9 @@ const themeConfig: DocsThemeConfig = {
       return `https://github.com/russellmcc/conformal/discussions/new?category=q-a&title=Feedback regarding ${config.title}`;
     },
   },
+  footer: {
+    component: <></>,
+  },
 };
 
 export default themeConfig;
