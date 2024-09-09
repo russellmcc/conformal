@@ -19,11 +19,6 @@ export const release = async (
     return;
   }
 
-  await deployDocs(`Release ${tag}`);
-
-  // For testing, do not publish any packages!
-  return;
-
   // Publish cargo packages
   // Note that because of https://github.com/rust-lang/cargo/issues/1169
   // We can't do this natively in cargo but have to use some third-party tool.
@@ -34,6 +29,9 @@ export const release = async (
 
   // Publish npm packages
   await $`bunx @morlay/bunpublish`;
+
+  // Publish documentation
+  await deployDocs(`Release ${tag}`);
 };
 
 export const addReleaseCommand = (command: Command) => {
