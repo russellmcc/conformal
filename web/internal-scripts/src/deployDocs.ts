@@ -1,40 +1,22 @@
-import { withDir } from "tmp-promise";
 import path from "node:path";
 import { $ } from "bun";
-import { publish } from "gh-pages";
 
-export const deployDocs = async (message?: string) => {
-  await withDir(
-    async ({ path: tmpDir }) => {
-      const workspacePath = path.join(import.meta.path, "..", "..", "..", "..");
+export const deployDocs = async () => {
+  const outDir = "_site";
 
-      // Build the documentation
-      await $`bun run web-build docs`.cwd(workspacePath);
+  const workspacePath = path.join(import.meta.path, "..", "..", "..", "..");
 
-      // Build the rust documentation
-      await $`cargo doc --no-deps`.cwd(workspacePath);
+  // Build the documentation
+  await $`bun run web-build docs`.cwd(workspacePath);
 
-      // Copy the documentation into the temporary directory
-      await $`cp -r web/docs/out/* ${tmpDir}/`.cwd(workspacePath);
-      await $`cp -r target/doc ${tmpDir}/rust-doc`.cwd(workspacePath);
+  // Build the rust documentation
+  await $`cargo doc --no-deps`.cwd(workspacePath);
 
-      // Deploy the temporary diretory
-      await publish(
-        tmpDir,
-        {
-          message,
-          user: {
-            name: "github-actions-bot",
-            email: "support+actions@github.com",
-          },
-          repo: `https://git:${process.env.GITHUB_TOKEN}@github.com/${process.env.GITHUB_REPOSITORY}.git`,
-          nojekyll: true,
-        },
-        () => {
-          // do nothing
-        },
-      );
-    },
-    { unsafeCleanup: true },
-  );
+  // Clear the output directory
+  await $`rm -rf ${outDir}`.cwd(workspacePath);
+
+  // Copy the documentation into the temporary directory
+  await $`mkdir -p ${outDir}`.cwd(workspacePath);
+  await $`cp -r web/docs/out/* ${outDir}/`.cwd(workspacePath);
+  await $`cp -r target/doc ${outDir}/rust-doc`.cwd(workspacePath);
 };

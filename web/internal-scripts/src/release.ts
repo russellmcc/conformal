@@ -31,7 +31,7 @@ export const release = async (
   await $`bunx @morlay/bunpublish`;
 
   // Publish documentation
-  await deployDocs(`Release ${tag}`);
+  await deployDocs();
 };
 
 export const addReleaseCommand = (command: Command) => {

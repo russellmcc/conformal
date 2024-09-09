@@ -443,7 +443,7 @@ Now, we need to: update the `process` function to stop using the `gain` paramete
 
 Finally, we can delete the `LFO_RATE` constant, which is no longer needed.
 
-If you repackage the plug-in with `bun run package`, you should find that the tremolo effect now indeed has a rate control in the DAW automation lane! Nice! this concludes the Rust part of the tutorial, we've accomplished our goal of building a tremolo effect!
+If you repackage the plug-in with `bun run package`, you should find that the tremolo effect now indeed has a rate control in the DAW automation lane! Nice! This concludes the Rust part of the tutorial, we've accomplished our goal of building a tremolo effect!
 
 However, you may have noticed that we've broken the user interface, which still is expecting the `gain` parameter to be present. Let's fix that now!
 
@@ -492,9 +492,9 @@ You can click the "switch to embedded" button to go back to the view that's embe
 
 ### Building interactivity
 
-Music software UIs tend to be _completely wild_. Unlike software that's purely goal-directed, music software should spark the creativity of the user. Because of this, there's tons of room for fun and whimsy in the design space. For visual historical references on the history of music interface design, we can recommend any of the books by [bjooks](https://bjooks.com).
+Music software UIs tend to have unique and captivating designs. Unlike software that is purely functional, music software aims to spark creativity in its users. This opens up a wide range of possibilities for fun and whimsical design choices. If you're interested in exploring the history of music interface design, we recommend checking out the books published by [bjooks](https://bjooks.com).
 
-Despite the creative freedom here, in this tutorial, for simplicity, we're going to be super boring 🥱 and use interface elements that are built-in to the web platform. In your own projects, you should feel free to build your own interface elmements or use any React-based library you find on `npm`. Our best friend is going to be the `range`-type `input`, documented [here](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/range). To hook up a `range` control to our rate parameter, we can edit the `Layout.tsx` like this:
+Despite the creative freedom available, in this tutorial, we're going to be super boring 🥱 and use interface elements that are built-in to the web platform. In your own projects, you should feel free to build your own interface elmements or use any React-based library you find on `npm`. Our best friend is going to be the `range`-type `input`, documented [here](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/range). To hook up a `range` control to our rate parameter, we can edit the `Layout.tsx` like this:
 
 ```tsx filename="web/tremolo/src/Layout.tsx" copy
 import { useNumericParam } from "@conformal/plugin";
@@ -532,13 +532,13 @@ export default Layout;
 
 Here `useNumericParam`, provided by Conformal, acts as a bridge between the plug-in's state and the React component. This is called a React _hook_, and is meant to be called inside a React Component. The hook returns an object containing the parameter's current `value`, relevant `info` like the `min` and `max` value of the parameter, and a `set` function you can call to set the current state.
 
-The rest of the implementation simply hooks up the data returned by `useNumericParam` to an `input` `rante` element, and updates the value when the user moves the slider.
+The rest of the implementation simply hooks up the data returned by `useNumericParam` to an `input` `range` element, and updates the value when the user moves the slider.
 
 After this, we should be able to move the slider in the UI to control the rate of the tremolo effect! _Functionally_, the tremolo effect is now complete!
 
-### Adding a little color
+### Adding color
 
-Okay, we said we were going to be boring, but perhaps we've taken things a little too far with the borigness. It's getting a bit sleepy in here 💤. Let's add a little flair, first by changing the colors and fonts in the UI. In the template project, the style is defined by `index.css`.
+Okay, we did say we were going to be boring, but perhaps we've taken things a little too far with the boringness. It's getting a bit sleepy in here 💤! Let's add a little flair, first by changing the colors and fonts in the UI. In the template project, the style is defined by `index.css`.
 
 As projects get more complicated, you may want to have a more robust styling system than a single CSS file. Your plug-in UI in Conformal is just a React app, so it's compatible with any styling system that works with React, such as [tailwindcss](https://tailwindcss.com/), or [CSS Modules](https://github.com/css-modules/css-modules). For now, let's just dump everything in `index.css`. This specific CSS might look a bit weird, since it's using unusual directives to style `input` elements. There's some documentation [here](https://developer.mozilla.org/en-US/docs/Web/CSS/::-webkit-slider-thumb)
 
