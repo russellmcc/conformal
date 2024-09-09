@@ -11,7 +11,7 @@
     clippy::cast_possible_wrap,
     clippy::default_trait_access
 )]
-#![doc = include_str!("../../docs_boilerplate.md")]
+#![doc = include_str!("../docs_boilerplate.md")]
 #![doc = include_str!("../README.md")]
 
 use conformal_component::parameters;
