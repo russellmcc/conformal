@@ -47,7 +47,7 @@
     "rust-miri": "PROPTEST_DISABLE_FAILURE_PERSISTENCE=true MIRIFLAGS='-Zmiri-env-forward=PROPTEST_DISABLE_FAILURE_PERSISTENCE' conformal-scripts cargo +nightly miri test",
     "rust-build": "conformal-scripts cargo build",
     "rust-lint": "conformal-scripts cargo clippy",
-    "rust-test": "conformal-scripts cargo test",
+    "rust-test": "conformal-scripts cargo test --all-features",
     "rust-bench": "conformal-scripts cargo bench",
     "rust-snapshot-update": "UPDATE_SNAPSHOTS=1 bun run rust-test",
     "package": "conformal-scripts web-script -s package",

@@ -10,7 +10,7 @@ export const deployDocs = async () => {
   await $`bun run web-build docs`.cwd(workspacePath);
 
   // Build the rust documentation
-  await $`cargo doc --no-deps`.cwd(workspacePath);
+  await $`cargo doc --no-deps --all-features`.cwd(workspacePath);
 
   // Clear the output directory
   await $`rm -rf ${outDir}`.cwd(workspacePath);
