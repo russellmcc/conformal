@@ -21,6 +21,15 @@ pub mod test_utils;
 pub mod utils;
 
 impl ChannelLayout {
+    /// The number of channels in the layout.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use conformal_component::audio::ChannelLayout;
+    /// assert_eq!(ChannelLayout::Mono.num_channels(), 1);
+    /// assert_eq!(ChannelLayout::Stereo.num_channels(), 2);
+    /// ```
     #[must_use]
     pub fn num_channels(self) -> usize {
         match self {
@@ -30,16 +39,44 @@ impl ChannelLayout {
     }
 }
 
+/// Represents a (potentially multi-channel) buffer of audio samples
+///
+/// A [Buffer] doesn't specify the exact storage format of the samples, but
+/// each channel must be a contiguous slice of samples. All channels must have
+/// the same number of samples, that is, [`Buffer::num_frames`].
 pub trait Buffer {
+    /// The layout of the channels in the buffer.
     fn channel_layout(&self) -> ChannelLayout;
+
+    /// The number of channels in the buffer.
     fn num_channels(&self) -> usize {
         self.channel_layout().num_channels()
     }
+
+    /// The number of frames in the buffer.
+    ///
+    /// Each channel will contain this many samples.
     fn num_frames(&self) -> usize;
 
+    /// Get a channel from the buffer.
+    ///
+    /// This returns a slice that contains all samples of the channel.
+    /// The every channel will have [`Self::num_frames()`] elements.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `channel` is greater than or equal to [`Self::num_channels()`].
     fn channel(&self, channel: usize) -> &[f32];
 }
 
+/// Iterates over the channels of a buffer.
+///
+/// # Examples
+/// ```
+/// # use conformal_component::audio::{BufferData, Buffer, channels};
+/// let buffer = BufferData::new_stereo([1.0, 2.0], [3.0, 4.0]);
+/// assert!(channels(&buffer).eq([[1.0, 2.0], [3.0, 4.0]]));
+/// ```
 pub fn channels<B: Buffer>(buffer: &B) -> impl Iterator<Item = &[f32]> {
     (0..buffer.num_channels()).map(move |channel| buffer.channel(channel))
 }
