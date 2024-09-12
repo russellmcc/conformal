@@ -2,6 +2,9 @@
     nonstandard_style,
     rust_2018_idioms,
     future_incompatible,
+    missing_docs,
+    rustdoc::private_doc_tests,
+    rustdoc::unescaped_backticks,
     clippy::pedantic,
     clippy::todo
 )]
