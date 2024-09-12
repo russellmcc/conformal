@@ -1,13 +1,24 @@
+//! Types and utilities for Audio Buffers.
+//!
+//! In Conformal, components process audio in buffers. Buffers are groups of samples
+//! arranged into channels. In Conformal, each channel is represented by a `&[f32]`.
+
+/// Defines the layout of the channels in a buffer.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ChannelLayout {
+    /// A single channel buffer.
     Mono,
+
+    /// A two channel buffer.
+    ///
+    /// Channel 0 is the left channel, and channel 1 is the right channel.
     Stereo,
 }
 
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
 
-pub mod util;
+pub mod utils;
 
 impl ChannelLayout {
     #[must_use]
@@ -60,6 +71,15 @@ impl BufferData {
             channel_layout,
             num_frames,
             data: vec![0f32; channel_layout.num_channels() * num_frames],
+        }
+    }
+
+    #[must_use]
+    pub fn new_mono(data: Vec<f32>) -> BufferData {
+        Self {
+            channel_layout: ChannelLayout::Mono,
+            num_frames: data.len(),
+            data,
         }
     }
 }

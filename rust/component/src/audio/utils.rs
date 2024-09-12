@@ -1,3 +1,5 @@
+//! Utilities for working with audio buffers.
+
 use super::{Buffer, BufferMut, ChannelLayout};
 
 struct SlicedBuffer<'a, B, I> {
@@ -5,9 +7,13 @@ struct SlicedBuffer<'a, B, I> {
     index: I,
 }
 
+/// A trait for index types that can be used in `slice_buffer` and `slice_buffer_mut`.
 pub trait BufferIndex {
+    #[doc(hidden)]
     fn num_frames(&self, parent: usize) -> usize;
+    #[doc(hidden)]
     fn index<'a>(&self, buffer: &'a [f32]) -> &'a [f32];
+    #[doc(hidden)]
     fn index_mut<'a>(&self, buffer: &'a mut [f32]) -> &'a mut [f32];
 }
 
@@ -95,11 +101,38 @@ impl<B: Buffer, I: BufferIndex> Buffer for SlicedBuffer<'_, B, I> {
     }
 }
 
+/// Create a sub-buffer from a buffer using an index range.
+///
+/// # Examples
+///
+/// ```
+/// # use conformal_component::audio::{Buffer, BufferData};
+/// # use conformal_component::audio::utils::slice_buffer;
+/// let buffer = BufferData::new_mono(vec![1.0, 2.0, 3.0]);
+/// assert_eq!(slice_buffer(&buffer, 1..).channel(0), [2.0, 3.0]);
+/// assert_eq!(slice_buffer(&buffer, 1..2).channel(0), [2.0]);
+/// assert_eq!(slice_buffer(&buffer, ..=1).channel(0), [1.0, 2.0]);
+/// ```
+///
+/// # Panics
+///
+/// Will panic if the index range isn't within the bounds of the buffer:
+///
+/// ```should_panic
+/// # use conformal_component::audio::{BufferData};
+/// # use conformal_component::audio::utils::slice_buffer;;
+/// let buffer = BufferData::new_mono(vec![1.0, 2.0, 3.0]);
+/// slice_buffer(&buffer, 4..);
+/// ```
 pub fn slice_buffer<'a, B: Buffer, I: BufferIndex + 'a>(
     buffer: &'a B,
     index: I,
 ) -> impl Buffer + '_ {
-    SlicedBuffer { buffer, index }
+    let ret = SlicedBuffer { buffer, index };
+    // Grab the first channel and throw it away - this will
+    // cause us to panic early in the case of an invalid range
+    ret.channel(0);
+    ret
 }
 
 struct SlicedMutBuffer<'a, B, I> {
@@ -127,11 +160,37 @@ impl<B: BufferMut, I: BufferIndex> BufferMut for SlicedMutBuffer<'_, B, I> {
     }
 }
 
+/// Create a sub-buffer of a mutable buffer using an index range.
+///
+/// # Examples
+///
+/// ```
+/// # use conformal_component::audio::{Buffer, BufferMut, BufferData};
+/// # use conformal_component::audio::utils::slice_buffer_mut;
+/// let mut buffer = BufferData::new_mono(vec![1.0, 2.0, 3.0]);
+/// slice_buffer_mut(&mut buffer, 1..).channel_mut(0).copy_from_slice(&[4.0, 5.0]);
+/// assert_eq!(buffer.channel(0), [1.0, 4.0, 5.0]);
+/// ```
+///
+/// # Panics
+///
+/// Will panic if the index range isn't within the bounds of the buffer:
+///
+/// ```should_panic
+/// # use conformal_component::audio::{BufferData};
+/// # use conformal_component::audio::utils::slice_buffer_mut;
+/// let mut buffer = BufferData::new_mono(vec![1.0, 2.0, 3.0]);
+/// slice_buffer_mut(&mut buffer, 4..);
+/// ```
 pub fn slice_buffer_mut<'a, B: BufferMut, I: BufferIndex + 'a>(
     buffer: &'a mut B,
     index: I,
 ) -> impl BufferMut + '_ {
-    SlicedMutBuffer { buffer, index }
+    let ret = SlicedMutBuffer { buffer, index };
+    // Grab the first channel and throw it away - this will
+    // cause us to panic early in the case of an invalid range
+    ret.channel(0);
+    ret
 }
 
 #[cfg(test)]
