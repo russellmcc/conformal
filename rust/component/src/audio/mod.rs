@@ -82,6 +82,22 @@ impl BufferData {
             data,
         }
     }
+
+    #[must_use]
+    pub fn new_stereo<L: IntoIterator<Item = f32>, R: IntoIterator<Item = f32>>(
+        left: L,
+        right: R,
+    ) -> BufferData {
+        let mut data: Vec<_> = left.into_iter().collect();
+        let left_len = data.len();
+        data.extend(right);
+        assert_eq!(left_len * 2, data.len());
+        Self {
+            channel_layout: ChannelLayout::Stereo,
+            num_frames: left_len,
+            data,
+        }
+    }
 }
 
 impl Buffer for BufferData {
