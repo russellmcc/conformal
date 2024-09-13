@@ -31,6 +31,20 @@ impl BufferIndex for std::ops::Range<usize> {
     }
 }
 
+impl BufferIndex for std::ops::RangeInclusive<usize> {
+    fn num_frames(&self, _parent: usize) -> usize {
+        self.end() - self.start() + 1
+    }
+
+    fn index<'a>(&self, buffer: &'a [f32]) -> &'a [f32] {
+        &buffer[self.clone()]
+    }
+
+    fn index_mut<'a>(&self, buffer: &'a mut [f32]) -> &'a mut [f32] {
+        &mut buffer[self.clone()]
+    }
+}
+
 impl BufferIndex for std::ops::RangeFrom<usize> {
     fn num_frames(&self, parent: usize) -> usize {
         parent - self.start
