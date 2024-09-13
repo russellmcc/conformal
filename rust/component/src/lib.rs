@@ -26,6 +26,7 @@ pub mod synth;
 #[doc(hidden)]
 pub use itertools;
 
+/// The mode that the processor will run in.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ProcessingMode {
     /// The component is processing audio in realtime.
@@ -56,7 +57,20 @@ pub struct ProcessingEnvironment {
     pub processing_mode: ProcessingMode,
 }
 
+/// The main plug-in abstraction in Conformal.
+///
+/// [`Component`]s can be wrapped in various plug-in formats
+/// for use in audio software.
+///
+/// [`Component`]s contain information about the parameters of a processor
+/// as well as the ability to create a processor.
+///
+/// Note that this is not intended to be used as an _internal_ interface for audio processors,
+/// but rather an _external_ one that can be easily wrapped in common plug-in formats. That is to
+/// say, a plug-in should only have one `Component` that represents the whole plug-in - to
+/// compose _parts_ of the plug-in you should use a different abstraction.
 pub trait Component {
+    /// The processor that this component creates.
     type Processor;
 
     /// Get information about the parameters of this component
@@ -72,6 +86,9 @@ pub trait Component {
     fn create_processor(&self, environment: &ProcessingEnvironment) -> Self::Processor;
 }
 
+/// A base trait for audio processors.
+///
+/// Most audio processors should additionally implement [`effect::Effect`] or [`synth::Synth`].
 pub trait Processor {
     /// Enable or disable processing. Must not allocate or block.
     ///

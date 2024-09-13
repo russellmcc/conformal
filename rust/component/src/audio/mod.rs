@@ -73,7 +73,7 @@ pub trait Buffer {
 /// Returns an iterator for the channels of a buffer.
 ///
 /// The items of this iterator will be slices of the samples of each channel.
-/// Each slice will be exactly [`Self::num_frames`] elements long.
+/// Each slice will be exactly [`Buffer::num_frames`] elements long.
 ///
 /// # Examples
 /// ```
