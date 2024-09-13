@@ -85,10 +85,30 @@ pub fn channels<B: Buffer>(buffer: &B) -> impl Iterator<Item = &[f32]> {
     (0..buffer.num_channels()).map(move |channel| buffer.channel(channel))
 }
 
+/// A mutable (potentially multi-channel) buffer of audio samples.
+///
+/// This is a mutable version of [`Buffer`].
 pub trait BufferMut: Buffer {
+    /// Get a channel from the buffer as a mutable slice
     fn channel_mut(&mut self, channel: usize) -> &mut [f32];
 }
 
+/// Returns an iterator for the channels of a mutable buffer.
+///
+/// The items of this iterator will be mutable slices of the samples of each channel.
+///
+/// # Examples
+///
+/// ```
+/// # use conformal_component::audio::{BufferData, Buffer, BufferMut, channels_mut};
+/// let mut buffer = BufferData::new_mono(vec![1.0, 2.0, 3.0]);
+/// for channel in channels_mut(&mut buffer) {
+///    for sample in channel {
+///      *sample *= 2.0;
+///    }
+/// }
+/// assert_eq!(buffer.channel(0), [2.0, 4.0, 6.0]);
+/// ```
 pub fn channels_mut<B: BufferMut>(buffer: &mut B) -> impl Iterator<Item = &mut [f32]> {
     (0..buffer.num_channels()).map(move |channel| unsafe {
         std::slice::from_raw_parts_mut(
@@ -98,6 +118,18 @@ pub fn channels_mut<B: BufferMut>(buffer: &mut B) -> impl Iterator<Item = &mut [
     })
 }
 
+/// A buffer of audio samples that owns its data.
+///
+/// This is a simple implementation of [`Buffer`] that owns its data on the heap.
+/// It is useful for testing and as a simple way to create buffers.
+///
+/// # Examples
+///
+/// ```
+/// # use conformal_component::audio::{BufferData, Buffer};
+/// let buffer = BufferData::new_mono(vec![1.0, 2.0, 3.0]);
+/// assert_eq!(buffer.channel(0), [1.0, 2.0, 3.0]);
+/// ```
 #[derive(Debug, Clone)]
 pub struct BufferData {
     channel_layout: ChannelLayout,
@@ -106,6 +138,18 @@ pub struct BufferData {
 }
 
 impl BufferData {
+    /// Create a new buffer with the given channel layout and number of frames.
+    ///
+    /// The buffer will be filled with zeros.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use conformal_component::audio::{Buffer, BufferData, ChannelLayout};
+    /// let buffer = BufferData::new(ChannelLayout::Mono, 3);
+    /// assert_eq!(buffer.channel_layout(), ChannelLayout::Mono);
+    /// assert_eq!(buffer.channel(0), [0.0, 0.0, 0.0]);
+    /// ```
     #[must_use]
     pub fn new(channel_layout: ChannelLayout, num_frames: usize) -> Self {
         Self {
@@ -115,6 +159,16 @@ impl BufferData {
         }
     }
 
+    /// Create a new mono buffer with the given data.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use conformal_component::audio::{Buffer, BufferData, ChannelLayout};
+    /// let buffer = BufferData::new_mono(vec![1.0, 2.0, 3.0]);
+    /// assert_eq!(buffer.channel_layout(), ChannelLayout::Mono);
+    /// assert_eq!(buffer.channel(0), [1.0, 2.0, 3.0]);
+    /// ```
     #[must_use]
     pub fn new_mono(data: Vec<f32>) -> BufferData {
         Self {
@@ -124,6 +178,25 @@ impl BufferData {
         }
     }
 
+    /// Create a new stereo buffer with the given data.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use conformal_component::audio::{Buffer, BufferData, ChannelLayout, channels};
+    /// let buffer = BufferData::new_stereo([1.0, 2.0], [3.0, 4.0]);
+    /// assert_eq!(buffer.channel_layout(), ChannelLayout::Stereo);
+    /// assert!(channels(&buffer).eq([[1.0, 2.0], [3.0, 4.0]]));
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if the length of `left` and `right` are not equal.
+    ///
+    /// ```should_panic
+    /// # use conformal_component::audio::BufferData;
+    /// let buffer = BufferData::new_stereo([1.0, 2.0], [3.0]);
+    /// ```
     #[must_use]
     pub fn new_stereo<L: IntoIterator<Item = f32>, R: IntoIterator<Item = f32>>(
         left: L,
