@@ -1,4 +1,4 @@
-//! Utilities for working with audio buffers.
+//! Utilities for slicing audio buffers.
 
 use super::{Buffer, BufferMut, ChannelLayout};
 
@@ -107,7 +107,7 @@ impl<B: Buffer, I: BufferIndex> Buffer for SlicedBuffer<'_, B, I> {
 ///
 /// ```
 /// # use conformal_component::audio::{Buffer, BufferData};
-/// # use conformal_component::audio::utils::slice_buffer;
+/// # use conformal_component::audio::slice_buffer;
 /// let buffer = BufferData::new_mono(vec![1.0, 2.0, 3.0]);
 /// assert_eq!(slice_buffer(&buffer, 1..).channel(0), [2.0, 3.0]);
 /// assert_eq!(slice_buffer(&buffer, 1..2).channel(0), [2.0]);
@@ -120,7 +120,7 @@ impl<B: Buffer, I: BufferIndex> Buffer for SlicedBuffer<'_, B, I> {
 ///
 /// ```should_panic
 /// # use conformal_component::audio::{BufferData};
-/// # use conformal_component::audio::utils::slice_buffer;;
+/// # use conformal_component::audio::slice_buffer;;
 /// let buffer = BufferData::new_mono(vec![1.0, 2.0, 3.0]);
 /// slice_buffer(&buffer, 4..);
 /// ```
@@ -166,7 +166,7 @@ impl<B: BufferMut, I: BufferIndex> BufferMut for SlicedMutBuffer<'_, B, I> {
 ///
 /// ```
 /// # use conformal_component::audio::{Buffer, BufferMut, BufferData};
-/// # use conformal_component::audio::utils::slice_buffer_mut;
+/// # use conformal_component::audio::slice_buffer_mut;
 /// let mut buffer = BufferData::new_mono(vec![1.0, 2.0, 3.0]);
 /// slice_buffer_mut(&mut buffer, 1..).channel_mut(0).copy_from_slice(&[4.0, 5.0]);
 /// assert_eq!(buffer.channel(0), [1.0, 4.0, 5.0]);
@@ -178,7 +178,7 @@ impl<B: BufferMut, I: BufferIndex> BufferMut for SlicedMutBuffer<'_, B, I> {
 ///
 /// ```should_panic
 /// # use conformal_component::audio::{BufferData};
-/// # use conformal_component::audio::utils::slice_buffer_mut;
+/// # use conformal_component::audio::slice_buffer_mut;
 /// let mut buffer = BufferData::new_mono(vec![1.0, 2.0, 3.0]);
 /// slice_buffer_mut(&mut buffer, 4..);
 /// ```

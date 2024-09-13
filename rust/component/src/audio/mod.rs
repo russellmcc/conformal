@@ -15,10 +15,11 @@ pub enum ChannelLayout {
     Stereo,
 }
 
-#[cfg(any(test, feature = "test-utils"))]
-pub mod test_utils;
+mod compare;
+pub use compare::*;
 
-pub mod utils;
+mod slice;
+pub use slice::*;
 
 impl ChannelLayout {
     /// The number of channels in the layout.
@@ -61,15 +62,18 @@ pub trait Buffer {
     /// Get a channel from the buffer.
     ///
     /// This returns a slice that contains all samples of the channel.
-    /// The every channel will have [`Self::num_frames()`] elements.
+    /// The every channel will have [`Self::num_frames`] elements.
     ///
     /// # Panics
     ///
-    /// Panics if `channel` is greater than or equal to [`Self::num_channels()`].
+    /// Panics if `channel` is greater than or equal to [`Self::num_channels`].
     fn channel(&self, channel: usize) -> &[f32];
 }
 
-/// Iterates over the channels of a buffer.
+/// Returns an iterator for the channels of a buffer.
+///
+/// The items of this iterator will be slices of the samples of each channel.
+/// Each slice will be exactly [`Self::num_frames`] elements long.
 ///
 /// # Examples
 /// ```
