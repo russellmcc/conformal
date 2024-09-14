@@ -30,7 +30,7 @@ const shouldLfsFiles = async function* () {
   for await (const line of $`git ls-files`.lines()) {
     if (line === "") continue;
     const filter_raw = await $`git check-attr filter ${line}`.text();
-    const filter = filter_raw.split("filter: ").slice(-1)[0].trim();
+    const filter = filter_raw.split("filter: ").slice(-1)[0]?.trim();
     if (filter === "lfs") {
       yield line;
     }

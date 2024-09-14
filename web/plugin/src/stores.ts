@@ -119,7 +119,8 @@ const createGeneric = (transport: Transport): Family<Value> => {
       for (const [path, value] of Object.entries(response.values)) {
         setters.get(path)?.(value);
       }
-    } else if (response.m === "subscribe_error") {
+    } else {
+      // response.m === "subscribe_error"
       setters.get(response.path)?.(
         Promise.reject(new Error(`Subscribe Error at ${response.path}`)),
       );

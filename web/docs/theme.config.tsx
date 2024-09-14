@@ -10,7 +10,13 @@ const themeConfig: DocsThemeConfig = {
   feedback: {
     useLink: () => {
       const config = useConfig();
-      return `https://github.com/russellmcc/conformal/discussions/new?category=q-a&title=Feedback regarding ${config.title}`;
+
+      // Not sure what's going on here, but typescript can't seem to correctly
+      // infer the type of `config` :'(.
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const title: string = config.title;
+
+      return `https://github.com/russellmcc/conformal/discussions/new?category=q-a&title=Feedback regarding ${title}`;
     },
   },
   footer: {

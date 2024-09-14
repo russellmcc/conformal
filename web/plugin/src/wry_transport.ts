@@ -15,7 +15,7 @@ declare global {
 
     // This is a function we add to the window object to receive messages from
     // Wry. It is set by the setOnResponse function below.
-    receiveMessage: (m: string) => void | undefined;
+    receiveMessage: (m: string) => void;
   }
 }
 

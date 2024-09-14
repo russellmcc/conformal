@@ -50,8 +50,12 @@ export const useGrab = (path: string): Grab => {
   const storage = useStores();
   const grab = useAtom(storage.grabbed(path))[1];
   return {
-    grab: () => grab(true),
-    release: () => grab(false),
+    grab: () => {
+      grab(true);
+    },
+    release: () => {
+      grab(false);
+    },
   };
 };
 
