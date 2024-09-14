@@ -1,6 +1,32 @@
+//! Code related to the _parameters_ of a processor.
+//!
+//! A processor has a number of _parameters_ that can be changed over time.
+//!
+//! The parameters state is managed by Conformal, with changes ultimately coming
+//! from either the UI or the hosting application.
+//! The parameters form the "logical interface" of the processor.
+//!
+//! Each parameter is one of the following types:
+//!
+//! - Numeric: A numeric value that can vary within a range of possible values.
+//! - Enum: An value that can take one of a discrete set of named values.
+//! - Switch: A value that can be either on or off.
+//!
+//! Note that future versions may add more types of parameters!
+//!
+//! Components tell Conformal about which parameters exist in their [`crate::Component::parameter_infos`] method.
+//!
+//! Conformal will then provide the current state to the processor during processing,
+//! either [`crate::synth::Synth::process`] or [`crate::effect::Effect::process`].
+//!
+//! Note that conformal may also change parameters outside of processing and call
+//! the [`crate::synth::Synth::handle_events`] or
+//! [`crate::effect::Effect::handle_parameters`] methods, Components can update any
+//! internal state in these methods.
 use std::{
     collections::HashMap,
     ops::{Range, RangeBounds, RangeInclusive},
+    string::ToString,
 };
 
 #[cfg(test)]
@@ -12,37 +38,172 @@ pub mod test_utils;
 pub mod serialization;
 pub mod utils;
 
+macro_rules! info_enum_doc {
+    () => {
+        "Information specific to an enum parameter."
+    };
+}
+
+macro_rules! info_enum_default_doc {
+    () => {
+        "Index of the default value.
+
+Note that this _must_ be less than the length of `values`."
+    };
+}
+
+macro_rules! info_enum_values_doc {
+    () => {
+        "A list of possible values for the parameter.
+
+Note that values _must_ contain at least 2 elements."
+    };
+}
+
+macro_rules! info_numeric_doc {
+    () => {
+        "Information specific to a numeric parameter."
+    };
+}
+
+macro_rules! info_numeric_default_doc {
+    () => {
+        "The default value of the parameter.
+
+This value _must_ be within the `valid_range`."
+    };
+}
+
+macro_rules! info_numeric_valid_range_doc {
+    () => {
+        "The valid range of the parameter."
+    };
+}
+
+macro_rules! info_numeric_units_doc {
+    () => {
+        "The units of the parameter.
+
+Here an empty string indicates unitless values, while a non-empty string
+indicates the logical units of a parmater, e.g., \"hz\""
+    };
+}
+
+macro_rules! info_switch_doc {
+    () => {
+        "Information specific to a switch parameter."
+    };
+}
+
+macro_rules! info_switch_default_doc {
+    () => {
+        "The default value of the parameter."
+    };
+}
+
+/// Contains information specific to a certain type of parameter.
+///
+/// This is a non-owning reference type, pointing to data with lifetime `'a`.
+///
+/// Here the `S` represents the type of strings, this generally will be
+/// either `&'a str` or `String`.
+///
+/// # Examples
+///
+/// ```
+/// # use conformal_component::parameters::{TypeSpecificInfoRef};
+/// let enum_info = TypeSpecificInfoRef::Enum {
+///    default: 0,
+///    values: &["A", "B", "C"],
+/// };
+///
+/// let numeric_info: TypeSpecificInfoRef<'static, &'static str> = TypeSpecificInfoRef::Numeric {
+///   default: 0.0,
+///   valid_range: 0.0..=1.0,
+///   units: None,
+/// };
+///
+/// let switch_info: TypeSpecificInfoRef<'static, &'static str> = TypeSpecificInfoRef::Switch {
+///  default: false,
+/// };
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeSpecificInfoRef<'a, S> {
+    #[doc = info_enum_doc!()]
     Enum {
+        #[doc = info_enum_default_doc!()]
         default: u32,
 
-        /// Note that values _must_ contain at least 2 elements.
+        #[doc = info_enum_values_doc!()]
         values: &'a [S],
     },
+
+    #[doc = info_numeric_doc!()]
     Numeric {
+        #[doc = info_numeric_default_doc!()]
         default: f32,
+
+        #[doc = info_numeric_valid_range_doc!()]
         valid_range: RangeInclusive<f32>,
-        // Here an empty string indicates unitless values.
-        units: &'a str,
+
+        #[doc = info_numeric_units_doc!()]
+        units: Option<&'a str>,
     },
+
+    #[doc = info_switch_doc!()]
     Switch {
+        #[doc = info_switch_default_doc!()]
         default: bool,
     },
 }
 
+/// Contains information specific to a certain type of parameter.
+///
+/// This is an owning version of [`TypeSpecificInfoRef`].
+///
+/// # Examples
+///
+/// ```
+/// # use conformal_component::parameters::{TypeSpecificInfo};
+/// let enum_info = TypeSpecificInfo::Enum {
+///   default: 0,
+///   values: vec!["A".to_string(), "B".to_string(), "C".to_string()],
+/// };
+/// let numeric_info = TypeSpecificInfo::Numeric {
+///   default: 0.0,
+///   valid_range: 0.0..=1.0,
+///   units: None,
+/// };
+/// let switch_info = TypeSpecificInfo::Switch {
+///   default: false,
+/// };
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeSpecificInfo {
+    #[doc = info_enum_doc!()]
     Enum {
+        #[doc = info_enum_default_doc!()]
         default: u32,
+
+        #[doc = info_enum_values_doc!()]
         values: Vec<String>,
     },
+
+    #[doc = info_numeric_doc!()]
     Numeric {
+        #[doc = info_numeric_default_doc!()]
         default: f32,
+
+        #[doc = info_numeric_valid_range_doc!()]
         valid_range: std::ops::RangeInclusive<f32>,
-        units: String,
+
+        #[doc = info_numeric_units_doc!()]
+        units: Option<String>,
     },
+
+    #[doc = info_switch_doc!()]
     Switch {
+        #[doc = info_switch_default_doc!()]
         default: bool,
     },
 }
@@ -65,7 +226,7 @@ impl<'a, S: AsRef<str>> From<&'a TypeSpecificInfoRef<'a, S>> for TypeSpecificInf
             } => TypeSpecificInfo::Numeric {
                 default: *default,
                 valid_range: valid_range.clone(),
-                units: (*units).to_string(),
+                units: (*units).map(ToString::to_string),
             },
             TypeSpecificInfoRef::Switch { default } => {
                 TypeSpecificInfo::Switch { default: *default }
@@ -88,7 +249,7 @@ impl<'a> From<&'a TypeSpecificInfo> for TypeSpecificInfoRef<'a, String> {
             } => TypeSpecificInfoRef::Numeric {
                 default: *default,
                 valid_range: valid_range.clone(),
-                units,
+                units: units.as_ref().map(String::as_str),
             },
             TypeSpecificInfo::Switch { default } => {
                 TypeSpecificInfoRef::Switch { default: *default }
@@ -97,8 +258,20 @@ impl<'a> From<&'a TypeSpecificInfo> for TypeSpecificInfoRef<'a, String> {
     }
 }
 
+/// Metadata about a parameter.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Flags {
+    /// Whether the parameter can be automated.
+    ///
+    /// In some hosting applications, parameters can be _automated_,
+    /// that is, users are provided with a UI to program the parameter
+    /// to change over time. If this is `true` (the default), then
+    /// this parameter will appear in the automation UI. Otherwise,
+    /// it will not.
+    ///
+    /// You may want to set a parameter to `false` here if it does not
+    /// sound good when it is change frequently, or if it is a parameter
+    /// that may be confusing to users if it appeared in an automation UI.
     pub automatable: bool,
 }
 
@@ -108,21 +281,89 @@ impl Default for Flags {
     }
 }
 
+macro_rules! unique_id_doc {
+    () => {
+        "The unique ID of the parameter.
+
+As the name implies, each parameter's id must be unique within
+the comonent's parameters.
+
+Note that this ID will not be presented to the user, it is only
+used to refer to the parameter in code."
+    };
+}
+
+macro_rules! title_doc {
+    () => {
+        "Human-readable title of the parameter."
+    };
+}
+
+macro_rules! short_title_doc {
+    () => {
+        "A short title of the parameter.
+
+In some hosting applications, this may appear as an
+abbreviated version of the title. If the title is already
+short, it's okay to use the same value for `title` and `short_title`."
+    };
+}
+
+macro_rules! flags_doc {
+    () => {
+        "Metadata about the parameter"
+    };
+}
+
+macro_rules! type_specific_doc {
+    () => {
+        "Information specific to the type of parameter."
+    };
+}
+
+/// Information about a parameter.
+///
+/// This is a non-owning reference type.
+///
+/// If you are referencing static data, use [`StaticInfoRef`] below for simplicity.
+///
+/// This references data with lifetime `'a`.
+/// Here the `S` represents the type of strings, this generally will be
+/// either `&'a str` or `String`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct InfoRef<'a, S> {
+    #[doc = unique_id_doc!()]
     pub unique_id: &'a str,
+
+    #[doc = title_doc!()]
     pub title: &'a str,
+
+    #[doc = short_title_doc!()]
     pub short_title: &'a str,
+
+    #[doc = flags_doc!()]
     pub flags: Flags,
+
+    #[doc = type_specific_doc!()]
     pub type_specific: TypeSpecificInfoRef<'a, S>,
 }
 
+/// Owning version of [`InfoRef`].
 #[derive(Debug, Clone, PartialEq)]
 pub struct Info {
+    #[doc = unique_id_doc!()]
     pub unique_id: String,
+
+    #[doc = title_doc!()]
     pub title: String,
+
+    #[doc = short_title_doc!()]
     pub short_title: String,
+
+    #[doc = flags_doc!()]
     pub flags: Flags,
+
+    #[doc = type_specific_doc!()]
     pub type_specific: TypeSpecificInfo,
 }
 
@@ -150,6 +391,38 @@ impl<'a> From<&'a Info> for InfoRef<'a, String> {
     }
 }
 
+/// [`InfoRef`] of static data
+///
+/// In many cases, the `InfoRef` will be a reference to static data,
+/// in which case the type parameters can seem noisy. This type
+/// alias is here for convenience!
+///
+/// # Examples
+///
+/// ```
+/// # use conformal_component::parameters::{TypeSpecificInfoRef, StaticInfoRef};
+/// let enum_info = StaticInfoRef {
+///   title: "Enum",
+///   short_title: "Enum",
+///   unique_id: "enum",
+///   flags: Default::default(),
+///   type_specific: TypeSpecificInfoRef::Enum {
+///     default: 0,
+///     values: &["A", "B", "C"],
+///   },
+/// };
+/// let numeric_info = StaticInfoRef {
+///   title: "Numeric",
+///   short_title: "Num",
+///   unique_id: "numeric",
+///   flags: Default::default(),
+///   type_specific: TypeSpecificInfoRef::Numeric {
+///     default: 0.0,
+///     valid_range: 0.0..=1.0,
+///     units: None,
+///   },
+/// };
+/// ```
 pub type StaticInfoRef = InfoRef<'static, &'static str>;
 
 pub fn to_infos(v: &[InfoRef<'_, &'_ str>]) -> Vec<Info> {

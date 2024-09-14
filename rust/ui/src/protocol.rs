@@ -135,7 +135,7 @@ pub mod parameter_info {
                 } => Self::Numeric {
                     default,
                     valid_range: (*valid_range.start(), *valid_range.end()),
-                    units,
+                    units: units.unwrap_or_else(String::new),
                 },
                 conformal_component::parameters::TypeSpecificInfo::Enum { default, values } => {
                     Self::Enum {

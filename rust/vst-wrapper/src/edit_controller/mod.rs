@@ -600,7 +600,10 @@ impl IEditControllerTrait for EditController {
                     info_out.defaultNormalizedValue = f64::from(
                         (default - valid_range.start()) / (valid_range.end() - valid_range.start()),
                     );
-                    to_utf16(units, &mut info_out.units);
+                    to_utf16(
+                        units.as_ref().map_or("", |x| x.as_str()),
+                        &mut info_out.units,
+                    );
                 }
                 TypeSpecificInfo::Switch { default } => {
                     info_out.stepCount = 1;

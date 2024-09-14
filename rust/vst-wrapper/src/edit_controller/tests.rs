@@ -85,7 +85,7 @@ static PARAMETERS: [InfoRef<'static, &'static str>; 3] = [
         type_specific: TypeSpecificInfoRef::Numeric {
             default: DEFAULT_NUMERIC,
             valid_range: MIN_NUMERIC..=MAX_NUMERIC,
-            units: "Hz",
+            units: Some("Hz"),
         },
     },
     InfoRef {
@@ -127,7 +127,7 @@ static INCOMPATIBLE_PARAMETERS: [StaticInfoRef; 1] = [InfoRef {
     type_specific: TypeSpecificInfoRef::Numeric {
         default: DEFAULT_NUMERIC,
         valid_range: MIN_NUMERIC..=MAX_NUMERIC,
-        units: "Hz",
+        units: Some("Hz"),
     },
 }];
 
@@ -155,7 +155,7 @@ static NEWER_PARAMETERS: [StaticInfoRef; 3] = [
         type_specific: TypeSpecificInfoRef::Numeric {
             default: DEFAULT_NUMERIC,
             valid_range: MIN_NUMERIC..=20.0,
-            units: "Hz",
+            units: Some("Hz"),
         },
     },
     InfoRef {
@@ -201,7 +201,7 @@ static DUPLICATE_PARAMETERS: [StaticInfoRef; 2] = [
         type_specific: TypeSpecificInfoRef::Numeric {
             default: DEFAULT_NUMERIC,
             valid_range: MIN_NUMERIC..=20.0,
-            units: "Hz",
+            units: Some("Hz"),
         },
     },
     InfoRef {
@@ -212,7 +212,7 @@ static DUPLICATE_PARAMETERS: [StaticInfoRef; 2] = [
         type_specific: TypeSpecificInfoRef::Numeric {
             default: DEFAULT_NUMERIC,
             valid_range: MIN_NUMERIC..=20.0,
-            units: "Hz",
+            units: Some("Hz"),
         },
     },
 ];

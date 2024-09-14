@@ -31,7 +31,7 @@ pub const PITCH_BEND_INFO: InfoRef<'static, &'static str> = InfoRef {
     type_specific: TypeSpecificInfoRef::Numeric {
         default: 0.0,
         valid_range: -1.0..=1.0,
-        units: "",
+        units: None,
     },
 };
 
@@ -44,7 +44,7 @@ pub const MOD_WHEEL_INFO: InfoRef<'static, &'static str> = InfoRef {
     type_specific: TypeSpecificInfoRef::Numeric {
         default: 0.0,
         valid_range: 0.0..=1.0,
-        units: "",
+        units: None,
     },
 };
 
@@ -57,7 +57,7 @@ pub const EXPRESSION_INFO: InfoRef<'static, &'static str> = InfoRef {
     type_specific: TypeSpecificInfoRef::Numeric {
         default: 0.0,
         valid_range: 0.0..=1.0,
-        units: "",
+        units: None,
     },
 };
 
@@ -79,7 +79,7 @@ pub const AFTERTOUCH_INFO: InfoRef<'static, &'static str> = InfoRef {
     type_specific: TypeSpecificInfoRef::Numeric {
         default: 0.0,
         valid_range: 0.0..=1.0,
-        units: "",
+        units: None,
     },
 };
 
