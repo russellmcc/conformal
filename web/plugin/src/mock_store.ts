@@ -9,7 +9,7 @@ const mockGeneric = (infos: Map<string, Info>): Family<Value> =>
   atomFamily((path) => {
     const paramPath = path.match(/^params\/(.*)$/);
     if (paramPath) {
-      const param = paramPath[1];
+      const param = paramPath[1]!;
       const info = infos.get(param);
       if (!info) {
         throw new Error(`Unknown param: ${param}`);
@@ -30,7 +30,7 @@ const mockGeneric = (infos: Map<string, Info>): Family<Value> =>
     if (!paramInfoPath) {
       throw new Error(`Unknown path: ${path}`);
     }
-    const param = paramInfoPath[1];
+    const param = paramInfoPath[1]!;
     const info = infos.get(param);
     if (!info) {
       throw new Error(`Unknown param: ${param}`);
