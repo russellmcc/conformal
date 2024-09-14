@@ -244,7 +244,11 @@ fn to_internal(unique_id: &str, value: &cp::Value, metadata: &Metadata) -> cp::I
     }
 }
 
-fn from_internal(unique_id_hash: u32, value: cp::InternalValue, metadata: &Metadata) -> cp::Value {
+fn from_internal(
+    unique_id_hash: cp::IdHash,
+    value: cp::InternalValue,
+    metadata: &Metadata,
+) -> cp::Value {
     let metadatum = metadata.data.get(&unique_id_hash).unwrap();
     match (value, metadatum) {
         (cp::InternalValue::Numeric(n), Metadatum::Numeric { .. }) => cp::Value::Numeric(n),
@@ -897,7 +901,7 @@ unsafe fn check_changes_and_update_scratch_and_store<'a>(
     if !(0..param_count).all(|idx| {
         let param_queue = changes.getParameterData(idx);
         ComRef::from_raw(param_queue).map_or(false, |q| {
-            let parameter_id = q.getParameterId();
+            let parameter_id = cp::id_hash_from_internal_hash(q.getParameterId());
             let point_count = q.getPointCount();
             if point_count < 0 {
                 return false;

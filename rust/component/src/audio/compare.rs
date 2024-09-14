@@ -34,13 +34,13 @@ pub fn approx_eq(a: f32, b: f32, e: f32) -> bool {
 /// assert!(!all_approx_eq([1.0, 2.0, 3.0], [1.0, 2.0], 0.1));
 /// ```
 #[must_use]
-pub fn all_approx_eq<I: IntoIterator<Item = f32>, J: IntoIterator<Item = f32>>(
-    i: I,
-    j: J,
+pub fn all_approx_eq<L: IntoIterator<Item = f32>, R: IntoIterator<Item = f32>>(
+    lhs: L,
+    rhs: R,
     e: f32,
 ) -> bool {
-    i.into_iter().zip_longest(j).all(|x| match x {
-        EitherOrBoth::Both(a, b) => approx_eq(a, b, e),
+    lhs.into_iter().zip_longest(rhs).all(|x| match x {
+        EitherOrBoth::Both(l, r) => approx_eq(l, r, e),
         _ => false,
     })
 }

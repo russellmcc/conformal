@@ -420,38 +420,112 @@ impl<'a> From<&'a Info> for InfoRef<'a, String> {
 ///     units: None,
 ///   },
 /// };
+/// let switch_info = StaticInfoRef {
+///   title: "Switch",
+///   short_title: "Switch",
+///   unique_id: "switch",
+///   flags: Default::default(),
+///   type_specific: TypeSpecificInfoRef::Switch {
+///     default: false,
+///   },
+/// };
 /// ```
 pub type StaticInfoRef = InfoRef<'static, &'static str>;
 
+/// Converts a slice of [`InfoRef`]s to a vector of [`Info`]s.
+///
+/// # Examples
+///
+/// ```
+/// # use conformal_component::parameters::{StaticInfoRef, TypeSpecificInfoRef, Info, to_infos};
+/// let infos: Vec<Info> = to_infos(&[
+///   StaticInfoRef {
+///     title: "Switch",
+///     short_title: "Switch",
+///     unique_id: "switch",
+///     flags: Default::default(),
+///     type_specific: TypeSpecificInfoRef::Switch {
+///       default: false,
+///     },
+///   },
+/// ]);
+/// ```
 pub fn to_infos(v: &[InfoRef<'_, &'_ str>]) -> Vec<Info> {
     v.iter().map(Into::into).collect()
 }
 
-pub type IdHash = u32;
-
-/// Note that we use strings as the canonical ID for params,
-/// however, in environments where we never want to allocate,
-/// (such as audio processing code), we refer to parameters
-/// by a hash of their ID. This is also what we use for plug-in
-/// formats that require a numeric ID (such as VST3)
-#[must_use]
-pub fn hash_id(unique_id: &str) -> IdHash {
-    fxhash::hash32(unique_id) & 0x7fff_ffff
+/// A numeric hash of a parameter's ID.
+///
+/// In contexts where performance is critical, we refer to parameters
+/// by a numeric hash of their `unique_id`.
+#[derive(Eq, Hash, PartialEq, Clone, Copy, Debug)]
+pub struct IdHash {
+    internal_hash: u32,
 }
 
+#[doc(hidden)]
+#[must_use]
+pub fn id_hash_from_internal_hash(internal_hash: u32) -> IdHash {
+    IdHash {
+        internal_hash: internal_hash & 0x7fff_ffff,
+    }
+}
+
+impl IdHash {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn internal_hash(&self) -> u32 {
+        self.internal_hash
+    }
+}
+
+/// Creates a hash from a unique ID.
+///
+/// This converts a parameter's `unique_id` into an [`IdHash`].
+///
+/// # Examples
+///
+/// ```
+/// use conformal_component::parameters::hash_id;
+/// let hash = hash_id("my_parameter");
+/// ```
+#[must_use]
+pub fn hash_id(unique_id: &str) -> IdHash {
+    id_hash_from_internal_hash(fxhash::hash32(unique_id) & 0x7fff_ffff)
+}
+
+/// A value of a parameter used in performance-critical ocntexts.
+///
 /// This is used when performance is critical and we don't want to
 /// refer to enums by their string values.
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub enum InternalValue {
+    /// A numeric value.
     Numeric(f32),
+
+    /// The _index_ of an enum value.
+    ///
+    /// This refers to the index of the current value in the `values`
+    /// array of the parameter.
     Enum(u32),
+
+    /// A switch value.
     Switch(bool),
 }
 
+/// A value of a parameter
+///
+/// Outside of performance-critical contexts, we use this to refer
+/// to parameter values.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
+    /// A numeric value.
     Numeric(f32),
+
+    /// An enum value.
     Enum(String),
+
+    /// A switch value.
     Switch(bool),
 }
 
@@ -475,13 +549,24 @@ impl From<bool> for Value {
 
 /// Represents a snapshot of all valid parameters at a given point in time.
 ///
-/// For convenience, we provide `get_numeric`, `get_enum`, and `get_switch` functions
-/// which return the value of the parameter if it is of the correct type, or `None`
-/// otherwise. Note that all parmeter types re-use the same `ID` space, so
-/// only one of the specialized `get` methods will return a value for a given `ParameterID`.
+/// We use this trait to provide information about parameters when we are
+/// _not_ processing a buffer (for that, we use [`BufferStates`]).
+///
+/// This is passed into [`crate::synth::Synth::handle_events`] and
+/// [`crate::effect::Effect::handle_parameters`].
+///
+/// For convenience, we provide [`States::get_numeric`], [`States::get_enum`],
+/// and [`States::get_switch`] functions, which return the value of the parameter
+/// if it is of the correct type, or `None` otherwise.
+/// Note that all parmeter types re-use the same `ID` space, so only one of the
+/// specialized `get` methods will return a value for a given `ParameterID`.
 pub trait States {
+    /// Get the current value of a parameter by it's hashed unique ID.
+    ///
+    /// You can get the hash of a unique ID using [`hash_id`].
     fn get_by_hash(&self, id_hash: IdHash) -> Option<InternalValue>;
 
+    /// Get the current value of a parameter by it's unique ID.
     fn get(&self, unique_id: &str) -> Option<InternalValue> {
         self.get_by_hash(hash_id(unique_id))
     }

@@ -67,15 +67,15 @@ static ENUM_ID: &str = "enum";
 static SWITCH_ID: &str = "switch";
 
 fn numeric_hash() -> u32 {
-    parameters::hash_id(NUMERIC_ID)
+    parameters::hash_id(NUMERIC_ID).internal_hash()
 }
 
 fn enum_hash() -> u32 {
-    parameters::hash_id(ENUM_ID)
+    parameters::hash_id(ENUM_ID).internal_hash()
 }
 
 fn switch_hash() -> u32 {
-    parameters::hash_id(SWITCH_ID)
+    parameters::hash_id(SWITCH_ID).internal_hash()
 }
 
 static PARAMETERS: [InfoRef<'static, &'static str>; 3] = [
@@ -1293,12 +1293,11 @@ fn set_from_store_forwarded_to_component_handler() {
             store.set(ENUM_ID, parameters::Value::Enum("C".to_string())),
             Ok(())
         );
-        assert!(spy
-            .calls
-            .borrow()
-            .iter()
-            .any(|call| call
-                == &ComponentHandlerCalls::PerformEdit(parameters::hash_id(ENUM_ID), 1.0)));
+        assert!(spy.calls.borrow().iter().any(|call| call
+            == &ComponentHandlerCalls::PerformEdit(
+                parameters::hash_id(ENUM_ID).internal_hash(),
+                1.0
+            )));
     }
 }
 
@@ -1436,16 +1435,10 @@ fn set_grabbed_from_store_forwarded_to_component_handler() {
         );
         assert_eq!(store.set_grabbed(ENUM_ID, true), Ok(()));
         assert_eq!(store.set_grabbed(ENUM_ID, false), Ok(()));
-        assert!(spy
-            .calls
-            .borrow()
-            .iter()
-            .any(|call| call == &ComponentHandlerCalls::BeginEdit(parameters::hash_id(ENUM_ID))));
-        assert!(spy
-            .calls
-            .borrow()
-            .iter()
-            .any(|call| call == &ComponentHandlerCalls::EndEdit(parameters::hash_id(ENUM_ID))));
+        assert!(spy.calls.borrow().iter().any(|call| call
+            == &ComponentHandlerCalls::BeginEdit(parameters::hash_id(ENUM_ID).internal_hash())));
+        assert!(spy.calls.borrow().iter().any(|call| call
+            == &ComponentHandlerCalls::EndEdit(parameters::hash_id(ENUM_ID).internal_hash())));
     }
 }
 
@@ -1629,7 +1622,7 @@ fn synth_control_parameters_exposed() {
                 vst3::Steinberg::kResultTrue
             );
 
-            assert_eq!(hash_id(param_id), id);
+            assert_eq!(hash_id(param_id).internal_hash(), id);
         };
         check_assignment(
             vst3::Steinberg::Vst::ControllerNumbers_::kPitchBend,

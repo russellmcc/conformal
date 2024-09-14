@@ -142,7 +142,7 @@ pub struct ParameterValueQueueImpl {
 
 impl vst3::Steinberg::Vst::IParamValueQueueTrait for ParameterValueQueueImpl {
     unsafe fn getParameterId(&self) -> vst3::Steinberg::Vst::ParamID {
-        hash_id(self.param_id)
+        hash_id(self.param_id).internal_hash()
     }
 
     unsafe fn getPointCount(&self) -> vst3::Steinberg::int32 {

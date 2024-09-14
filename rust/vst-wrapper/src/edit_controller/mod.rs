@@ -269,7 +269,7 @@ impl store::Store for SharedStore {
         };
         maybe_set.map(|(component_handler, hash, v)| {
             unsafe {
-                component_handler.performEdit(hash, v);
+                component_handler.performEdit(hash.internal_hash(), v);
             };
         })
     }
@@ -296,11 +296,11 @@ impl store::Store for SharedStore {
         maybe_set.map(|(component_handler, hashed)| {
             if grabbed {
                 unsafe {
-                    component_handler.beginEdit(hashed);
+                    component_handler.beginEdit(hashed.internal_hash());
                 }
             } else {
                 unsafe {
-                    component_handler.endEdit(hashed);
+                    component_handler.endEdit(hashed.internal_hash());
                 }
             }
         })
@@ -435,7 +435,7 @@ impl IPluginBaseTrait for EditController {
 
 fn hash_parameter_ids<'a, S: AsRef<str> + 'a, I: IntoIterator<Item = InfoRef<'a, S>>>(
     parameter_info: I,
-) -> Option<HashMap<u32, String>> {
+) -> Option<HashMap<parameters::IdHash, String>> {
     let mut hash_to_id = HashMap::new();
     for info in parameter_info {
         let hash = parameters::hash_id(info.unique_id);
@@ -553,7 +553,7 @@ impl IEditControllerTrait for EditController {
             let info = infos.get(&param_id).unwrap();
 
             let info_out = &mut *info_out;
-            info_out.id = param_hash;
+            info_out.id = param_hash.internal_hash();
             to_utf16(&info.title, &mut info_out.title);
             to_utf16(&info.short_title, &mut info_out.shortTitle);
             info_out.flags = if info.flags.automatable {
@@ -620,7 +620,7 @@ impl IEditControllerTrait for EditController {
     ) -> vst3::Steinberg::tresult {
         if let State::Initialized(Initialized { store, .. }) = self.s.borrow().as_ref().unwrap() {
             let ParameterStore { unhash, infos, .. } = &*store.store.borrow();
-            match lookup_by_hash(id, unhash, infos) {
+            match lookup_by_hash(parameters::id_hash_from_internal_hash(id), unhash, infos) {
                 Some(parameters::Info {
                     type_specific: TypeSpecificInfo::Numeric { valid_range, .. },
                     ..
@@ -672,7 +672,7 @@ impl IEditControllerTrait for EditController {
         if let State::Initialized(Initialized { store, .. }) = self.s.borrow().as_ref().unwrap() {
             let ParameterStore { unhash, infos, .. } = &*store.store.borrow();
             if let Some(string) = from_utf16_ptr(string, MAX_STRING_SIZE) {
-                match lookup_by_hash(id, unhash, infos) {
+                match lookup_by_hash(parameters::id_hash_from_internal_hash(id), unhash, infos) {
                     Some(parameters::Info {
                         type_specific: TypeSpecificInfo::Numeric { valid_range, .. },
                         ..
@@ -746,6 +746,7 @@ impl IEditControllerTrait for EditController {
         &self,
         id: vst3::Steinberg::Vst::ParamID,
     ) -> vst3::Steinberg::Vst::ParamValue {
+        let id = parameters::id_hash_from_internal_hash(id);
         if let State::Initialized(Initialized { store, .. }) = self.s.borrow().as_ref().unwrap() {
             let ParameterStore {
                 unhash,
@@ -754,7 +755,7 @@ impl IEditControllerTrait for EditController {
                 ..
             } = &*store.store.borrow();
             return match (
-                lookup_by_hash(id, unhash, infos),
+                lookup_by_hash(id.clone(), unhash, infos),
                 lookup_by_hash(id, unhash, values),
             ) {
                 (
@@ -797,6 +798,7 @@ impl IEditControllerTrait for EditController {
         id: vst3::Steinberg::Vst::ParamID,
         value: vst3::Steinberg::Vst::ParamValue,
     ) -> vst3::Steinberg::tresult {
+        let id = parameters::id_hash_from_internal_hash(id);
         if !(0.0..=1.0).contains(&value) {
             return vst3::Steinberg::kInvalidArgument;
         }
@@ -909,7 +911,7 @@ impl IMidiMappingTrait for EditController {
             _ => None,
         } {
             Some(param_id) => {
-                *id = parameters::hash_id(param_id);
+                *id = parameters::hash_id(param_id).internal_hash();
                 vst3::Steinberg::kResultOk
             }
             _ => vst3::Steinberg::kResultFalse,

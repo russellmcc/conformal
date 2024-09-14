@@ -1,5 +1,8 @@
 //! Utilities for slicing audio buffers.
 
+// this is a private module
+#![allow(clippy::module_name_repetitions)]
+
 use super::{Buffer, BufferMut, ChannelLayout};
 
 struct SlicedBuffer<'a, B, I> {
