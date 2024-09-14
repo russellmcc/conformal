@@ -6,4 +6,5 @@ members = [
     "rust/preferences",
     "rust/component",
     "rust/ui",
+    "rust/core",
 ]

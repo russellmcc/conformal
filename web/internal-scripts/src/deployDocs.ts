@@ -14,6 +14,7 @@ export const deployDocs = async () => {
   --exclude conformal_ui
   --exclude conformal_preferences
   --exclude conformal_macos_bundle
+  --exclude conformal_core
   --workspace`.cwd(workspacePath);
 
   // Clear the output directory

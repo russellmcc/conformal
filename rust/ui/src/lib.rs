@@ -15,6 +15,7 @@
 #![doc = include_str!("../README.md")]
 
 use conformal_component::parameters;
+use conformal_core::parameters::store;
 
 mod preferences_convert;
 mod protocol;
@@ -33,22 +34,15 @@ pub trait ParameterStore {
     /// - `SetError::NotFound` if there is no parameter with the given unique ID.
     /// - `SetError::InvalidValue` if the value is not valid for the parameter.
     /// - `SetError::WrongType` if the parameter is not a type that matches `value`.
-    fn set(
-        &mut self,
-        unique_id: &str,
-        value: parameters::Value,
-    ) -> Result<(), parameters::store::SetError>;
+    fn set(&mut self, unique_id: &str, value: parameters::Value) -> Result<(), store::SetError>;
 
     /// Sets the grabbed state of the parameter store.
     ///
     /// # Errors
     ///
     /// - `SetError::NotFound` if there is no parameter with the given unique ID.
-    fn set_grabbed(
-        &mut self,
-        unique_id: &str,
-        grabbed: bool,
-    ) -> Result<(), parameters::store::SetGrabbedError>;
+    fn set_grabbed(&mut self, unique_id: &str, grabbed: bool)
+        -> Result<(), store::SetGrabbedError>;
 }
 
 pub use web_ui::Size;

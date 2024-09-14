@@ -20,10 +20,12 @@ use conformal_component::audio::BufferMut;
 use conformal_component::events::{Data, Event, Events};
 use conformal_component::parameters::{self, hash_id, BufferStates, Flags, States, StaticInfoRef};
 use conformal_component::{
-    parameters::{store::Store, InfoRef, TypeSpecificInfoRef},
+    parameters::{InfoRef, TypeSpecificInfoRef},
     synth::Synth,
     Component, ProcessingEnvironment, Processor,
 };
+use conformal_core::parameters::store;
+use conformal_core::parameters::store::Store;
 
 use super::GetStore;
 
@@ -1153,7 +1155,7 @@ struct SpyListener {
     param_changes: RefCell<Vec<(String, parameters::Value)>>,
 }
 
-impl parameters::store::Listener for SpyListener {
+impl store::Listener for SpyListener {
     fn parameter_changed(&self, id: &str, value: &parameters::Value) {
         self.param_changes
             .borrow_mut()
@@ -1177,7 +1179,7 @@ fn changing_parameters_in_store() {
             param_changes: RefCell::new(vec![]),
         });
         store.set_listener(rc::Rc::downgrade(
-            &(listener.clone() as rc::Rc<dyn parameters::store::Listener>),
+            &(listener.clone() as rc::Rc<dyn store::Listener>),
         ));
         assert_eq!(
             ec.setParamNormalized(enum_hash(), 1.0),
@@ -1216,7 +1218,7 @@ fn set_component_state_sets_params() {
             param_changes: RefCell::new(vec![]),
         });
         store.set_listener(rc::Rc::downgrade(
-            &(listener.clone() as rc::Rc<dyn parameters::store::Listener>),
+            &(listener.clone() as rc::Rc<dyn store::Listener>),
         ));
 
         setup_proc(&proc, &host);
@@ -1318,7 +1320,7 @@ fn invalid_id_fails_set() {
         );
         assert_eq!(
             store.set("Not a real ID", parameters::Value::Enum("C".to_string())),
-            Err(parameters::store::SetError::NotFound)
+            Err(store::SetError::NotFound)
         );
     }
 }
@@ -1336,7 +1338,7 @@ fn no_component_handler_fails_set() {
         let mut store = ec.get_store().unwrap();
         assert_eq!(
             store.set(ENUM_ID, parameters::Value::Enum("C".to_string())),
-            Err(parameters::store::SetError::InternalError)
+            Err(store::SetError::InternalError)
         );
     }
 }
@@ -1363,7 +1365,7 @@ fn invalid_enum_fails_set() {
                 ENUM_ID,
                 parameters::Value::Enum("Not a real value".to_string())
             ),
-            Err(parameters::store::SetError::InvalidValue)
+            Err(store::SetError::InvalidValue)
         );
     }
 }
@@ -1387,7 +1389,7 @@ fn out_of_range_numeric_fails_set() {
         );
         assert_eq!(
             store.set(NUMERIC_ID, parameters::Value::Numeric(MAX_NUMERIC + 1.0)),
-            Err(parameters::store::SetError::InvalidValue)
+            Err(store::SetError::InvalidValue)
         );
     }
 }
@@ -1411,7 +1413,7 @@ fn wrong_type_fails_set() {
         );
         assert_eq!(
             store.set(NUMERIC_ID, parameters::Value::Switch(false)),
-            Err(parameters::store::SetError::WrongType)
+            Err(store::SetError::WrongType)
         );
     }
 }

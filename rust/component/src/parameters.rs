@@ -24,19 +24,17 @@
 //! [`crate::effect::Effect::handle_parameters`] methods, Components can update any
 //! internal state in these methods.
 use std::{
-    collections::HashMap,
     ops::{Range, RangeBounds, RangeInclusive},
     string::ToString,
 };
 
-#[cfg(test)]
-mod tests;
-
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
 
-pub mod serialization;
 pub mod utils;
+
+#[cfg(test)]
+mod tests;
 
 macro_rules! info_enum_doc {
     () => {
@@ -475,12 +473,6 @@ impl From<bool> for Value {
     }
 }
 
-/// This represents the current state of all parameters.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Snapshot {
-    pub values: HashMap<String, Value>,
-}
-
 /// Represents a snapshot of all valid parameters at a given point in time.
 ///
 /// For convenience, we provide `get_numeric`, `get_enum`, and `get_switch` functions
@@ -872,5 +864,3 @@ pub trait BufferStates {
         self.switch_by_hash(hash_id(unique_id))
     }
 }
-
-pub mod store;

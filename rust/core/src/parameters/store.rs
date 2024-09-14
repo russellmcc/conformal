@@ -1,6 +1,6 @@
 use std::rc;
 
-use super::Value;
+use conformal_component::parameters::{Info, Value};
 
 pub trait Listener {
     fn parameter_changed(&self, unique_id: &str, value: &Value);
@@ -23,7 +23,7 @@ pub enum SetGrabbedError {
 pub trait Store {
     fn get(&self, unique_id: &str) -> Option<Value>;
 
-    fn get_info(&self, unique_id: &str) -> Option<super::Info>;
+    fn get_info(&self, unique_id: &str) -> Option<Info>;
 
     /// Set a parameter value
     ///

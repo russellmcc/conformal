@@ -5,16 +5,14 @@ use std::{
 };
 
 use conformal_component::{
-    parameters::{
-        self,
-        serialization::{DeserializationError, ReadInfoRef},
-        InfoRef, TypeSpecificInfo, TypeSpecificInfoRef,
-    },
+    parameters::{self, InfoRef, TypeSpecificInfo, TypeSpecificInfoRef},
     synth::{
         AFTERTOUCH_PARAMETER, CONTROLLER_PARAMETERS, EXPRESSION_PARAMETER, MOD_WHEEL_PARAMETER,
         PITCH_BEND_PARAMETER, SUSTAIN_PARAMETER,
     },
 };
+use conformal_core::parameters::serialization::{DeserializationError, ReadInfoRef};
+use conformal_core::parameters::store;
 
 #[cfg(target_os = "macos")]
 use conformal_macos_bundle::get_current_bundle_info;
@@ -74,7 +72,7 @@ struct ParameterStore {
     component_handler: Option<ComPtr<IComponentHandler>>,
 
     // Note that unsized weak types can't dangle, so we use Option here to allow dangling.
-    listener: Option<rc::Weak<dyn parameters::store::Listener>>,
+    listener: Option<rc::Weak<dyn store::Listener>>,
 }
 
 #[derive(Clone)]
@@ -204,7 +202,7 @@ fn from_internal(
     }
 }
 
-impl parameters::store::Store for SharedStore {
+impl store::Store for SharedStore {
     fn get(&self, id: &str) -> Option<parameters::Value> {
         self.store
             .borrow()
@@ -213,15 +211,11 @@ impl parameters::store::Store for SharedStore {
             .map(|v| from_internal(id, *v, &self.store.borrow().infos))
     }
 
-    fn set_listener(&mut self, listener: rc::Weak<dyn parameters::store::Listener>) {
+    fn set_listener(&mut self, listener: rc::Weak<dyn store::Listener>) {
         self.store.borrow_mut().listener = Some(listener);
     }
 
-    fn set(
-        &mut self,
-        unique_id: &str,
-        value: parameters::Value,
-    ) -> Result<(), parameters::store::SetError> {
+    fn set(&mut self, unique_id: &str, value: parameters::Value) -> Result<(), store::SetError> {
         let maybe_set = if let ParameterStore {
             component_handler: Some(component_handler),
             infos,
@@ -240,7 +234,7 @@ impl parameters::store::Store for SharedStore {
                     if valid_range.contains(value) {
                         Ok(normalize_numeric(*value, valid_range))
                     } else {
-                        Err(parameters::store::SetError::InvalidValue)
+                        Err(store::SetError::InvalidValue)
                     }
                 }
                 (
@@ -255,7 +249,7 @@ impl parameters::store::Store for SharedStore {
                     .map(|index| {
                         normalize_enum(index.try_into().unwrap(), values.len().try_into().unwrap())
                     })
-                    .ok_or(parameters::store::SetError::InvalidValue),
+                    .ok_or(store::SetError::InvalidValue),
                 (
                     parameters::Value::Switch(value),
                     Some(parameters::Info {
@@ -263,15 +257,15 @@ impl parameters::store::Store for SharedStore {
                         ..
                     }),
                 ) => Ok(normalize_switch(*value)),
-                (_, Some(_)) => Err(parameters::store::SetError::WrongType),
-                (_, None) => Err(parameters::store::SetError::NotFound),
+                (_, Some(_)) => Err(store::SetError::WrongType),
+                (_, None) => Err(store::SetError::NotFound),
             })
             .map(|v| {
                 values.insert(unique_id.to_string(), to_internal(unique_id, &value, infos));
                 (component_handler.clone(), parameters::hash_id(unique_id), v)
             })
         } else {
-            Err(parameters::store::SetError::InternalError)
+            Err(store::SetError::InternalError)
         };
         maybe_set.map(|(component_handler, hash, v)| {
             unsafe {
@@ -284,7 +278,7 @@ impl parameters::store::Store for SharedStore {
         &mut self,
         unique_id: &str,
         grabbed: bool,
-    ) -> Result<(), parameters::store::SetGrabbedError> {
+    ) -> Result<(), store::SetGrabbedError> {
         let maybe_set = if let ParameterStore {
             component_handler: Some(component_handler),
             infos,
@@ -294,10 +288,10 @@ impl parameters::store::Store for SharedStore {
             if infos.contains_key(unique_id) {
                 Ok((component_handler.clone(), parameters::hash_id(unique_id)))
             } else {
-                Err(parameters::store::SetGrabbedError::NotFound)
+                Err(store::SetGrabbedError::NotFound)
             }
         } else {
-            Err(parameters::store::SetGrabbedError::InternalError)
+            Err(store::SetGrabbedError::InternalError)
         };
         maybe_set.map(|(component_handler, hashed)| {
             if grabbed {
@@ -320,7 +314,7 @@ impl parameters::store::Store for SharedStore {
 /// For testing only.
 #[cfg(test)]
 trait GetStore {
-    type Store: parameters::store::Store;
+    type Store: store::Store;
     fn get_store(&self) -> Option<Self::Store>;
 }
 

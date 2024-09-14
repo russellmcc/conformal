@@ -5,6 +5,7 @@ use vst3::{
 };
 
 use conformal_component::parameters;
+use conformal_core::parameters::store;
 use conformal_ui::{self, raw_window_handle, Size, Ui};
 
 // Only include tests in test config on macos
@@ -31,7 +32,7 @@ struct View<S> {
 
 struct ViewCell<S>(RefCell<View<S>>);
 
-impl<S: parameters::store::Store + 'static> parameters::store::Listener for ViewCell<S> {
+impl<S: store::Store + 'static> store::Listener for ViewCell<S> {
     fn parameter_changed(&self, unique_id: &str, value: &parameters::Value) {
         if let Some(ui) = self.0.borrow_mut().ui.as_mut() {
             ui.update_parameter(unique_id, value);
@@ -55,16 +56,12 @@ impl<S> Deref for SharedView<S> {
     }
 }
 
-impl<S: parameters::store::Store> conformal_ui::ParameterStore for SharedStore<S> {
+impl<S: store::Store> conformal_ui::ParameterStore for SharedStore<S> {
     fn get(&self, unique_id: &str) -> Option<parameters::Value> {
         self.0.borrow().get(unique_id)
     }
 
-    fn set(
-        &mut self,
-        unique_id: &str,
-        value: parameters::Value,
-    ) -> Result<(), parameters::store::SetError> {
+    fn set(&mut self, unique_id: &str, value: parameters::Value) -> Result<(), store::SetError> {
         self.0.borrow_mut().set(unique_id, value)
     }
 
@@ -72,7 +69,7 @@ impl<S: parameters::store::Store> conformal_ui::ParameterStore for SharedStore<S
         &mut self,
         unique_id: &str,
         grabbed: bool,
-    ) -> Result<(), parameters::store::SetGrabbedError> {
+    ) -> Result<(), store::SetGrabbedError> {
         self.0.borrow_mut().set_grabbed(unique_id, grabbed)
     }
 
@@ -81,7 +78,7 @@ impl<S: parameters::store::Store> conformal_ui::ParameterStore for SharedStore<S
     }
 }
 
-pub fn create<S: parameters::store::Store + 'static>(
+pub fn create<S: store::Store + 'static>(
     store: S,
     domain: String,
     initial_size: Size,
@@ -92,7 +89,7 @@ pub fn create<S: parameters::store::Store + 'static>(
         domain,
         initial_size,
     }))));
-    let view_as_listener: rc::Rc<dyn parameters::store::Listener> = view.clone().0;
+    let view_as_listener: rc::Rc<dyn store::Listener> = view.clone().0;
     view.borrow_mut()
         .store
         .0
@@ -136,7 +133,7 @@ impl VST3PlatformType {
     }
 }
 
-impl<S: parameters::store::Store + 'static> IPlugViewTrait for SharedView<S> {
+impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
     unsafe fn isPlatformTypeSupported(
         &self,
         platform_type: vst3::Steinberg::FIDString,

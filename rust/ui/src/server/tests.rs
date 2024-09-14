@@ -10,10 +10,8 @@ use std::{
 };
 
 use crate::protocol::{self, Request, Response};
-use conformal_component::parameters::{
-    store::{SetError, SetGrabbedError},
-    Value,
-};
+use conformal_component::parameters::Value;
+use conformal_core::parameters::store::{SetError, SetGrabbedError};
 
 use super::{ResponseSender, Server};
 struct ResponseSenderSpy<'a> {

@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use conformal_component::parameters;
+use conformal_core::parameters::serialization;
 
 #[derive(Serialize, Deserialize)]
 pub struct State {
-    pub params: parameters::serialization::Snapshot,
+    pub params: serialization::Snapshot,
 }

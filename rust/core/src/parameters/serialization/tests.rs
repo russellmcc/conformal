@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use crate::parameters::{Snapshot, Value};
+use crate::parameters::Snapshot;
+use conformal_component::parameters::Value;
 
 fn to_hash<'a, T, I: IntoIterator<Item = (&'a str, T)>>(i: I) -> HashMap<String, T> {
     i.into_iter().map(|(k, v)| (k.to_string(), v)).collect()

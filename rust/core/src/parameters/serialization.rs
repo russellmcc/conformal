@@ -38,6 +38,7 @@
 
 use std::collections::HashMap;
 
+use conformal_component::parameters::{TypeSpecificInfoRef, Value as ParameterValue};
 use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
@@ -67,12 +68,12 @@ pub enum WriteInfoRef<I> {
     Switch {},
 }
 
-impl<'a, S: AsRef<str>> From<super::TypeSpecificInfoRef<'a, S>> for WriteInfoRef<&'a [S]> {
-    fn from(info: super::TypeSpecificInfoRef<'a, S>) -> Self {
+impl<'a, S: AsRef<str>> From<TypeSpecificInfoRef<'a, S>> for WriteInfoRef<&'a [S]> {
+    fn from(info: TypeSpecificInfoRef<'a, S>) -> Self {
         match info {
-            super::TypeSpecificInfoRef::Numeric { .. } => Self::Numeric {},
-            super::TypeSpecificInfoRef::Enum { values, .. } => Self::Enum { values },
-            super::TypeSpecificInfoRef::Switch { .. } => Self::Switch {},
+            TypeSpecificInfoRef::Numeric { .. } => Self::Numeric {},
+            TypeSpecificInfoRef::Enum { values, .. } => Self::Enum { values },
+            TypeSpecificInfoRef::Switch { .. } => Self::Switch {},
         }
     }
 }
@@ -92,12 +93,10 @@ pub enum ReadInfoRef<I> {
     },
 }
 
-impl<'a, S: AsRef<str>> From<super::TypeSpecificInfoRef<'a, S>>
-    for ReadInfoRef<std::slice::Iter<'a, S>>
-{
-    fn from(info: super::TypeSpecificInfoRef<'a, S>) -> Self {
+impl<'a, S: AsRef<str>> From<TypeSpecificInfoRef<'a, S>> for ReadInfoRef<std::slice::Iter<'a, S>> {
+    fn from(info: TypeSpecificInfoRef<'a, S>) -> Self {
         match info {
-            super::TypeSpecificInfoRef::Numeric {
+            TypeSpecificInfoRef::Numeric {
                 default,
                 valid_range,
                 ..
@@ -105,13 +104,13 @@ impl<'a, S: AsRef<str>> From<super::TypeSpecificInfoRef<'a, S>>
                 default,
                 valid_range,
             },
-            super::TypeSpecificInfoRef::Enum {
+            TypeSpecificInfoRef::Enum {
                 default, values, ..
             } => Self::Enum {
                 default,
                 values: values.iter(),
             },
-            super::TypeSpecificInfoRef::Switch { default, .. } => Self::Switch { default },
+            TypeSpecificInfoRef::Switch { default, .. } => Self::Switch { default },
         }
     }
 }
@@ -132,11 +131,13 @@ impl super::Snapshot {
         for (id, value) in self.values {
             let info = lookup(id.as_str())?;
             let serialized_value = match (info, value) {
-                (WriteInfoRef::Numeric {}, super::Value::Numeric(value)) => {
+                (WriteInfoRef::Numeric {}, ParameterValue::Numeric(value)) => {
                     Some(Value::Numeric(value))
                 }
-                (WriteInfoRef::Enum { .. }, super::Value::Enum(value)) => Some(Value::Enum(value)),
-                (WriteInfoRef::Switch {}, super::Value::Switch(value)) => {
+                (WriteInfoRef::Enum { .. }, ParameterValue::Enum(value)) => {
+                    Some(Value::Enum(value))
+                }
+                (WriteInfoRef::Switch {}, ParameterValue::Switch(value)) => {
                     Some(Value::Switch(value))
                 }
                 _ => None,
@@ -195,20 +196,22 @@ impl Snapshot {
             let value = match (info, serialized_value) {
                 (ReadInfoRef::Numeric { valid_range, .. }, Some(Value::Numeric(value))) => {
                     if valid_range.contains(value) {
-                        Ok(super::Value::Numeric(*value))
+                        Ok(ParameterValue::Numeric(*value))
                     } else {
                         Err(DeserializationError::VersionTooNew())
                     }
                 }
-                (ReadInfoRef::Numeric { default, .. }, None) => Ok(super::Value::Numeric(default)),
+                (ReadInfoRef::Numeric { default, .. }, None) => {
+                    Ok(ParameterValue::Numeric(default))
+                }
                 (ReadInfoRef::Enum { values, .. }, Some(Value::Enum(value))) => {
                     if values.into_iter().any(|v| v == value.as_str()) {
-                        Ok(super::Value::Enum(std::mem::take(value)))
+                        Ok(ParameterValue::Enum(std::mem::take(value)))
                     } else {
                         Err(DeserializationError::VersionTooNew())
                     }
                 }
-                (ReadInfoRef::Enum { default, values }, None) => Ok(super::Value::Enum(
+                (ReadInfoRef::Enum { default, values }, None) => Ok(ParameterValue::Enum(
                     values
                         .clone()
                         .into_iter()
@@ -217,9 +220,9 @@ impl Snapshot {
                         .to_string(),
                 )),
                 (ReadInfoRef::Switch { .. }, Some(Value::Switch(value))) => {
-                    Ok(super::Value::Switch(*value))
+                    Ok(ParameterValue::Switch(*value))
                 }
-                (ReadInfoRef::Switch { default, .. }, None) => Ok(super::Value::Switch(default)),
+                (ReadInfoRef::Switch { default, .. }, None) => Ok(ParameterValue::Switch(default)),
                 // Note that changing parameter types requires a migration, so
                 // if the type in the snapshot doesn't match the type in the info,
                 // it's invalid.

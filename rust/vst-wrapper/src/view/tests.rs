@@ -2,20 +2,17 @@ use vst3::Steinberg::IPlugViewTrait;
 
 use super::create;
 use conformal_component::parameters;
+use conformal_core::parameters::store;
 struct DummyStore;
 
-impl conformal_component::parameters::store::Store for DummyStore {
+impl store::Store for DummyStore {
     fn get(&self, _unique_id: &str) -> Option<parameters::Value> {
         None
     }
 
-    fn set_listener(&mut self, _listener: std::rc::Weak<dyn parameters::store::Listener>) {}
+    fn set_listener(&mut self, _listener: std::rc::Weak<dyn store::Listener>) {}
 
-    fn set(
-        &mut self,
-        _unique_id: &str,
-        _value: parameters::Value,
-    ) -> Result<(), parameters::store::SetError> {
+    fn set(&mut self, _unique_id: &str, _value: parameters::Value) -> Result<(), store::SetError> {
         Ok(())
     }
 
@@ -23,7 +20,7 @@ impl conformal_component::parameters::store::Store for DummyStore {
         &mut self,
         _unique_id: &str,
         _grabbed: bool,
-    ) -> Result<(), parameters::store::SetGrabbedError> {
+    ) -> Result<(), store::SetGrabbedError> {
         Ok(())
     }
 

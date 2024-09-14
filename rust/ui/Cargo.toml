@@ -11,6 +11,7 @@ homepage = "https://russellmcc.github.io/conformal"
 [dependencies]
 base64 = "0.22.1"
 conformal_component = { version = "0.0.0", path = "../component" }
+conformal_core = { version = "0.0.0", path = "../core" }
 wry = { version = "0.40.0", features = ["devtools"] }
 conformal_preferences = { version = "0.0.0", path = "../preferences" }
 serde = { version = "1.0.193", features = ["derive"] }

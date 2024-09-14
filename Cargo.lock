@@ -210,6 +210,13 @@ version = "0.0.0"
 dependencies = [
  "fxhash",
  "itertools",
+]
+
+[[package]]
+name = "conformal_core"
+version = "0.0.0"
+dependencies = [
+ "conformal_component",
  "serde",
 ]
 
@@ -236,6 +243,7 @@ version = "0.0.0"
 dependencies = [
  "base64",
  "conformal_component",
+ "conformal_core",
  "conformal_macos_bundle",
  "conformal_preferences",
  "mime_guess",
@@ -251,6 +259,7 @@ version = "0.0.0"
 dependencies = [
  "assert_approx_eq",
  "conformal_component",
+ "conformal_core",
  "conformal_macos_bundle",
  "conformal_ui",
  "rmp-serde",
