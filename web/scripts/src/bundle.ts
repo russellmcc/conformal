@@ -31,7 +31,7 @@ export const createBundle = async ({
   await runShell(["defaults", "write", bundleData.id, "dev_mode", "true"]);
 
   // Delete the bundle if it exists.
-  await runShell(["rm", "-rf", `${bundlePath}`]);
+  await runShell(["rm", "-rf", bundlePath]);
 
   // Create the binary directory for the bundle.
   await runShell(["mkdir", "-p", `${bundlePath}/Contents/MacOS`]);
@@ -123,8 +123,12 @@ export const createBundle = async ({
   const bundle_absolute_path = resolve(bundlePath);
 
   if (linkToLibrary) {
+    const home = process.env.HOME;
+    if (!home) {
+      throw new Error("HOME environment variable is not set");
+    }
     const bundle_dest = resolve(
-      `${process.env.HOME}/Library/Audio/Plug-Ins/VST3/${bundleData.name}.vst3`,
+      `${home}/Library/Audio/Plug-Ins/VST3/${bundleData.name}.vst3`,
     );
 
     await runShell(["rm", "-rf", bundle_dest]);

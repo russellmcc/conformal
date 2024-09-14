@@ -148,7 +148,7 @@ More info [here](https://developer.apple.com/documentation/security/notarizing_m
           "--root",
           tmpDir,
           "--identifier",
-          `${qualifiedIdent}`,
+          qualifiedIdent,
           "--version",
           bundleData.version,
           "--sign",

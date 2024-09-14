@@ -18,11 +18,11 @@ export const execute = async (config: Config) => {
   const { name } = await getBundleData(packageRoot);
 
   const bundlePath = `target/${config}/${name}.vst3`;
-
-  await runShell([
-    `${process.env.VST3_SDK_DIR}/build/bin/validator`,
-    bundlePath,
-  ]);
+  const sdkDir = process.env.VST3_SDK_DIR;
+  if (!sdkDir) {
+    throw new Error("VST3_SDK_DIR is not set");
+  }
+  await runShell([`${sdkDir}/build/bin/validator`, bundlePath]);
 };
 
 export const addValidateCommand = (command: Command) => {

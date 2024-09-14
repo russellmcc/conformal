@@ -29,7 +29,11 @@ const rust = (): Tool => ({
     try {
       const cargoVersion = (await $`cargo --version`.text()).split(" ")[1];
       if (cargoVersion !== RUST_VERSION) {
-        console.warn(`cargo installed, but wrong version ${cargoVersion}`);
+        console.warn(
+          cargoVersion
+            ? `cargo installed, but wrong version ${cargoVersion}`
+            : "cargo installed, but could not get version",
+        );
         return false;
       }
       return true;
@@ -83,7 +87,11 @@ const vst3Validator = (): Tool => ({
 
   install: async () => {
     // use cmake to build the validator
-    const buildPath = `${process.env.VST3_SDK_DIR}/build`;
+    const sdk = process.env.VST3_SDK_DIR;
+    if (!sdk) {
+      throw new Error("VST3_SDK_DIR is not set");
+    }
+    const buildPath = `${sdk}/build`;
     await $`mkdir -p ${buildPath}`.quiet();
     await $`cmake ..`.cwd(buildPath);
     await $`cmake --build . --target validator`.cwd(buildPath);
