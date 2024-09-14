@@ -564,13 +564,22 @@ pub trait States {
     /// Get the current value of a parameter by it's hashed unique ID.
     ///
     /// You can get the hash of a unique ID using [`hash_id`].
+    ///
+    /// If there is no parameter with the given ID, this will return `None`.
     fn get_by_hash(&self, id_hash: IdHash) -> Option<InternalValue>;
 
     /// Get the current value of a parameter by it's unique ID.
+    ///
+    /// If there is no parameter with the given ID, this will return `None`.
     fn get(&self, unique_id: &str) -> Option<InternalValue> {
         self.get_by_hash(hash_id(unique_id))
     }
 
+    /// Get the current numeric value of a parameter by it's hashed unique ID.
+    ///
+    /// You can get the hash of a unique ID using [`hash_id`].
+    ///
+    /// If the parameter is not present or is not numeric, this will return `None`.
     fn numeric_by_hash(&self, id_hash: IdHash) -> Option<f32> {
         match self.get_by_hash(id_hash) {
             Some(InternalValue::Numeric(v)) => Some(v),
@@ -578,10 +587,18 @@ pub trait States {
         }
     }
 
+    /// Get the current numeric value of a parameter by it's unique ID.
+    ///
+    /// If the parameter is not present or is not numeric, this will return `None`.
     fn get_numeric(&self, unique_id: &str) -> Option<f32> {
         self.numeric_by_hash(hash_id(unique_id))
     }
 
+    /// Get the current enum value of a parameter by it's hashed unique ID.
+    ///
+    /// You can get the hash of a unique ID using [`hash_id`].
+    ///
+    /// If the parameter is not present or is not an enum, this will return `None`.
     fn enum_by_hash(&self, id_hash: IdHash) -> Option<u32> {
         match self.get_by_hash(id_hash) {
             Some(InternalValue::Enum(v)) => Some(v),
@@ -589,10 +606,18 @@ pub trait States {
         }
     }
 
+    /// Get the current enum value of a parameter by it's unique ID.
+    ///
+    /// If the parameter is not present or is not an enum, this will return `None`.
     fn get_enum(&self, unique_id: &str) -> Option<u32> {
         self.enum_by_hash(hash_id(unique_id))
     }
 
+    /// Get the current switch value of a parameter by it's hashed unique ID.
+    ///
+    /// You can get the hash of a unique ID using [`hash_id`].
+    ///
+    /// If the parameter is not present or is not a switch, this will return `None`.
     fn switch_by_hash(&self, id_hash: IdHash) -> Option<bool> {
         match self.get_by_hash(id_hash) {
             Some(InternalValue::Switch(v)) => Some(v),
@@ -600,19 +625,29 @@ pub trait States {
         }
     }
 
+    /// Get the current switch value of a parameter by it's unique ID.
+    ///
+    /// If the parameter is not present or is not a switch, this will return `None`.
     fn get_switch(&self, unique_id: &str) -> Option<bool> {
         self.switch_by_hash(hash_id(unique_id))
     }
 }
 
+/// Represents a single point of a piecewise linear curve.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PiecewiseLinearCurvePoint {
+    /// The number of samples from the start of the buffer this point occurs at.
     pub sample_offset: usize,
+
+    /// The value of the curve at this point.
     pub value: f32,
 }
 
-/// A Parameter piecewise linear curve represents a value that changes
-/// over the course of the buffer, moving linearly from point to point.
+/// Represents a numeric value that changes over the course of the buffer.
+///
+/// We represent values changing over the course of the buffer as a piecewise
+/// linear curve, where the curve moving linearly from point to point.
+///
 /// Note that the curve is _guaranteed_ to begin at 0, however it
 /// may end before the end of the buffer - in this case, the value
 /// remains constant until the end of the buffer.
@@ -674,6 +709,58 @@ fn check_curve_invariants<
 }
 
 impl<I: IntoIterator<Item = PiecewiseLinearCurvePoint> + Clone> PiecewiseLinearCurve<I> {
+    /// Construct a new [`PiecewiseLinearCurve`] from an iterator of points.
+    ///
+    /// This will check the invariants for the curve, and if any are invalid, this will
+    /// return `None`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use conformal_component::parameters::{PiecewiseLinearCurve, PiecewiseLinearCurvePoint};
+    /// assert!(PiecewiseLinearCurve::new(
+    ///   vec![PiecewiseLinearCurvePoint { sample_offset: 0, value: 0.0 },
+    ///        PiecewiseLinearCurvePoint { sample_offset: 100, value: 1.0 }],
+    ///   128,
+    ///   0.0..=1.0,
+    /// ).is_some());
+    ///
+    /// // Curves must include at least one point
+    /// assert!(PiecewiseLinearCurve::new(vec![], 128, 0.0..=1.0).is_none());
+    ///
+    /// // Curves can't go outside the valid range.
+    /// assert!(PiecewiseLinearCurve::new(
+    ///   vec![PiecewiseLinearCurvePoint { sample_offset: 0, value: 0.0 },
+    ///        PiecewiseLinearCurvePoint { sample_offset: 100, value: 2.0 }],
+    ///   128,
+    ///   0.0..=1.0,
+    /// ).is_none());
+    ///
+    /// // The curve must not go past the end of the buffer
+    /// assert!(PiecewiseLinearCurve::new(
+    ///   vec![PiecewiseLinearCurvePoint { sample_offset: 0, value: 0.0 },
+    ///        PiecewiseLinearCurvePoint { sample_offset: 128, value: 1.0 }],
+    ///   128,
+    ///   0.0..=1.0,
+    /// ).is_none());
+    ///
+    /// // The first point must be at 0
+    /// assert!(PiecewiseLinearCurve::new(
+    ///   vec![PiecewiseLinearCurvePoint { sample_offset: 50, value: 0.0 },
+    ///        PiecewiseLinearCurvePoint { sample_offset: 100, value: 1.0 }],
+    ///   128,
+    ///   0.0..=1.0,
+    /// ).is_none());
+    ///
+    /// // Sample offsets must monotonically increase
+    /// assert!(PiecewiseLinearCurve::new(
+    ///   vec![PiecewiseLinearCurvePoint { sample_offset: 0, value: 0.0 },
+    ///        PiecewiseLinearCurvePoint { sample_offset: 100, value: 1.0 },
+    ///        PiecewiseLinearCurvePoint { sample_offset: 50, value: 0.5 }],
+    ///   128,
+    ///   0.0..=1.0,
+    /// ).is_none());
+    /// ```
     pub fn new(points: I, buffer_size: usize, valid_range: RangeInclusive<f32>) -> Option<Self> {
         if buffer_size == 0 {
             return None;
@@ -690,6 +777,11 @@ impl<I: IntoIterator<Item = PiecewiseLinearCurvePoint> + Clone> PiecewiseLinearC
 }
 
 impl<I> PiecewiseLinearCurve<I> {
+    /// Get the size of the buffer this curve is defined over.
+    ///
+    /// Note that the last point may occur _before_ the end of the buffer,
+    /// in which case the value remains constant from that point until the
+    /// end of the buffer.
     pub fn buffer_size(&self) -> usize {
         self.buffer_size
     }
@@ -704,9 +796,13 @@ impl<I: IntoIterator<Item = PiecewiseLinearCurvePoint>> IntoIterator for Piecewi
     }
 }
 
+/// Represents a value at a specific point in time in a buffer.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TimedValue<V> {
+    /// The number of samples from the start of the buffer.
     pub sample_offset: usize,
+
+    /// The value at this point in time.
     pub value: V,
 }
 
@@ -720,8 +816,7 @@ impl<V> ValueAndSampleOffset<V> for TimedValue<V> {
     }
 }
 
-/// This is equivalent to `PiecewiseLinearCurve` but for Enums. There
-/// is no interpolation, since the value is enumerated.
+/// Represents an enum value that changes over the course of a buffer.
 ///
 /// Each point represents a change in value at a given sample offset -
 /// the value remains constant until the next point (or the end of the buffer)
@@ -738,6 +833,25 @@ pub struct TimedEnumValues<I> {
 }
 
 impl<I: IntoIterator<Item = TimedValue<u32>> + Clone> TimedEnumValues<I> {
+    /// Construct a new [`TimedEnumValues`] from an iterator of points.
+    ///
+    /// This will check the invariants for the curve, and if any are invalid, this will
+    /// return `None`.
+    ///
+    /// Note that here we refer to the enum by the _index_ of the value,
+    /// that is, the index of the value in the `values` array of the parameter.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use conformal_component::parameters::{TimedEnumValues, TimedValue};
+    /// assert!(TimedEnumValues::new(
+    ///   vec![TimedValue { sample_offset: 0, value: 0 },
+    ///        TimedValue { sample_offset: 100, value: 1 }],
+    ///   128,
+    ///   0..2,
+    /// ).is_some());
+    /// ```
     pub fn new(points: I, buffer_size: usize, valid_range: Range<u32>) -> Option<Self> {
         if buffer_size == 0 {
             return None;
@@ -754,6 +868,7 @@ impl<I: IntoIterator<Item = TimedValue<u32>> + Clone> TimedEnumValues<I> {
 }
 
 impl<I> TimedEnumValues<I> {
+    /// Get the size of the buffer this curve is defined over.
     pub fn buffer_size(&self) -> usize {
         self.buffer_size
     }
@@ -768,8 +883,7 @@ impl<I: IntoIterator<Item = TimedValue<u32>>> IntoIterator for TimedEnumValues<I
     }
 }
 
-/// This is equivalent to `PiecewiseLinearCurve` but for Switch. There
-/// is no interpolation, since the value is switched
+/// Represents a switched value that changes over the course of a buffer.
 ///
 /// Each point represents a change in value at a given sample offset -
 /// the value remains constant until the next point (or the end of the buffer)
@@ -785,6 +899,21 @@ pub struct TimedSwitchValues<I> {
 }
 
 impl<I: IntoIterator<Item = TimedValue<bool>> + Clone> TimedSwitchValues<I> {
+    /// Construct a new [`TimedSwitchValues`] from an iterator of points.
+    ///
+    /// This will check the invariants for the curve, and if any are invalid, this will
+    /// return `None`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use conformal_component::parameters::{TimedSwitchValues, TimedValue};
+    /// assert!(TimedSwitchValues::new(
+    ///   vec![TimedValue { sample_offset: 0, value: false },
+    ///        TimedValue { sample_offset: 100, value: true }],
+    ///   128,
+    /// ).is_some());
+    /// ```
     pub fn new(points: I, buffer_size: usize) -> Option<Self> {
         if buffer_size == 0 {
             return None;
@@ -801,6 +930,7 @@ impl<I: IntoIterator<Item = TimedValue<bool>> + Clone> TimedSwitchValues<I> {
 }
 
 impl<I> TimedSwitchValues<I> {
+    /// Get the size of the buffer this curve is defined over.
     pub fn buffer_size(&self) -> usize {
         self.buffer_size
     }
@@ -817,11 +947,28 @@ impl<I: IntoIterator<Item = TimedValue<bool>>> IntoIterator for TimedSwitchValue
 
 /// Represents the state of a numeric value across a buffer
 pub enum NumericBufferState<I> {
+    /// The value is constant across the buffer.
     Constant(f32),
+
+    /// The value changes over the course of the buffer, represented by a
+    /// [`PiecewiseLinearCurve`].
     PiecewiseLinear(PiecewiseLinearCurve<I>),
 }
 
 impl<I: IntoIterator<Item = PiecewiseLinearCurvePoint>> NumericBufferState<I> {
+    /// Get the value of the parameter at the start of the buffer.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use conformal_component::parameters::{NumericBufferState, PiecewiseLinearCurve, PiecewiseLinearCurvePoint};
+    /// assert_eq!(NumericBufferState::PiecewiseLinear(PiecewiseLinearCurve::new(
+    ///   vec![PiecewiseLinearCurvePoint { sample_offset: 0, value: 0.5 },
+    ///       PiecewiseLinearCurvePoint { sample_offset: 100, value: 1.0 }],
+    ///   128,
+    ///   0.0..=1.0,
+    /// ).unwrap()).value_at_start_of_buffer(), 0.5);
+    /// ```
     #[allow(clippy::missing_panics_doc)] // Only panics when invariants are broken.
     pub fn value_at_start_of_buffer(self) -> f32 {
         match self {
@@ -832,12 +979,33 @@ impl<I: IntoIterator<Item = PiecewiseLinearCurvePoint>> NumericBufferState<I> {
 }
 
 /// Represents the state of an enum value across a buffer
+///
+/// Here we refer to the enum by the _index_ of the value,
+/// that is, the index of the value in the `values` array of the parameter.
 pub enum EnumBufferState<I> {
+    /// The value is constant across the buffer.
     Constant(u32),
+
+    /// The value changes over the course of the buffer, represented by a
+    /// [`TimedEnumValues`].
     Varying(TimedEnumValues<I>),
 }
 
 impl<I: IntoIterator<Item = TimedValue<u32>>> EnumBufferState<I> {
+    /// Get the value of the parameter at the start of the buffer,
+    /// represented by the index of the value in the `values` array of the parameter.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use conformal_component::parameters::{EnumBufferState, TimedEnumValues, TimedValue};
+    /// assert_eq!(EnumBufferState::Varying(TimedEnumValues::new(
+    ///   vec![TimedValue { sample_offset: 0, value: 1 },
+    ///        TimedValue { sample_offset: 100, value: 2 }],
+    ///   128,
+    ///   0..3
+    /// ).unwrap()).value_at_start_of_buffer(), 1);
+    /// ```
     #[allow(clippy::missing_panics_doc)] // Only panics when invariants are broken.
     pub fn value_at_start_of_buffer(self) -> u32 {
         match self {
@@ -849,11 +1017,27 @@ impl<I: IntoIterator<Item = TimedValue<u32>>> EnumBufferState<I> {
 
 /// Represents the state of an switched value across a buffer
 pub enum SwitchBufferState<I> {
+    /// The value is constant across the buffer.
     Constant(bool),
+
+    /// The value changes over the course of the buffer, represented by a
+    /// [`TimedSwitchValues`].
     Varying(TimedSwitchValues<I>),
 }
 
 impl<I: IntoIterator<Item = TimedValue<bool>>> SwitchBufferState<I> {
+    /// Get the value of the parameter at the start of the buffer.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use conformal_component::parameters::{SwitchBufferState, TimedSwitchValues, TimedValue};
+    /// assert_eq!(SwitchBufferState::Varying(TimedSwitchValues::new(
+    ///   vec![TimedValue { sample_offset: 0, value: true },
+    ///        TimedValue { sample_offset: 100, value: false }],
+    ///   128,
+    /// ).unwrap()).value_at_start_of_buffer(), true);
+    /// ```
     #[allow(clippy::missing_panics_doc)] // Only panics when invariants are broken.
     pub fn value_at_start_of_buffer(self) -> bool {
         match self {
@@ -863,17 +1047,28 @@ impl<I: IntoIterator<Item = TimedValue<bool>>> SwitchBufferState<I> {
     }
 }
 
+/// Represents the value of a parameter as it varies across a buffer.
 pub enum BufferState<N, E, S> {
+    /// The value of a numeric parameter represented by a [`NumericBufferState`].
     Numeric(NumericBufferState<N>),
+
+    /// The value of an enum parameter represented by a [`EnumBufferState`].
     Enum(EnumBufferState<E>),
+
+    /// The value of a switch parameter represented by a [`SwitchBufferState`].
     Switch(SwitchBufferState<S>),
 }
 
-/// Represents the state of all parameters across a buffer.
+/// Represents the state of several parameters across a buffer.
 ///
-/// Each parameter is marked as constant of varying to allow optimizations in
+/// Each parameter is marked as constant or varying to allow optimizations in
 /// the constant case.
 pub trait BufferStates {
+    /// Get the state of a parameter by it's hashed unique ID.
+    ///
+    /// You can get the hash of a unique ID using [`hash_id`].
+    ///
+    /// If there is no parameter with the given ID, this will return `None`.
     fn get_by_hash(
         &self,
         id_hash: IdHash,
@@ -885,6 +1080,9 @@ pub trait BufferStates {
         >,
     >;
 
+    /// Get the state of a parameter by it's unique ID.
+    ///
+    /// If there is no parameter with the given ID, this will return `None`.
     fn get(
         &self,
         unique_id: &str,
@@ -898,6 +1096,12 @@ pub trait BufferStates {
         self.get_by_hash(hash_id(unique_id))
     }
 
+    /// Get the state of a numeric parameter by it's hashed unique ID.
+    ///
+    /// You can get the hash of a unique ID using [`hash_id`].
+    ///
+    /// If there is no parameter with the given ID, or the parameter is not numeric,
+    /// this will return `None`.
     fn numeric_by_hash(
         &self,
         param_id: IdHash,
@@ -908,6 +1112,10 @@ pub trait BufferStates {
         }
     }
 
+    /// Get the state of a numeric parameter by it's unique ID.
+    ///
+    /// If there is no parameter with the given ID, or the parameter is not numeric,
+    /// this will return `None`.
     fn get_numeric(
         &self,
         unique_id: &str,
@@ -915,6 +1123,12 @@ pub trait BufferStates {
         self.numeric_by_hash(hash_id(unique_id))
     }
 
+    /// Get the state of an enum parameter by it's hashed unique ID.
+    ///
+    /// You can get the hash of a unique ID using [`hash_id`].
+    ///
+    /// If there is no parameter with the given ID, or the parameter is not an enum,
+    /// this will return `None`.
     fn enum_by_hash(
         &self,
         param_id: IdHash,
@@ -925,6 +1139,10 @@ pub trait BufferStates {
         }
     }
 
+    /// Get the state of an enum parameter by it's unique ID.
+    ///
+    /// If there is no parameter with the given ID, or the parameter is not an enum,
+    /// this will return `None`.
     fn get_enum(
         &self,
         unique_id: &str,
@@ -932,6 +1150,12 @@ pub trait BufferStates {
         self.enum_by_hash(hash_id(unique_id))
     }
 
+    /// Get the state of a switch parameter by it's hashed unique ID.
+    ///
+    /// You can get the hash of a unique ID using [`hash_id`].
+    ///
+    /// If there is no parameter with the given ID, or the parameter is not a switch,
+    /// this will return `None`.
     fn switch_by_hash(
         &self,
         param_id: IdHash,
@@ -942,6 +1166,10 @@ pub trait BufferStates {
         }
     }
 
+    /// Get the state of a switch parameter by it's unique ID.
+    ///
+    /// If there is no parameter with the given ID, or the parameter is not a switch,
+    /// this will return `None`.
     fn get_switch(
         &self,
         unique_id: &str,
