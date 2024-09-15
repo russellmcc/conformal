@@ -9,9 +9,14 @@
   "scripts": {
     "lint": "tsc && eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "check-format": "prettier --ignore-path .gitignore -c .",
-    "format": "prettier --ignore-path .gitignore --write ."
+    "format": "prettier --ignore-path .gitignore --write .",
+    "prepack": "conformal-internal-scripts ts-browser-prepack",
+    "postpack": "conformal-internal-scripts ts-browser-postpack"
   },
-  "main": "src/index.ts",
+  "files": [
+    "LICENSE",
+    "dist"
+  ],
   "dependencies": {
     "zod": "^3.23.8",
     "jotai": "^2.9.3",
