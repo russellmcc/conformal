@@ -22,9 +22,7 @@ use assert_approx_eq::assert_approx_eq;
 use conformal_component;
 use conformal_component::audio::{channels, channels_mut, BufferMut};
 use conformal_component::events::{Data, Event, Events, NoteData, NoteID};
-use conformal_component::parameters::utils::{
-    enum_per_sample, numeric_per_sample, switch_per_sample,
-};
+use conformal_component::parameters::{enum_per_sample, numeric_per_sample, switch_per_sample};
 use conformal_component::parameters::{
     BufferStates, Flags, InfoRef, States, StaticInfoRef, TypeSpecificInfoRef,
 };

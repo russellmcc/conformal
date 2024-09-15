@@ -12,6 +12,3 @@ homepage = "https://russellmcc.github.io/conformal"
 [dependencies]
 itertools = "0.13.0"
 fxhash = "0.2.1"
-
-[features]
-test-utils = []
