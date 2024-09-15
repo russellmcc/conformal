@@ -10,8 +10,8 @@
     "lint": "tsc && eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "check-format": "prettier --ignore-path .gitignore -c .",
     "format": "prettier --ignore-path .gitignore --write .",
-    "prepack": "bun scripts/prepack.ts",
-    "postpack": "bun scripts/postpack.ts"
+    "prepack": "conformal-internal-scripts ts-browser-prepack",
+    "postpack": "conformal-internal-scripts ts-browser-postpack"
   },
   "files": [
     "LICENSE",

@@ -1,5 +1,7 @@
 import { Command } from "@commander-js/extra-typings";
 import { addReleaseCommand } from "./release";
+import { addPostpackCommand } from "./postpack";
+import { addPrepackCommand } from "./prepack";
 
 export const command = () => {
   const command = new Command("conformal-internal-scripts").description(
@@ -7,6 +9,8 @@ export const command = () => {
   );
 
   addReleaseCommand(command);
+  addPrepackCommand(command);
+  addPostpackCommand(command);
 
   return command;
 };
