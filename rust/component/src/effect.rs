@@ -26,6 +26,17 @@ pub trait Effect: Processor {
     /// In addition to recieving the audio, this function also receives
     /// information about the state of the parameters throughout the buffer
     /// being processed.
+    ///
+    /// In order to consume the parameters, you can use the [`crate::pzip`] macro
+    /// to convert the parameters into an iterator of tuples that represent
+    /// the state of the parameters at each sample.
+    ///
+    /// The sample rate of the audio was provided in `environment.sampling_rate`
+    /// in the call to `crate::Component::create_processor`.
+    ///
+    /// Note that it's guaranteed that `output` will be no longer than
+    /// `environment.max_samples_per_process_call` provided in the call to
+    /// `crate::Component::create_processor`.
     fn process<P: BufferStates, I: Buffer, O: BufferMut>(
         &mut self,
         parameters: P,

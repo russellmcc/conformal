@@ -558,6 +558,11 @@ impl From<bool> for Value {
 /// if it is of the correct type, or `None` otherwise.
 /// Note that all parmeter types re-use the same `ID` space, so only one of the
 /// specialized `get` methods will return a value for a given `ParameterID`.
+///
+/// Note that in general, the Conformal wrapper will implement this trait
+/// for you, but we provide a simple implementation called [`StatesMap`]
+/// that's appropriate to use in tests or other cases where you need to
+/// create this trait outside of a Conformal wrapper.
 pub trait States {
     /// Get the current value of a parameter by it's hashed unique ID.
     ///
@@ -1059,8 +1064,24 @@ pub enum BufferState<N, E, S> {
 
 /// Represents the state of several parameters across a buffer.
 ///
-/// Each parameter is marked as constant or varying to allow optimizations in
-/// the constant case.
+/// Each parameter is represented by a [`BufferState`], which represents
+/// a value for that parameter at each sample of the buffer.
+///
+/// To easily process parameters from this struct, you can use the
+/// [`crate::pzip`] macro, which converts a [`BufferStates`] into a per-sample
+/// iterator containing the values of each parameter you want to look at.
+///
+/// For more low-level usages, you can deal directly with the underlying [`BufferState`]
+/// objects, which might yield higher performance in some cases than the [`crate::pzip`] macro.
+///
+/// Most of the time, this trait will be provided by the Conformal framework.
+/// However, we provide simple implementations for this trait for testing or
+/// in other scenarios where you need to call process functions outside of
+/// Conformal.
+///
+///  - [`ConstantBufferStates`] - A simple implementation where all parameters are constant.
+///  - [`RampedStatesMap`] - A simple implementation where the parameter can be different at
+///    the start and end of the buffer.
 pub trait BufferStates {
     /// Get the state of a parameter by it's hashed unique ID.
     ///

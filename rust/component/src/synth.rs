@@ -127,6 +127,17 @@ pub trait Synth: Processor {
     /// Note that `parameters` will include [`CONTROLLER_PARAMETERS`] related to controller state
     /// (e.g. pitch bend, mod wheel, etc.) above, in addition to all the parameters
     /// returned by `crate::Component::parameter_infos`.
+    ///
+    /// In order to consume the parameters, you can use the [`crate::pzip`] macro
+    /// to convert the parameters into an iterator of tuples that represent
+    /// the state of the parameters at each sample.
+    ///
+    /// The sample rate of the audio was provided in `environment.sampling_rate`
+    /// in the call to `crate::Component::create_processor`.
+    ///
+    /// Note that it's guaranteed that `output` will be no longer than
+    /// `environment.max_samples_per_process_call` provided in the call to
+    /// `crate::Component::create_processor`.
     fn process<E: IntoIterator<Item = Event> + Clone, P: BufferStates, O: BufferMut>(
         &mut self,
         events: Events<E>,
