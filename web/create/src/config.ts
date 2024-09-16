@@ -18,13 +18,23 @@ type ConfigMetadata = {
 
 export const toEnv = (
   config: Config,
-  { skipTodo } = { skipTodo: false },
+  {
+    skipTodo,
+    component_crate_version,
+    vst_crate_version,
+  }: {
+    skipTodo?: boolean;
+    component_crate_version: string;
+    vst_crate_version: string;
+  },
 ): Record<string, string> => ({
   ...config,
   class_id: uuidHex(),
   edit_class_id: uuidHex(),
   gitignore: ".gitignore",
-  task_marker: skipTodo ? "DONE" : "TOD" + "O",
+  component_crate_version,
+  vst_crate_version,
+  task_marker: (skipTodo ?? false) ? "DONE" : "TOD" + "O",
 });
 
 const metadatas: ConfigMetadata[] = [
