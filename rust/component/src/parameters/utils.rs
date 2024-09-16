@@ -7,7 +7,7 @@ use std::{
     ops::{Range, RangeInclusive},
 };
 
-use crate::synth::CONTROLLER_PARAMETERS;
+use crate::{audio::approx_eq, synth::CONTROLLER_PARAMETERS};
 
 use super::{
     hash_id, BufferState, BufferStates, EnumBufferState, IdHash, InfoRef, InternalValue,
@@ -431,9 +431,9 @@ pub fn override_defaults<'a, S: AsRef<str> + 'a, H: BuildHasher>(
 ///   Some(&InternalValue::Numeric(0.5)),
 /// );
 /// ```
-pub fn override_synth_defaults<'a, 'b: 'a>(
+pub fn override_synth_defaults<'a, 'b: 'a, H: BuildHasher>(
     infos: impl IntoIterator<Item = InfoRef<'a, &'b str>> + 'a,
-    overrides: &HashMap<&'_ str, InternalValue>,
+    overrides: &HashMap<&'_ str, InternalValue, H>,
 ) -> HashMap<String, InternalValue> {
     override_defaults(infos.into_iter().chain(CONTROLLER_PARAMETERS), overrides)
 }
@@ -896,6 +896,32 @@ pub struct RampedStatesMap {
     map: HashMap<IdHash, RampedState>,
 }
 
+fn ramped_numeric(start: f32, end: f32, range: RangeInclusive<f32>) -> RampedState {
+    if approx_eq(start, end, 1e-6) {
+        RampedState::Constant(InternalValue::Numeric(start))
+    } else {
+        RampedState::RampedNumeric { start, end, range }
+    }
+}
+fn ramped_enum(start: u32, end: u32, num_vaules: usize) -> RampedState {
+    if start == end {
+        RampedState::Constant(InternalValue::Enum(start))
+    } else {
+        RampedState::RampedEnum {
+            start,
+            end,
+            range: 0..u32::try_from(num_vaules).unwrap(),
+        }
+    }
+}
+fn ramped_switch(start: bool, end: bool) -> RampedState {
+    if start == end {
+        RampedState::Constant(InternalValue::Switch(start))
+    } else {
+        RampedState::RampedSwitch { start, end }
+    }
+}
+
 impl RampedStatesMap {
     /// Constructor that creates a `RampedStatesMap`
     /// from a list of `Info`s and `override`s.at the start and end of the buffer.
@@ -935,10 +961,13 @@ impl RampedStatesMap {
     ///
     /// Panics if `start_overrides` or `end_overrides` do not match the type of the parameter
     /// specified in `infos`.
-    pub fn new<'a, S: AsRef<str> + 'a>(
+    ///
+    /// Also panics if any of the enum parameters in `infos` has a number of values
+    /// that will not fit into a `u32`.
+    pub fn new<'a, S: AsRef<str> + 'a, H: BuildHasher, H_: BuildHasher>(
         infos: impl IntoIterator<Item = InfoRef<'a, S>> + 'a,
-        start_overrides: &HashMap<&'_ str, InternalValue>,
-        end_overrides: &HashMap<&'_ str, InternalValue>,
+        start_overrides: &HashMap<&'_ str, InternalValue, H>,
+        end_overrides: &HashMap<&'_ str, InternalValue, H_>,
         buffer_size: usize,
     ) -> Self {
         let map = infos
@@ -954,17 +983,7 @@ impl RampedStatesMap {
                         TypeSpecificInfoRef::Numeric { valid_range, .. },
                         Some(InternalValue::Numeric(start)),
                         Some(InternalValue::Numeric(end)),
-                    ) => {
-                        if start == end {
-                            RampedState::Constant(InternalValue::Numeric(*start))
-                        } else {
-                            RampedState::RampedNumeric {
-                                start: *start,
-                                end: *end,
-                                range: valid_range,
-                            }
-                        }
-                    }
+                    ) => ramped_numeric(*start, *end, valid_range),
                     (
                         TypeSpecificInfoRef::Numeric {
                             default,
@@ -973,11 +992,7 @@ impl RampedStatesMap {
                         },
                         None,
                         Some(InternalValue::Numeric(end)),
-                    ) => RampedState::RampedNumeric {
-                        start: default,
-                        end: *end,
-                        range: valid_range,
-                    },
+                    ) => ramped_numeric(default, *end, valid_range),
                     (
                         TypeSpecificInfoRef::Numeric {
                             default,
@@ -986,11 +1001,7 @@ impl RampedStatesMap {
                         },
                         Some(InternalValue::Numeric(start)),
                         None,
-                    ) => RampedState::RampedNumeric {
-                        start: *start,
-                        end: default,
-                        range: valid_range,
-                    },
+                    ) => ramped_numeric(*start, default, valid_range),
                     (TypeSpecificInfoRef::Numeric { default, .. }, None, None) => {
                         RampedState::Constant(InternalValue::Numeric(default))
                     }
@@ -998,39 +1009,21 @@ impl RampedStatesMap {
                         TypeSpecificInfoRef::Enum { values, .. },
                         Some(InternalValue::Enum(start)),
                         Some(InternalValue::Enum(end)),
-                    ) => {
-                        if start == end {
-                            RampedState::Constant(InternalValue::Enum(*start))
-                        } else {
-                            RampedState::RampedEnum {
-                                start: *start,
-                                end: *end,
-                                range: 0..values.len() as u32,
-                            }
-                        }
-                    }
+                    ) => ramped_enum(*start, *end, values.len()),
                     (
                         TypeSpecificInfoRef::Enum {
                             default, values, ..
                         },
                         None,
                         Some(InternalValue::Enum(end)),
-                    ) => RampedState::RampedEnum {
-                        start: default,
-                        end: *end,
-                        range: 0..values.len() as u32,
-                    },
+                    ) => ramped_enum(default, *end, values.len()),
                     (
                         TypeSpecificInfoRef::Enum {
                             default, values, ..
                         },
                         Some(InternalValue::Enum(start)),
                         None,
-                    ) => RampedState::RampedEnum {
-                        start: *start,
-                        end: default,
-                        range: 0..values.len() as u32,
-                    },
+                    ) => ramped_enum(*start, default, values.len()),
                     (TypeSpecificInfoRef::Enum { default, .. }, None, None) => {
                         RampedState::Constant(InternalValue::Enum(default))
                     }
@@ -1038,32 +1031,17 @@ impl RampedStatesMap {
                         TypeSpecificInfoRef::Switch { .. },
                         Some(InternalValue::Switch(start)),
                         Some(InternalValue::Switch(end)),
-                    ) => {
-                        if start == end {
-                            RampedState::Constant(InternalValue::Switch(*start))
-                        } else {
-                            RampedState::RampedSwitch {
-                                start: *start,
-                                end: *end,
-                            }
-                        }
-                    }
+                    ) => ramped_switch(*start, *end),
                     (
                         TypeSpecificInfoRef::Switch { default },
                         None,
                         Some(InternalValue::Switch(end)),
-                    ) => RampedState::RampedSwitch {
-                        start: default,
-                        end: *end,
-                    },
+                    ) => ramped_switch(default, *end),
                     (
                         TypeSpecificInfoRef::Switch { default },
                         Some(InternalValue::Switch(start)),
                         None,
-                    ) => RampedState::RampedSwitch {
-                        start: *start,
-                        end: default,
-                    },
+                    ) => ramped_switch(*start, default),
                     (TypeSpecificInfoRef::Switch { default }, None, None) => {
                         RampedState::Constant(InternalValue::Switch(default))
                     }

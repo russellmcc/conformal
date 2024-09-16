@@ -755,7 +755,7 @@ impl IEditControllerTrait for EditController {
                 ..
             } = &*store.store.borrow();
             return match (
-                lookup_by_hash(id.clone(), unhash, infos),
+                lookup_by_hash(id, unhash, infos),
                 lookup_by_hash(id, unhash, values),
             ) {
                 (
