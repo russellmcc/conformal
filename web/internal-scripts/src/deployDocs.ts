@@ -6,6 +6,11 @@ export const deployDocs = async () => {
 
   const workspacePath = path.join(import.meta.path, "..", "..", "..", "..");
 
+  // self-doc the scripts
+  await $`bun web/scripts/src/selfDoc.ts > web/docs/pages/docs/reference/scripts.md`.cwd(
+    workspacePath,
+  );
+
   // Build the documentation
   await $`bun run web-build docs`.cwd(workspacePath);
 
