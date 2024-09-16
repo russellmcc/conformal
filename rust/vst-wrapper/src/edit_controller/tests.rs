@@ -20,10 +20,12 @@ use conformal_component::audio::BufferMut;
 use conformal_component::events::{Data, Event, Events};
 use conformal_component::parameters::{self, hash_id, BufferStates, Flags, States, StaticInfoRef};
 use conformal_component::{
-    parameters::{store::Store, InfoRef, TypeSpecificInfoRef},
+    parameters::{InfoRef, TypeSpecificInfoRef},
     synth::Synth,
     Component, ProcessingEnvironment, Processor,
 };
+use conformal_core::parameters::store;
+use conformal_core::parameters::store::Store;
 
 use super::GetStore;
 
@@ -65,15 +67,15 @@ static ENUM_ID: &str = "enum";
 static SWITCH_ID: &str = "switch";
 
 fn numeric_hash() -> u32 {
-    parameters::hash_id(NUMERIC_ID)
+    parameters::hash_id(NUMERIC_ID).internal_hash()
 }
 
 fn enum_hash() -> u32 {
-    parameters::hash_id(ENUM_ID)
+    parameters::hash_id(ENUM_ID).internal_hash()
 }
 
 fn switch_hash() -> u32 {
-    parameters::hash_id(SWITCH_ID)
+    parameters::hash_id(SWITCH_ID).internal_hash()
 }
 
 static PARAMETERS: [InfoRef<'static, &'static str>; 3] = [
@@ -85,7 +87,7 @@ static PARAMETERS: [InfoRef<'static, &'static str>; 3] = [
         type_specific: TypeSpecificInfoRef::Numeric {
             default: DEFAULT_NUMERIC,
             valid_range: MIN_NUMERIC..=MAX_NUMERIC,
-            units: "Hz",
+            units: Some("Hz"),
         },
     },
     InfoRef {
@@ -127,7 +129,7 @@ static INCOMPATIBLE_PARAMETERS: [StaticInfoRef; 1] = [InfoRef {
     type_specific: TypeSpecificInfoRef::Numeric {
         default: DEFAULT_NUMERIC,
         valid_range: MIN_NUMERIC..=MAX_NUMERIC,
-        units: "Hz",
+        units: Some("Hz"),
     },
 }];
 
@@ -155,7 +157,7 @@ static NEWER_PARAMETERS: [StaticInfoRef; 3] = [
         type_specific: TypeSpecificInfoRef::Numeric {
             default: DEFAULT_NUMERIC,
             valid_range: MIN_NUMERIC..=20.0,
-            units: "Hz",
+            units: Some("Hz"),
         },
     },
     InfoRef {
@@ -201,7 +203,7 @@ static DUPLICATE_PARAMETERS: [StaticInfoRef; 2] = [
         type_specific: TypeSpecificInfoRef::Numeric {
             default: DEFAULT_NUMERIC,
             valid_range: MIN_NUMERIC..=20.0,
-            units: "Hz",
+            units: Some("Hz"),
         },
     },
     InfoRef {
@@ -212,7 +214,7 @@ static DUPLICATE_PARAMETERS: [StaticInfoRef; 2] = [
         type_specific: TypeSpecificInfoRef::Numeric {
             default: DEFAULT_NUMERIC,
             valid_range: MIN_NUMERIC..=20.0,
-            units: "Hz",
+            units: Some("Hz"),
         },
     },
 ];
@@ -1153,7 +1155,7 @@ struct SpyListener {
     param_changes: RefCell<Vec<(String, parameters::Value)>>,
 }
 
-impl parameters::store::Listener for SpyListener {
+impl store::Listener for SpyListener {
     fn parameter_changed(&self, id: &str, value: &parameters::Value) {
         self.param_changes
             .borrow_mut()
@@ -1177,7 +1179,7 @@ fn changing_parameters_in_store() {
             param_changes: RefCell::new(vec![]),
         });
         store.set_listener(rc::Rc::downgrade(
-            &(listener.clone() as rc::Rc<dyn parameters::store::Listener>),
+            &(listener.clone() as rc::Rc<dyn store::Listener>),
         ));
         assert_eq!(
             ec.setParamNormalized(enum_hash(), 1.0),
@@ -1216,7 +1218,7 @@ fn set_component_state_sets_params() {
             param_changes: RefCell::new(vec![]),
         });
         store.set_listener(rc::Rc::downgrade(
-            &(listener.clone() as rc::Rc<dyn parameters::store::Listener>),
+            &(listener.clone() as rc::Rc<dyn store::Listener>),
         ));
 
         setup_proc(&proc, &host);
@@ -1291,12 +1293,11 @@ fn set_from_store_forwarded_to_component_handler() {
             store.set(ENUM_ID, parameters::Value::Enum("C".to_string())),
             Ok(())
         );
-        assert!(spy
-            .calls
-            .borrow()
-            .iter()
-            .any(|call| call
-                == &ComponentHandlerCalls::PerformEdit(parameters::hash_id(ENUM_ID), 1.0)));
+        assert!(spy.calls.borrow().iter().any(|call| call
+            == &ComponentHandlerCalls::PerformEdit(
+                parameters::hash_id(ENUM_ID).internal_hash(),
+                1.0
+            )));
     }
 }
 
@@ -1318,7 +1319,7 @@ fn invalid_id_fails_set() {
         );
         assert_eq!(
             store.set("Not a real ID", parameters::Value::Enum("C".to_string())),
-            Err(parameters::store::SetError::NotFound)
+            Err(store::SetError::NotFound)
         );
     }
 }
@@ -1336,7 +1337,7 @@ fn no_component_handler_fails_set() {
         let mut store = ec.get_store().unwrap();
         assert_eq!(
             store.set(ENUM_ID, parameters::Value::Enum("C".to_string())),
-            Err(parameters::store::SetError::InternalError)
+            Err(store::SetError::InternalError)
         );
     }
 }
@@ -1363,7 +1364,7 @@ fn invalid_enum_fails_set() {
                 ENUM_ID,
                 parameters::Value::Enum("Not a real value".to_string())
             ),
-            Err(parameters::store::SetError::InvalidValue)
+            Err(store::SetError::InvalidValue)
         );
     }
 }
@@ -1387,7 +1388,7 @@ fn out_of_range_numeric_fails_set() {
         );
         assert_eq!(
             store.set(NUMERIC_ID, parameters::Value::Numeric(MAX_NUMERIC + 1.0)),
-            Err(parameters::store::SetError::InvalidValue)
+            Err(store::SetError::InvalidValue)
         );
     }
 }
@@ -1411,7 +1412,7 @@ fn wrong_type_fails_set() {
         );
         assert_eq!(
             store.set(NUMERIC_ID, parameters::Value::Switch(false)),
-            Err(parameters::store::SetError::WrongType)
+            Err(store::SetError::WrongType)
         );
     }
 }
@@ -1434,16 +1435,10 @@ fn set_grabbed_from_store_forwarded_to_component_handler() {
         );
         assert_eq!(store.set_grabbed(ENUM_ID, true), Ok(()));
         assert_eq!(store.set_grabbed(ENUM_ID, false), Ok(()));
-        assert!(spy
-            .calls
-            .borrow()
-            .iter()
-            .any(|call| call == &ComponentHandlerCalls::BeginEdit(parameters::hash_id(ENUM_ID))));
-        assert!(spy
-            .calls
-            .borrow()
-            .iter()
-            .any(|call| call == &ComponentHandlerCalls::EndEdit(parameters::hash_id(ENUM_ID))));
+        assert!(spy.calls.borrow().iter().any(|call| call
+            == &ComponentHandlerCalls::BeginEdit(parameters::hash_id(ENUM_ID).internal_hash())));
+        assert!(spy.calls.borrow().iter().any(|call| call
+            == &ComponentHandlerCalls::EndEdit(parameters::hash_id(ENUM_ID).internal_hash())));
     }
 }
 
@@ -1627,7 +1622,7 @@ fn synth_control_parameters_exposed() {
                 vst3::Steinberg::kResultTrue
             );
 
-            assert_eq!(hash_id(param_id), id);
+            assert_eq!(hash_id(param_id).internal_hash(), id);
         };
         check_assignment(
             vst3::Steinberg::Vst::ControllerNumbers_::kPitchBend,

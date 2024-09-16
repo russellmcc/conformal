@@ -34,7 +34,7 @@ const PARAMETERS: [InfoRef<'static, &'static str>; 2] = [
         type_specific: TypeSpecificInfoRef::Numeric {
             default: 100.,
             valid_range: 0f32..=100.,
-            units: "%",
+            units: Some("%"),
         },
     },
 ];

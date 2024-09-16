@@ -6,7 +6,6 @@ rust-version = "1.79.0"
 license = "ISC"
 description = "Utilities for macOS bundle directories used by the conformal audio plug-in framework."
 repository = "https://github.com/russellmcc/conformal"
-documentation = "https://russellmcc.github.io/conformal/rust-doc/conformal_macos_bundle"
 homepage = "https://russellmcc.github.io/conformal"
 
 [dependencies]

@@ -48,7 +48,11 @@ describe("create-conformal template", () => {
           await stampTemplate(
             dest,
             path.join(workspacePath, "web", "create", "template"),
-            toEnv(TEST_CONFIG, { skipTodo: true }),
+            toEnv(TEST_CONFIG, {
+              skipTodo: true,
+              component_crate_version: `{ path = "${path.join(workspacePath, "rust", "component")}" }`,
+              vst_crate_version: `{ path = "${path.join(workspacePath, "rust", "vst-wrapper")}" }`,
+            }),
           );
           await $`git init`.cwd(dest);
 

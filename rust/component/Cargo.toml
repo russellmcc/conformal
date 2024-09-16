@@ -10,9 +10,5 @@ documentation = "https://russellmcc.github.io/conformal/rust-doc/conformal_compo
 homepage = "https://russellmcc.github.io/conformal"
 
 [dependencies]
-fxhash = "0.2.1"
-serde = { version = "1.0.193", features = ["derive"] }
 itertools = "0.13.0"
-
-[features]
-test-utils = []
+fxhash = "0.2.1"

@@ -1,4 +1,4 @@
-use crate::audio::test_utils::samplewise_diff_iters;
+use crate::audio::all_approx_eq;
 
 use super::super::{
     PiecewiseLinearCurve, PiecewiseLinearCurvePoint, TimedEnumValues, TimedSwitchValues, TimedValue,
@@ -37,7 +37,7 @@ fn piecewise_linear_curve_per_sample_basics() {
         .unwrap(),
     )
     .collect::<Vec<_>>();
-    assert!(samplewise_diff_iters(
+    assert!(all_approx_eq(
         vals.iter().copied(),
         ([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 5.0, 5.0, 10.0, 10.0])
             .iter()

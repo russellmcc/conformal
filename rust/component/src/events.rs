@@ -1,3 +1,5 @@
+//! Contains data structures representing _events_ sent to [`crate::synth::Synth`]s
+
 #[cfg(test)]
 mod tests;
 
@@ -7,12 +9,28 @@ enum NoteIDInternals {
     NoteIDFromPitch(u8),
 }
 
+/// Represents an identifier for a note
+///
+/// This is an opaque identifier that can be used to refer to a specific note
+/// that is playing.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct NoteID {
     internals: NoteIDInternals,
 }
 
 impl NoteID {
+    /// Create a new `NoteID` from a numeric ID.
+    ///
+    /// Note that the `NoteID`s will be considered equal if they come from
+    /// the same numeric ID, and different if they come from different numeric IDs.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use conformal_component::events::NoteID;
+    /// assert_eq!(NoteID::from_id(42), NoteID::from_id(42));
+    /// assert_ne!(NoteID::from_id(42), NoteID::from_id(43));
+    /// ```
     #[must_use]
     pub const fn from_id(id: i32) -> Self {
         Self {
@@ -20,6 +38,7 @@ impl NoteID {
         }
     }
 
+    #[doc(hidden)]
     #[must_use]
     pub const fn from_pitch(pitch: u8) -> Self {
         Self {
@@ -28,6 +47,7 @@ impl NoteID {
     }
 }
 
+#[doc(hidden)]
 #[must_use]
 pub fn to_vst_note_id(note_id: NoteID) -> i32 {
     match note_id.internals {
@@ -36,6 +56,7 @@ pub fn to_vst_note_id(note_id: NoteID) -> i32 {
     }
 }
 
+/// Contains data common to both `NoteOn` and `NoteOff` events.
 #[derive(Clone, Debug, PartialEq)]
 pub struct NoteData {
     /// The channel of the note.  IDs are only unique within a channel
@@ -54,12 +75,27 @@ pub struct NoteData {
     pub tuning: f32,
 }
 
+/// The data associated with an event, independent of the time it occurred.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Data {
-    NoteOn { data: NoteData },
-    NoteOff { data: NoteData },
+    /// A note began.
+    ///
+    /// This will never be sent while a note with the same ID is still playing.
+    NoteOn {
+        /// Data associated with the note.
+        data: NoteData,
+    },
+
+    /// A note ended.
+    ///
+    /// This will never be sent while a note with the same ID is not playing.
+    NoteOff {
+        /// Data associated with the note.
+        data: NoteData,
+    },
 }
 
+/// An event that occurred at a specific time within a buffer.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Event {
     /// Number of sample frames after the beginning of the buffer that this event occurred
@@ -69,7 +105,7 @@ pub struct Event {
     pub data: Data,
 }
 
-/// An Events contains an iterator that yields events in order of increasing sample offset.
+/// Contains an iterator that yields events in order of increasing sample offset.
 ///
 /// Invariants:
 ///  - All events will have a sample offset in the range of the buffer

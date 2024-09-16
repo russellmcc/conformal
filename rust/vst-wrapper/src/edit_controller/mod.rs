@@ -5,16 +5,14 @@ use std::{
 };
 
 use conformal_component::{
-    parameters::{
-        self,
-        serialization::{DeserializationError, ReadInfoRef},
-        InfoRef, TypeSpecificInfo, TypeSpecificInfoRef,
-    },
+    parameters::{self, InfoRef, TypeSpecificInfo, TypeSpecificInfoRef},
     synth::{
         AFTERTOUCH_PARAMETER, CONTROLLER_PARAMETERS, EXPRESSION_PARAMETER, MOD_WHEEL_PARAMETER,
         PITCH_BEND_PARAMETER, SUSTAIN_PARAMETER,
     },
 };
+use conformal_core::parameters::serialization::{DeserializationError, ReadInfoRef};
+use conformal_core::parameters::store;
 
 #[cfg(target_os = "macos")]
 use conformal_macos_bundle::get_current_bundle_info;
@@ -74,7 +72,7 @@ struct ParameterStore {
     component_handler: Option<ComPtr<IComponentHandler>>,
 
     // Note that unsized weak types can't dangle, so we use Option here to allow dangling.
-    listener: Option<rc::Weak<dyn parameters::store::Listener>>,
+    listener: Option<rc::Weak<dyn store::Listener>>,
 }
 
 #[derive(Clone)]
@@ -204,7 +202,7 @@ fn from_internal(
     }
 }
 
-impl parameters::store::Store for SharedStore {
+impl store::Store for SharedStore {
     fn get(&self, id: &str) -> Option<parameters::Value> {
         self.store
             .borrow()
@@ -213,15 +211,11 @@ impl parameters::store::Store for SharedStore {
             .map(|v| from_internal(id, *v, &self.store.borrow().infos))
     }
 
-    fn set_listener(&mut self, listener: rc::Weak<dyn parameters::store::Listener>) {
+    fn set_listener(&mut self, listener: rc::Weak<dyn store::Listener>) {
         self.store.borrow_mut().listener = Some(listener);
     }
 
-    fn set(
-        &mut self,
-        unique_id: &str,
-        value: parameters::Value,
-    ) -> Result<(), parameters::store::SetError> {
+    fn set(&mut self, unique_id: &str, value: parameters::Value) -> Result<(), store::SetError> {
         let maybe_set = if let ParameterStore {
             component_handler: Some(component_handler),
             infos,
@@ -240,7 +234,7 @@ impl parameters::store::Store for SharedStore {
                     if valid_range.contains(value) {
                         Ok(normalize_numeric(*value, valid_range))
                     } else {
-                        Err(parameters::store::SetError::InvalidValue)
+                        Err(store::SetError::InvalidValue)
                     }
                 }
                 (
@@ -255,7 +249,7 @@ impl parameters::store::Store for SharedStore {
                     .map(|index| {
                         normalize_enum(index.try_into().unwrap(), values.len().try_into().unwrap())
                     })
-                    .ok_or(parameters::store::SetError::InvalidValue),
+                    .ok_or(store::SetError::InvalidValue),
                 (
                     parameters::Value::Switch(value),
                     Some(parameters::Info {
@@ -263,19 +257,19 @@ impl parameters::store::Store for SharedStore {
                         ..
                     }),
                 ) => Ok(normalize_switch(*value)),
-                (_, Some(_)) => Err(parameters::store::SetError::WrongType),
-                (_, None) => Err(parameters::store::SetError::NotFound),
+                (_, Some(_)) => Err(store::SetError::WrongType),
+                (_, None) => Err(store::SetError::NotFound),
             })
             .map(|v| {
                 values.insert(unique_id.to_string(), to_internal(unique_id, &value, infos));
                 (component_handler.clone(), parameters::hash_id(unique_id), v)
             })
         } else {
-            Err(parameters::store::SetError::InternalError)
+            Err(store::SetError::InternalError)
         };
         maybe_set.map(|(component_handler, hash, v)| {
             unsafe {
-                component_handler.performEdit(hash, v);
+                component_handler.performEdit(hash.internal_hash(), v);
             };
         })
     }
@@ -284,7 +278,7 @@ impl parameters::store::Store for SharedStore {
         &mut self,
         unique_id: &str,
         grabbed: bool,
-    ) -> Result<(), parameters::store::SetGrabbedError> {
+    ) -> Result<(), store::SetGrabbedError> {
         let maybe_set = if let ParameterStore {
             component_handler: Some(component_handler),
             infos,
@@ -294,19 +288,19 @@ impl parameters::store::Store for SharedStore {
             if infos.contains_key(unique_id) {
                 Ok((component_handler.clone(), parameters::hash_id(unique_id)))
             } else {
-                Err(parameters::store::SetGrabbedError::NotFound)
+                Err(store::SetGrabbedError::NotFound)
             }
         } else {
-            Err(parameters::store::SetGrabbedError::InternalError)
+            Err(store::SetGrabbedError::InternalError)
         };
         maybe_set.map(|(component_handler, hashed)| {
             if grabbed {
                 unsafe {
-                    component_handler.beginEdit(hashed);
+                    component_handler.beginEdit(hashed.internal_hash());
                 }
             } else {
                 unsafe {
-                    component_handler.endEdit(hashed);
+                    component_handler.endEdit(hashed.internal_hash());
                 }
             }
         })
@@ -320,7 +314,7 @@ impl parameters::store::Store for SharedStore {
 /// For testing only.
 #[cfg(test)]
 trait GetStore {
-    type Store: parameters::store::Store;
+    type Store: store::Store;
     fn get_store(&self) -> Option<Self::Store>;
 }
 
@@ -441,7 +435,7 @@ impl IPluginBaseTrait for EditController {
 
 fn hash_parameter_ids<'a, S: AsRef<str> + 'a, I: IntoIterator<Item = InfoRef<'a, S>>>(
     parameter_info: I,
-) -> Option<HashMap<u32, String>> {
+) -> Option<HashMap<parameters::IdHash, String>> {
     let mut hash_to_id = HashMap::new();
     for info in parameter_info {
         let hash = parameters::hash_id(info.unique_id);
@@ -559,7 +553,7 @@ impl IEditControllerTrait for EditController {
             let info = infos.get(&param_id).unwrap();
 
             let info_out = &mut *info_out;
-            info_out.id = param_hash;
+            info_out.id = param_hash.internal_hash();
             to_utf16(&info.title, &mut info_out.title);
             to_utf16(&info.short_title, &mut info_out.shortTitle);
             info_out.flags = if info.flags.automatable {
@@ -600,7 +594,10 @@ impl IEditControllerTrait for EditController {
                     info_out.defaultNormalizedValue = f64::from(
                         (default - valid_range.start()) / (valid_range.end() - valid_range.start()),
                     );
-                    to_utf16(units, &mut info_out.units);
+                    to_utf16(
+                        units.as_ref().map_or("", |x| x.as_str()),
+                        &mut info_out.units,
+                    );
                 }
                 TypeSpecificInfo::Switch { default } => {
                     info_out.stepCount = 1;
@@ -623,7 +620,7 @@ impl IEditControllerTrait for EditController {
     ) -> vst3::Steinberg::tresult {
         if let State::Initialized(Initialized { store, .. }) = self.s.borrow().as_ref().unwrap() {
             let ParameterStore { unhash, infos, .. } = &*store.store.borrow();
-            match lookup_by_hash(id, unhash, infos) {
+            match lookup_by_hash(parameters::id_hash_from_internal_hash(id), unhash, infos) {
                 Some(parameters::Info {
                     type_specific: TypeSpecificInfo::Numeric { valid_range, .. },
                     ..
@@ -675,7 +672,7 @@ impl IEditControllerTrait for EditController {
         if let State::Initialized(Initialized { store, .. }) = self.s.borrow().as_ref().unwrap() {
             let ParameterStore { unhash, infos, .. } = &*store.store.borrow();
             if let Some(string) = from_utf16_ptr(string, MAX_STRING_SIZE) {
-                match lookup_by_hash(id, unhash, infos) {
+                match lookup_by_hash(parameters::id_hash_from_internal_hash(id), unhash, infos) {
                     Some(parameters::Info {
                         type_specific: TypeSpecificInfo::Numeric { valid_range, .. },
                         ..
@@ -749,6 +746,7 @@ impl IEditControllerTrait for EditController {
         &self,
         id: vst3::Steinberg::Vst::ParamID,
     ) -> vst3::Steinberg::Vst::ParamValue {
+        let id = parameters::id_hash_from_internal_hash(id);
         if let State::Initialized(Initialized { store, .. }) = self.s.borrow().as_ref().unwrap() {
             let ParameterStore {
                 unhash,
@@ -800,6 +798,7 @@ impl IEditControllerTrait for EditController {
         id: vst3::Steinberg::Vst::ParamID,
         value: vst3::Steinberg::Vst::ParamValue,
     ) -> vst3::Steinberg::tresult {
+        let id = parameters::id_hash_from_internal_hash(id);
         if !(0.0..=1.0).contains(&value) {
             return vst3::Steinberg::kInvalidArgument;
         }
@@ -912,7 +911,7 @@ impl IMidiMappingTrait for EditController {
             _ => None,
         } {
             Some(param_id) => {
-                *id = parameters::hash_id(param_id);
+                *id = parameters::hash_id(param_id).internal_hash();
                 vst3::Steinberg::kResultOk
             }
             _ => vst3::Steinberg::kResultFalse,

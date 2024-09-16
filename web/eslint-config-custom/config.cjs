@@ -24,6 +24,14 @@ module.exports = {
       },
     ],
     "@typescript-eslint/no-non-null-assertion": "off",
+    "@typescript-eslint/restrict-template-expressions": [
+      "error",
+      { allowNumber: true },
+    ],
+    "@typescript-eslint/no-unnecessary-condition": [
+      "error",
+      { allowConstantLoopConditions: true },
+    ],
     "react-refresh/only-export-components": [
       "warn",
       { allowConstantExport: true },

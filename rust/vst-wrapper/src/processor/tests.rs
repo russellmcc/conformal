@@ -22,9 +22,7 @@ use assert_approx_eq::assert_approx_eq;
 use conformal_component;
 use conformal_component::audio::{channels, channels_mut, BufferMut};
 use conformal_component::events::{Data, Event, Events, NoteData, NoteID};
-use conformal_component::parameters::utils::{
-    enum_per_sample, numeric_per_sample, switch_per_sample,
-};
+use conformal_component::parameters::{enum_per_sample, numeric_per_sample, switch_per_sample};
 use conformal_component::parameters::{
     BufferStates, Flags, InfoRef, States, StaticInfoRef, TypeSpecificInfoRef,
 };
@@ -67,7 +65,7 @@ static PARAMETERS: [StaticInfoRef; 3] = [
         type_specific: TypeSpecificInfoRef::Numeric {
             default: DEFAULT_NUMERIC,
             valid_range: MIN_NUMERIC..=MAX_NUMERIC,
-            units: "Hz",
+            units: Some("Hz"),
         },
     },
     InfoRef {
@@ -2444,7 +2442,7 @@ static INCOMPATIBLE_PARAMETERS: [StaticInfoRef; 1] = [InfoRef {
     type_specific: TypeSpecificInfoRef::Numeric {
         default: DEFAULT_NUMERIC,
         valid_range: MIN_NUMERIC..=MAX_NUMERIC,
-        units: "Hz",
+        units: Some("Hz"),
     },
 }];
 
@@ -2565,7 +2563,7 @@ static NEWER_PARAMETERS: [StaticInfoRef; 3] = [
         type_specific: TypeSpecificInfoRef::Numeric {
             default: DEFAULT_NUMERIC,
             valid_range: MIN_NUMERIC..=20.0,
-            units: "Hz",
+            units: Some("Hz"),
         },
     },
     InfoRef {
@@ -2707,7 +2705,7 @@ static DUPLICATE_PARAMETERS: [StaticInfoRef; 2] = [
         type_specific: TypeSpecificInfoRef::Numeric {
             default: DEFAULT_NUMERIC,
             valid_range: MIN_NUMERIC..=20.0,
-            units: "Hz",
+            units: Some("Hz"),
         },
     },
     InfoRef {
@@ -2718,7 +2716,7 @@ static DUPLICATE_PARAMETERS: [StaticInfoRef; 2] = [
         type_specific: TypeSpecificInfoRef::Numeric {
             default: DEFAULT_NUMERIC,
             valid_range: MIN_NUMERIC..=20.0,
-            units: "Hz",
+            units: Some("Hz"),
         },
     },
 ];

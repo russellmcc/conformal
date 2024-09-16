@@ -8,6 +8,6 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
-conformal_vst_wrapper = "0.1.0"
+conformal_vst_wrapper = {{{vst_crate_version}}}
 vst3 = "0.1.2"
 {{plug_slug}}_component = { path = "../component" }

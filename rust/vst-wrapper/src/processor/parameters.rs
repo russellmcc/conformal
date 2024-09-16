@@ -16,6 +16,7 @@ use vst3::{
 
 use crate::parameters::{convert_enum, convert_numeric, convert_switch};
 use conformal_component::parameters as cp;
+use conformal_core::parameters as cc;
 
 use conformal_component::parameters::{
     BufferState, BufferStates, EnumBufferState, NumericBufferState, PiecewiseLinearCurve,
@@ -50,7 +51,7 @@ enum AtomicValue {
 }
 
 struct SnapshotMessage {
-    snapshot: Arc<cp::Snapshot>,
+    snapshot: Arc<cc::Snapshot>,
     generation: u64,
 }
 
@@ -60,7 +61,7 @@ pub struct MainStore {
     unhash: HashMap<cp::IdHash, String>,
 
     data: Arc<HashMap<cp::IdHash, AtomicValue>>,
-    cached_write_snapshot: Option<Arc<cp::Snapshot>>,
+    cached_write_snapshot: Option<Arc<cc::Snapshot>>,
     write_generation: u64,
 
     /// This is written by `ProcessingContextParameterStore` and read here.
@@ -68,7 +69,7 @@ pub struct MainStore {
 
     metadata: Arc<Metadata>,
 
-    garbage_rx: mpsc::Receiver<Arc<cp::Snapshot>>,
+    garbage_rx: mpsc::Receiver<Arc<cc::Snapshot>>,
     snapshot_tx: mpsc::SyncSender<SnapshotMessage>,
 }
 
@@ -82,7 +83,7 @@ struct ProcessingStoreCore {
 
     metadata: Arc<Metadata>,
 
-    garbage_tx: mpsc::SyncSender<Arc<cp::Snapshot>>,
+    garbage_tx: mpsc::SyncSender<Arc<cc::Snapshot>>,
     snapshot_rx: mpsc::Receiver<SnapshotMessage>,
 }
 
@@ -243,7 +244,11 @@ fn to_internal(unique_id: &str, value: &cp::Value, metadata: &Metadata) -> cp::I
     }
 }
 
-fn from_internal(unique_id_hash: u32, value: cp::InternalValue, metadata: &Metadata) -> cp::Value {
+fn from_internal(
+    unique_id_hash: cp::IdHash,
+    value: cp::InternalValue,
+    metadata: &Metadata,
+) -> cp::Value {
     let metadatum = metadata.data.get(&unique_id_hash).unwrap();
     match (value, metadatum) {
         (cp::InternalValue::Numeric(n), Metadatum::Numeric { .. }) => cp::Value::Numeric(n),
@@ -256,7 +261,7 @@ fn from_internal(unique_id_hash: u32, value: cp::InternalValue, metadata: &Metad
 }
 
 impl ProcessingStoreCore {
-    fn drop_garbage(&self, snapshot: Arc<cp::Snapshot>) {
+    fn drop_garbage(&self, snapshot: Arc<cc::Snapshot>) {
         // If we failed to send the garbage down the chute, drop it ourselves!
         // This shouldn't happen in practice
         std::mem::drop(self.garbage_tx.try_send(snapshot));
@@ -336,15 +341,15 @@ impl MainStore {
     /// Note that if concurrent changes are happening on the processing
     /// thread, will get a "torn" snapshot that may not represent the
     /// state of the parameters at any particular point in time.
-    pub fn snapshot_with_tearing(&self) -> cp::serialization::Snapshot {
+    pub fn snapshot_with_tearing(&self) -> cc::serialization::Snapshot {
         self.drop_garbage();
 
         let lookup = |id: &_| match self.metadata.data.get(&cp::hash_id(id))? {
-            Metadatum::Numeric { .. } => Some(cp::serialization::WriteInfoRef::Numeric {}),
-            Metadatum::Enum { datum } => Some(cp::serialization::WriteInfoRef::Enum {
+            Metadatum::Numeric { .. } => Some(cc::serialization::WriteInfoRef::Numeric {}),
+            Metadatum::Enum { datum } => Some(cc::serialization::WriteInfoRef::Enum {
                 values: datum.values.iter().map(String::as_str),
             }),
-            Metadatum::Switch { .. } => Some(cp::serialization::WriteInfoRef::Switch {}),
+            Metadatum::Switch { .. } => Some(cc::serialization::WriteInfoRef::Switch {}),
         };
 
         // We check if the latest write has been ack'ed by the
@@ -369,7 +374,7 @@ impl MainStore {
         }
 
         // We need to read from the live store, which will tear!
-        cp::Snapshot {
+        cc::Snapshot {
             values: self
                 .data
                 .iter()
@@ -387,8 +392,8 @@ impl MainStore {
         .unwrap()
     }
 
-    fn get_default_snapshot(&self) -> cp::Snapshot {
-        cp::Snapshot {
+    fn get_default_snapshot(&self) -> cc::Snapshot {
+        cc::Snapshot {
             values: self
                 .metadata
                 .data
@@ -422,7 +427,7 @@ impl MainStore {
     /// state.
     pub fn apply_snapshot(
         &mut self,
-        snapshot: &cp::serialization::Snapshot,
+        snapshot: &cc::serialization::Snapshot,
     ) -> Result<(), SnapshotError> {
         self.drop_garbage();
 
@@ -434,25 +439,25 @@ impl MainStore {
                     // so this unwrap is safe.
                     self.unhash.get(id).unwrap().as_str(),
                     match metadatum {
-                        Metadatum::Numeric { datum } => cp::serialization::ReadInfoRef::Numeric {
+                        Metadatum::Numeric { datum } => cc::serialization::ReadInfoRef::Numeric {
                             default: datum.default,
                             valid_range: datum.valid_range.clone(),
                         },
-                        Metadatum::Enum { datum } => cp::serialization::ReadInfoRef::Enum {
+                        Metadatum::Enum { datum } => cc::serialization::ReadInfoRef::Enum {
                             default: datum.default,
                             values: datum.values.iter().map(String::as_str),
                         },
-                        Metadatum::Switch { datum } => cp::serialization::ReadInfoRef::Switch {
+                        Metadatum::Switch { datum } => cc::serialization::ReadInfoRef::Switch {
                             default: datum.default,
                         },
                     },
                 )
             })) {
             Ok(decoded) => Ok(decoded),
-            Err(cp::serialization::DeserializationError::Corrupted(_)) => {
+            Err(cc::serialization::DeserializationError::Corrupted(_)) => {
                 Err(SnapshotError::SnapshotCorrupted)
             }
-            Err(cp::serialization::DeserializationError::VersionTooNew()) => {
+            Err(cc::serialization::DeserializationError::VersionTooNew()) => {
                 // If the version was too new, we just use the default state
                 Ok(self.get_default_snapshot())
             }
@@ -896,7 +901,7 @@ unsafe fn check_changes_and_update_scratch_and_store<'a>(
     if !(0..param_count).all(|idx| {
         let param_queue = changes.getParameterData(idx);
         ComRef::from_raw(param_queue).map_or(false, |q| {
-            let parameter_id = q.getParameterId();
+            let parameter_id = cp::id_hash_from_internal_hash(q.getParameterId());
             let point_count = q.getPointCount();
             if point_count < 0 {
                 return false;

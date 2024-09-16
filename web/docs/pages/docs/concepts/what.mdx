@@ -1,0 +1,46 @@
+import { Callout, Steps } from "nextra/components";
+
+# What is Conformal?
+
+Conformal is a framework for building audio plug-ins using **TypeScript** and **Rust**. But what actually _is_ it? Really, Conformal is three things:
+
+- **Abstractions** defining what needs to be implemented to create an audio plug-in. Plug-in authors will _implement_ these abstractions to create their plug-ins.
+- **Wrappers** that take these abstractions and turn them into various standard plug-in formats.
+- **Tools** that make it easy to build and distribute your wrapped plug-ins.
+
+For a guided tour of the framework, please see the [build your first plug-in tutorial](/docs/tutorials/first-plug-in).
+
+If you're already familiar with Conformal but you want to start a new project, use `bun create conformal` to create a new project that already has the basics set up for you.
+
+For a better understanding of how a Conformal project is set up, please read on - we'll take a quick look at how these three parts fit together to actually create a distributable plug-in!
+
+## Abstractions
+
+In Conformal, you as the plug-in author have to write two main pieces of code:
+
+- Signal processing code in Rust. This code must implement the [`Component`](/rust-doc/conformal_component/trait.Component.html) trait.
+- User interface code in TypeScript. This is a web-based user interface that can connect to plugin settings by using the `@conformal/plugin` package.
+
+## Wrappers
+
+Once you have these two pieces of code, you can use a wrapper to turn them into a standard plug-in format. Currently, Conformal supports VST3 synth and effect plug-ins on macOS, but we hope to support more platforms, plug-in types and plug-in formats in the future.
+
+Note that the VST3 wrapper is already set up in the template project created by `bun create conformal`, so you can start building your plug-in right away. However, here's how you'd do it from scratch
+
+<Steps>
+
+### Make a rust crate containing the wrapped binary
+
+This should be a new crate of the `cdylib` type. This should use the [`wrap_factory`](/rust-doc/conformal_vst_wrapper/macro.wrap_factory.html) to define the entry-points necessary for the plug-in.
+
+### Make a `bundle.json` file in your UI package
+
+This defines some additional metadata conformal needs to know about your plug-in, and also defines which crate implements the VST3.
+
+</Steps>
+
+## Tools
+
+Once you have a wrapped plug-in crate and a `bundle.json` file that refers to it, you can use the `conformal-scripts package` command to create the plug-in.
+
+The included scripts can also help to create a macOS installer for your plug-in, see the [macOS installers guide](/docs/guides/macos-installers).

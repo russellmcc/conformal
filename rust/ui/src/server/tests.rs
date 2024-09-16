@@ -10,10 +10,8 @@ use std::{
 };
 
 use crate::protocol::{self, Request, Response};
-use conformal_component::parameters::{
-    store::{SetError, SetGrabbedError},
-    Value,
-};
+use conformal_component::parameters::Value;
+use conformal_core::parameters::store::{SetError, SetGrabbedError};
 
 use super::{ResponseSender, Server};
 struct ResponseSenderSpy<'a> {
@@ -89,7 +87,7 @@ impl crate::ParameterStore for StubStore {
                 type_specific: conformal_component::parameters::TypeSpecificInfo::Numeric {
                     default: 1.0,
                     valid_range: 0.0..=10.0,
-                    units: "Hz".to_string(),
+                    units: Some("Hz".to_string()),
                 },
             })
         } else {
