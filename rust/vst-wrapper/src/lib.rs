@@ -2,6 +2,9 @@
     nonstandard_style,
     rust_2018_idioms,
     future_incompatible,
+    missing_docs,
+    rustdoc::private_doc_tests,
+    rustdoc::unescaped_backticks,
     clippy::pedantic,
     clippy::todo
 )]
@@ -17,17 +20,30 @@
 pub use conformal_ui::Size as UiSize;
 use core::slice;
 
+/// Contains information about the host.
+///
+/// You can use this to customize the comonent based on the host.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HostInfo {
     /// The name of the host.
     pub name: String,
 }
 
+/// A class ID for a VST3 component.
+///
+/// This must be _globally_ unique for each class
 pub type ClassID = [u8; 16];
 
+/// A component factory that can create a component.
+///
+/// This can return a specialized component based on information
+/// about the current host
 #[allow(clippy::module_name_repetitions)]
 pub trait ComponentFactory: Clone {
+    /// The type of component that this factory creates
     type Component;
+
+    /// Create a component
     fn create(&self, host: &HostInfo) -> Self::Component;
 }
 
@@ -38,6 +54,7 @@ impl<C, F: Fn(&HostInfo) -> C + Clone> ComponentFactory for F {
     }
 }
 
+/// Information about a VST3 component
 #[derive(Debug, Clone, Copy)]
 pub struct ClassInfo<'a> {
     /// User-visibile name of the component.
@@ -80,8 +97,12 @@ pub trait ClassCategory {
     fn get_bypass_id(&self) -> Option<&'static str>;
 }
 
+/// Information about a synth component
 pub struct SynthClass<CF> {
+    /// The actual factory.
     pub factory: CF,
+
+    /// Information about the component
     pub info: ClassInfo<'static>,
 }
 
@@ -134,8 +155,12 @@ where
     }
 }
 
+/// Information about an effect component
 pub struct EffectClass<CF> {
+    /// The actual factory.
     pub factory: CF,
+
+    /// Information about the component
     pub info: ClassInfo<'static>,
 
     /// The VST3 category for this effect
@@ -176,10 +201,18 @@ impl<CF: ComponentFactory<Component: Component<Processor: Effect> + 'static> + '
     }
 }
 
+/// General global infor about a vst plug-in
 #[derive(Debug, Clone, Copy)]
 pub struct Info<'a> {
+    /// The "vendor" of the plug-in.
+    ///
+    /// Hosts often present plug-ins grouped by vendor.
     pub vendor: &'a str,
+
+    /// The vendor's URL
     pub url: &'a str,
+
+    /// The vendor's email
     pub email: &'a str,
 
     /// User-visibile version of components in this factory
@@ -247,14 +280,25 @@ fn from_utf16_buffer(buffer: &[i16]) -> Option<String> {
     String::from_utf16(utf16_slice).ok()
 }
 
-/// Create a vst3 entry point. For this to work, you must add
+/// Create a VST3-compatible plug-in entry point.
+///
+/// This is the main entry point for the VST3 Conformal Wrapper, and must
+/// be invoked exactly once in each VST3 plug-in binary.
+///
+/// Note that each VST3 plug-in binary can contain _multiple_ components,
+/// so this takes a slice of `EffectClass` and `SynthClass` instances.
+///
+/// Note that to create a loadable plug-in, you must add this to your
+/// `Cargo.toml`:
 ///
 /// ```toml
 /// [lib]
 /// crate-type = ["cdylib"]
 /// ```
 ///
-/// To your Cargo.toml.
+/// Conformal provides a template project that you can use to get started,
+/// using `bun create conformal` script. This will provide a working example
+/// of using the VST3 wrapper.
 #[macro_export]
 macro_rules! wrap_factory {
     ($CLASSES:expr, $INFO:expr) => {

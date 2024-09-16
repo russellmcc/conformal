@@ -324,6 +324,7 @@ macro_rules! pzip {
 ///
 /// ```
 /// # use conformal_component::parameters::{StaticInfoRef, InternalValue, TypeSpecificInfoRef, override_defaults};
+/// # use std::collections::HashMap;
 /// let infos = vec![
 ///    StaticInfoRef {
 ///      title: "Numeric",
@@ -341,7 +342,7 @@ macro_rules! pzip {
 /// // Without overriding, we'll just get a map containing
 /// // the default values.
 /// assert_eq!(
-///   override_defaults(infos.iter().cloned(), &Default::default()).get("numeric"),
+///   override_defaults(infos.iter().cloned(), &HashMap::new()).get("numeric"),
 ///   Some(&InternalValue::Numeric(0.0))
 /// );
 ///
@@ -349,7 +350,7 @@ macro_rules! pzip {
 /// assert_eq!(
 ///   override_defaults(
 ///     infos.iter().cloned(),
-///     &vec![("numeric", InternalValue::Numeric(0.5))].into_iter().collect()
+///     &vec![("numeric", InternalValue::Numeric(0.5))].into_iter().collect::<HashMap<_, _>>()
 ///   ).get("numeric"),
 ///   Some(&InternalValue::Numeric(0.5))
 ///  );
@@ -387,6 +388,7 @@ pub fn override_defaults<'a, S: AsRef<str> + 'a, H: BuildHasher>(
 /// ```
 /// # use conformal_component::parameters::{StaticInfoRef, InternalValue, TypeSpecificInfoRef, override_synth_defaults};
 /// # use conformal_component::synth::MOD_WHEEL_PARAMETER;
+/// # use std::collections::HashMap;
 /// let infos = vec![
 ///   StaticInfoRef {
 ///     title: "Numeric",
@@ -403,13 +405,13 @@ pub fn override_defaults<'a, S: AsRef<str> + 'a, H: BuildHasher>(
 ///
 /// // Without overrides, we'll get the default value.
 /// assert_eq!(
-///   override_synth_defaults(infos.iter().cloned(), &Default::default()).get("numeric"),
+///   override_synth_defaults(infos.iter().cloned(), &HashMap::new()).get("numeric"),
 ///   Some(&InternalValue::Numeric(0.0)),
 /// );
 ///
 /// // Note that control parameters are included in the result.
 /// assert_eq!(
-///   override_synth_defaults(infos.iter().cloned(), &Default::default()).get(MOD_WHEEL_PARAMETER),
+///   override_synth_defaults(infos.iter().cloned(), &HashMap::new()).get(MOD_WHEEL_PARAMETER),
 ///   Some(&InternalValue::Numeric(0.0)),
 /// );
 ///
@@ -417,7 +419,7 @@ pub fn override_defaults<'a, S: AsRef<str> + 'a, H: BuildHasher>(
 /// assert_eq!(
 ///   override_synth_defaults(
 ///     infos.iter().cloned(),
-///     &vec![("numeric", InternalValue::Numeric(0.5))].into_iter().collect()
+///     &vec![("numeric", InternalValue::Numeric(0.5))].into_iter().collect::<HashMap<_, _>>()
 ///   ).get("numeric"),
 ///   Some(&InternalValue::Numeric(0.5)),
 /// );
@@ -426,7 +428,7 @@ pub fn override_defaults<'a, S: AsRef<str> + 'a, H: BuildHasher>(
 /// assert_eq!(
 ///   override_synth_defaults(
 ///     infos.iter().cloned(),
-///     &vec![(MOD_WHEEL_PARAMETER, InternalValue::Numeric(0.5))].into_iter().collect()
+///     &vec![(MOD_WHEEL_PARAMETER, InternalValue::Numeric(0.5))].into_iter().collect::<HashMap<_, _>>()
 ///   ).get(MOD_WHEEL_PARAMETER),
 ///   Some(&InternalValue::Numeric(0.5)),
 /// );
@@ -933,6 +935,7 @@ impl RampedStatesMap {
     /// # Examples
     /// ```
     /// # use conformal_component::parameters::{StaticInfoRef, InternalValue, TypeSpecificInfoRef, RampedStatesMap, NumericBufferState, BufferStates};
+    /// # use std::collections::HashMap;
     /// let infos = vec![
     ///   StaticInfoRef {
     ///     title: "Numeric",
@@ -947,8 +950,8 @@ impl RampedStatesMap {
     ///   },
     /// ];
     ///
-    /// let start_overrides = vec![].into_iter().collect();
-    /// let end_overrides = vec![("numeric", InternalValue::Numeric(0.5))].into_iter().collect();
+    /// let start_overrides: HashMap<_, _> = vec![].into_iter().collect();
+    /// let end_overrides: HashMap<_, _> = vec![("numeric", InternalValue::Numeric(0.5))].into_iter().collect();
     /// let states = RampedStatesMap::new(infos.iter().cloned(), &start_overrides, &end_overrides, 10);
     ///
     /// match states.get_numeric("numeric") {
