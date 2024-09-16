@@ -299,6 +299,115 @@ fn from_utf16_buffer(buffer: &[i16]) -> Option<String> {
 /// Conformal provides a template project that you can use to get started,
 /// using `bun create conformal` script. This will provide a working example
 /// of using the VST3 wrapper.
+///
+/// # Example
+///
+/// ```
+/// use conformal_vst_wrapper::{ClassID, ClassInfo, EffectClass, HostInfo, Info};
+/// use conformal_component::audio::{channels, channels_mut, Buffer, BufferMut};
+/// use conformal_component::effect::Effect as EffectTrait;
+/// use conformal_component::parameters::{self, BufferStates, Flags, InfoRef, TypeSpecificInfoRef};
+/// use conformal_component::pzip;
+/// use conformal_component::{Component as ComponentTrait, ProcessingEnvironment, Processor};
+///
+/// const PARAMETERS: [InfoRef<'static, &'static str>; 2] = [
+///     InfoRef {
+///         title: "Bypass",
+///         short_title: "Bypass",
+///         unique_id: "bypass",
+///         flags: Flags { automatable: true },
+///         type_specific: TypeSpecificInfoRef::Switch { default: false },
+///     },
+///     InfoRef {
+///         title: "Gain",
+///         short_title: "Gain",
+///         unique_id: "gain",
+///         flags: Flags { automatable: true },
+///         type_specific: TypeSpecificInfoRef::Numeric {
+///             default: 100.,
+///             valid_range: 0f32..=100.,
+///             units: Some("%"),
+///         },
+///     },
+/// ];
+///
+/// #[derive(Clone, Debug, Default)]
+/// pub struct Component {}
+///
+/// #[derive(Clone, Debug, Default)]
+/// pub struct Effect {}
+///
+/// impl Processor for Effect {
+///     fn set_processing(&mut self, _processing: bool) {}
+/// }
+///
+/// impl EffectTrait for Effect {
+///     fn handle_parameters<P: parameters::States>(&mut self, _: P) {}
+///     fn process<P: BufferStates, I: Buffer, O: BufferMut>(
+///         &mut self,
+///         parameters: P,
+///         input: &I,
+///         output: &mut O,
+///     ) {
+///         for (input_channel, output_channel) in channels(input).zip(channels_mut(output)) {
+///             for ((input_sample, output_sample), (gain, bypass)) in input_channel
+///                 .iter()
+///                 .zip(output_channel.iter_mut())
+///                 .zip(pzip!(parameters[numeric "gain", switch "bypass"]))
+///             {
+///                 *output_sample = *input_sample * (if bypass { 1.0 } else { gain / 100.0 });
+///             }
+///         }
+///     }
+/// }
+///
+/// impl ComponentTrait for Component {
+///     type Processor = Effect;
+///
+///     fn parameter_infos(&self) -> Vec<parameters::Info> {
+///         parameters::to_infos(&PARAMETERS)
+///     }
+///
+///     fn create_processor(&self, _env: &ProcessingEnvironment) -> Self::Processor {
+///         Default::default()
+///     }
+/// }
+///
+/// // DO NOT USE this class ID, rather generate your own globally unique one.
+/// const CID: ClassID = [
+///   0x1d, 0x33, 0x78, 0xb8, 0xbd, 0xc9, 0x40, 0x8d, 0x86, 0x1f, 0xaf, 0xa4, 0xb5, 0x42, 0x5b, 0x74
+/// ];
+///
+/// // DO NOT USE this class ID, rather generate your own globally unique one.
+/// const EDIT_CONTROLLER_CID: ClassID = [
+///   0x96, 0xa6, 0xd4, 0x7d, 0xb2, 0x73, 0x46, 0x7c, 0xb0, 0xd6, 0xea, 0x6a, 0xd0, 0x27, 0xb2, 0x6f
+/// ];
+///
+/// conformal_vst_wrapper::wrap_factory!(
+///     &const {
+///         [&EffectClass {
+///             info: ClassInfo {
+///                 name: "My effect",
+///                 cid: CID,
+///                 edit_controller_cid: EDIT_CONTROLLER_CID,
+///                 ui_initial_size: conformal_vst_wrapper::UiSize {
+///                     width: 400,
+///                     height: 400,
+///                 },
+///             },
+///             factory: |_: &HostInfo| -> Component { Default::default() },
+///             category: "Fx",
+///             bypass_id: "bypass",
+///         }]
+///     },
+///     Info {
+///         vendor: "My vendor name",
+///         url: "www.example.com",
+///         email: "test@example.com",
+///         version: "1.0.0",
+///     }
+/// );
+/// ```
 #[macro_export]
 macro_rules! wrap_factory {
     ($CLASSES:expr, $INFO:expr) => {
