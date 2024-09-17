@@ -228,21 +228,18 @@ pub fn switch_per_sample<I: IntoIterator<Item = TimedValue<bool>, IntoIter: Clon
 #[macro_export]
 #[doc(hidden)]
 macro_rules! pzip_part {
-    (numeric $path:literal $params:ident) => {
-        conformal_component::parameters::numeric_per_sample(
-            conformal_component::parameters::BufferStates::get_numeric(&$params, $path).unwrap(),
-        )
-    };
-    (enum $path:literal $params:ident) => {
-        conformal_component::parameters::enum_per_sample(
-            conformal_component::parameters::BufferStates::get_enum(&$params, $path).unwrap(),
-        )
-    };
-    (switch $path:literal $params:ident) => {
-        conformal_component::parameters::switch_per_sample(
-            conformal_component::parameters::BufferStates::get_switch(&$params, $path).unwrap(),
-        )
-    };
+    (numeric $path:literal $params:ident) => {{
+        use conformal_component::parameters::BufferStates;
+        conformal_component::parameters::numeric_per_sample($params.get_numeric($path).unwrap())
+    }};
+    (enum $path:literal $params:ident) => {{
+        use conformal_component::parameters::BufferStates;
+        conformal_component::parameters::enum_per_sample($params.get_enum($path).unwrap())
+    }};
+    (switch $path:literal $params:ident) => {{
+        use conformal_component::parameters::BufferStates;
+        conformal_component::parameters::switch_per_sample($params.get_switch($path).unwrap())
+    }};
 }
 
 // Optimization opportunity - add maps here that only apply to the control points
