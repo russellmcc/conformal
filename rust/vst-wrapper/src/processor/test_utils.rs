@@ -236,7 +236,7 @@ fn event_to_vst3_event(event: &Event) -> vst3::Steinberg::Vst::Event {
             r#type: vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOnEvent as u16,
             __field0: vst3::Steinberg::Vst::Event__type0 {
                 noteOn: vst3::Steinberg::Vst::NoteOnEvent {
-                    channel: data.channel as i16,
+                    channel: 0 as i16,
                     pitch: data.pitch as i16,
                     tuning: data.tuning,
                     velocity: data.velocity,
@@ -253,7 +253,7 @@ fn event_to_vst3_event(event: &Event) -> vst3::Steinberg::Vst::Event {
             r#type: vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOffEvent as u16,
             __field0: vst3::Steinberg::Vst::Event__type0 {
                 noteOff: vst3::Steinberg::Vst::NoteOffEvent {
-                    channel: data.channel as i16,
+                    channel: 0 as i16,
                     pitch: data.pitch as i16,
                     tuning: data.tuning,
                     velocity: data.velocity,

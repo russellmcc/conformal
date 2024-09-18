@@ -39,13 +39,11 @@ unsafe fn convert_event(event: &vst3::Steinberg::Vst::Event) -> Option<Event> {
     }
     match u32::from(event.r#type) {
         vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOnEvent => {
-            let channel = u8::try_from(event.__field0.noteOn.channel).ok()?;
             let pitch = u8::try_from(event.__field0.noteOn.pitch).ok()?;
             Some(Event {
                 sample_offset: event.sampleOffset as usize,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel,
                         pitch,
                         tuning: event.__field0.noteOn.tuning,
                         velocity: event.__field0.noteOn.velocity,
@@ -59,13 +57,11 @@ unsafe fn convert_event(event: &vst3::Steinberg::Vst::Event) -> Option<Event> {
             })
         }
         vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOffEvent => {
-            let channel = u8::try_from(event.__field0.noteOn.channel).ok()?;
             let pitch = u8::try_from(event.__field0.noteOn.pitch).ok()?;
             Some(Event {
                 sample_offset: event.sampleOffset as usize,
                 data: Data::NoteOff {
                     data: NoteData {
-                        channel,
                         pitch,
                         tuning: event.__field0.noteOff.tuning,
                         velocity: event.__field0.noteOff.velocity,

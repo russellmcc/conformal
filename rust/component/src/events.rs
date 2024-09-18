@@ -57,11 +57,8 @@ pub fn to_vst_note_id(note_id: NoteID) -> i32 {
 }
 
 /// Contains data common to both `NoteOn` and `NoteOff` events.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct NoteData {
-    /// The channel of the note.  IDs are only unique within a channel
-    pub channel: u8,
-
     /// Opaque ID of the note.
     pub id: NoteID,
 

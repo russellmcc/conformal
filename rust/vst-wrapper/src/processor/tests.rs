@@ -1318,7 +1318,6 @@ fn can_process() {
                     sample_offset: 0,
                     data: Data::NoteOn {
                         data: NoteData {
-                            channel: 0,
                             id: NoteID::from_id(0),
                             pitch: 64,
                             velocity: 0.5,
@@ -1330,7 +1329,6 @@ fn can_process() {
                     sample_offset: 100,
                     data: Data::NoteOff {
                         data: NoteData {
-                            channel: 0,
                             id: NoteID::from_id(0),
                             pitch: 64,
                             velocity: 0.5,
@@ -1342,7 +1340,6 @@ fn can_process() {
                     sample_offset: 200,
                     data: Data::NoteOn {
                         data: NoteData {
-                            channel: 0,
                             id: NoteID::from_id(0),
                             pitch: 64,
                             velocity: 0.5,
@@ -1354,7 +1351,6 @@ fn can_process() {
                     sample_offset: 200,
                     data: Data::NoteOn {
                         data: NoteData {
-                            channel: 0,
                             id: NoteID::from_id(1),
                             pitch: 65,
                             velocity: 0.5,
@@ -1445,7 +1441,6 @@ fn defends_against_events_past_buffer() {
                 sample_offset: SAMPLE_COUNT + 1000,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -1475,7 +1470,6 @@ fn defends_against_shuffled_events() {
                     sample_offset: 200,
                     data: Data::NoteOn {
                         data: NoteData {
-                            channel: 0,
                             id: NoteID::from_id(0),
                             pitch: 64,
                             velocity: 0.5,
@@ -1487,7 +1481,6 @@ fn defends_against_shuffled_events() {
                     sample_offset: 100,
                     data: Data::NoteOff {
                         data: NoteData {
-                            channel: 0,
                             id: NoteID::from_id(0),
                             pitch: 64,
                             velocity: 0.5,
@@ -1532,7 +1525,6 @@ fn defends_against_timed_events_without_audio() {
                 sample_offset: 100,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -1564,7 +1556,6 @@ fn can_handle_events_without_audio() {
                     sample_offset: 0,
                     data: Data::NoteOn {
                         data: NoteData {
-                            channel: 0,
                             id: NoteID::from_id(0),
                             pitch: 64,
                             velocity: 0.5,
@@ -1576,7 +1567,6 @@ fn can_handle_events_without_audio() {
                     sample_offset: 0,
                     data: Data::NoteOn {
                         data: NoteData {
-                            channel: 0,
                             id: NoteID::from_id(1),
                             pitch: 64,
                             velocity: 0.5,
@@ -1596,7 +1586,6 @@ fn can_handle_events_without_audio() {
                 sample_offset: 0,
                 data: Data::NoteOff {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -1618,7 +1607,6 @@ fn can_handle_events_without_audio() {
                 sample_offset: 100,
                 data: Data::NoteOff {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(1),
                         pitch: 64,
                         velocity: 0.5,
@@ -1648,7 +1636,6 @@ fn can_handle_parameter_changes() {
                 sample_offset: 0,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -1726,7 +1713,6 @@ fn parameter_changes_at_start_of_buffer() {
                 sample_offset: 0,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -1771,7 +1757,6 @@ fn defends_against_wild_parameter_ids() {
                 sample_offset: 0,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -1806,7 +1791,6 @@ fn empty_queues_are_ignored() {
                 sample_offset: 0,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -1839,7 +1823,6 @@ fn defends_against_unsorted_param_queues() {
                 sample_offset: 0,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -1880,7 +1863,6 @@ fn defends_against_doubled_curve_points() {
                 sample_offset: 0,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -1921,7 +1903,6 @@ fn defends_against_points_outside_buffer() {
                 sample_offset: 0,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -1956,7 +1937,6 @@ fn defends_against_multiple_queues_for_same_param() {
                 sample_offset: 0,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -2083,7 +2063,6 @@ fn can_change_parameters_in_handle_events() {
                 sample_offset: 0,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -2264,7 +2243,6 @@ fn set_state_sets_parameters() {
                 sample_offset: 10,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -2390,7 +2368,6 @@ fn get_state_sees_automation() {
                 sample_offset: 10,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -2679,7 +2656,6 @@ fn loading_too_new_parameters_loads_default_state() {
                 sample_offset: 10,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -2768,7 +2744,6 @@ fn supports_toggling_active_while_processing() {
                 sample_offset: 100,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
