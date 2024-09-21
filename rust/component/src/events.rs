@@ -72,6 +72,45 @@ pub struct NoteData {
     pub tuning: f32,
 }
 
+/// A specific type of note expression.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum NoteExpression {
+    /// Horizontal movement note expression.
+    ///
+    /// This generally correponds to "pitch-bend" and is sometimes
+    /// labeled as such in DAW UIs.
+    ///
+    /// This value varies from -1->1, -1 being the leftmost position,
+    /// 0 being the center, and 1 being the rightmost position.
+    Horizontal(f32),
+
+    /// Vertical movement note expression.
+    ///
+    /// This is called "slide" in some DAW UIs.
+    ///
+    /// This value varies from 0->1, 0 being the bottommost position,
+    /// and 1 being the topmost position.
+    Vertical(f32),
+
+    /// Depthwise note expression.
+    ///
+    /// This is called "Pressure" in some DAW UIs.
+    ///
+    /// This value varies from 0->1, 0 being neutral, and 1 being the maximum depth.
+    Depth(f32),
+}
+
+/// Contains data about note expression.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct NoteExpressionData {
+    /// Opaque ID of the note. This will always refer to a note that is
+    /// currently "on".
+    pub id: NoteID,
+
+    /// The expression that is being sent.
+    pub expression: NoteExpression,
+}
+
 /// The data associated with an event, independent of the time it occurred.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Data {
@@ -89,6 +128,14 @@ pub enum Data {
     NoteOff {
         /// Data associated with the note.
         data: NoteData,
+    },
+
+    /// A note expression was sent.
+    ///
+    /// This will never be sent while a note with the same ID is not playing.
+    NoteExpression {
+        /// Data associated with the note expression.
+        data: NoteExpressionData,
     },
 }
 

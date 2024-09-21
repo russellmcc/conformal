@@ -7,7 +7,7 @@ use vst3::{
 };
 
 use conformal_component::{
-    events::{to_vst_note_id, Data, Event},
+    events::{to_vst_note_id, Data, Event, NoteExpressionData},
     parameters::hash_id,
     ProcessingMode,
 };
@@ -258,6 +258,36 @@ fn event_to_vst3_event(event: &Event) -> vst3::Steinberg::Vst::Event {
                     tuning: data.tuning,
                     velocity: data.velocity,
                     noteId: to_vst_note_id(data.id),
+                },
+            },
+        },
+        Data::NoteExpression {
+            data: NoteExpressionData { id, expression },
+        } => vst3::Steinberg::Vst::Event {
+            busIndex: 0,
+            sampleOffset: event.sample_offset as i32,
+            ppqPosition: 0f64,
+            flags: 0,
+            r#type: vst3::Steinberg::Vst::Event_::EventTypes_::kNoteExpressionValueEvent as u16,
+            __field0: vst3::Steinberg::Vst::Event__type0 {
+                noteExpressionValue: vst3::Steinberg::Vst::NoteExpressionValueEvent {
+                    noteId: to_vst_note_id(*id),
+                    value: match expression {
+                        conformal_component::events::NoteExpression::Horizontal(x) => *x as f64,
+                        conformal_component::events::NoteExpression::Vertical(x) => *x as f64,
+                        conformal_component::events::NoteExpression::Depth(x) => *x as f64,
+                    },
+                    typeId: match expression {
+                        conformal_component::events::NoteExpression::Horizontal(_) => {
+                            vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kCustomStart
+                        }
+                        conformal_component::events::NoteExpression::Vertical(_) => {
+                            vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kCustomStart + 1
+                        }
+                        conformal_component::events::NoteExpression::Depth(_) => {
+                            vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kCustomStart + 2
+                        }
+                    },
                 },
             },
         },

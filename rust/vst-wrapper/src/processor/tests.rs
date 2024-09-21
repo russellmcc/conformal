@@ -111,6 +111,7 @@ impl<'a> Synth for FakeSynth<'a> {
                 Data::NoteOff { data } => {
                     self.notes.remove(&data.id);
                 }
+                Data::NoteExpression { .. } => {}
             }
         }
     }
@@ -142,6 +143,7 @@ impl<'a> Synth for FakeSynth<'a> {
                         Data::NoteOff { ref data } => {
                             self.notes.remove(&data.id);
                         }
+                        Data::NoteExpression { .. } => {}
                     }
                     next_event = events_iter.next();
                 } else {
