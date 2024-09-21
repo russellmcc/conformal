@@ -273,19 +273,19 @@ fn event_to_vst3_event(event: &Event) -> vst3::Steinberg::Vst::Event {
                 noteExpressionValue: vst3::Steinberg::Vst::NoteExpressionValueEvent {
                     noteId: to_vst_note_id(*id),
                     value: match expression {
-                        conformal_component::events::NoteExpression::Horizontal(x) => *x as f64,
+                        conformal_component::events::NoteExpression::Tuning(x) => *x as f64,
                         conformal_component::events::NoteExpression::Vertical(x) => *x as f64,
                         conformal_component::events::NoteExpression::Depth(x) => *x as f64,
                     },
                     typeId: match expression {
-                        conformal_component::events::NoteExpression::Horizontal(_) => {
-                            vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kCustomStart
+                        conformal_component::events::NoteExpression::Tuning(_) => {
+                            vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID
                         }
                         conformal_component::events::NoteExpression::Vertical(_) => {
-                            vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kCustomStart + 1
+                            vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kCustomStart
                         }
                         conformal_component::events::NoteExpression::Depth(_) => {
-                            vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kCustomStart + 2
+                            vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kCustomStart + 1
                         }
                     },
                 },

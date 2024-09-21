@@ -75,14 +75,10 @@ pub struct NoteData {
 /// A specific type of note expression.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum NoteExpression {
-    /// Horizontal movement note expression.
+    /// Tuning note expression.
     ///
-    /// This generally correponds to "pitch-bend" and is sometimes
-    /// labeled as such in DAW UIs.
-    ///
-    /// This value varies from -1->1, -1 being the leftmost position,
-    /// 0 being the center, and 1 being the rightmost position.
-    Horizontal(f32),
+    /// This is expressed in semitones away from the root pitch of the note.
+    Tuning(f32),
 
     /// Vertical movement note expression.
     ///
