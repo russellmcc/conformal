@@ -3,7 +3,9 @@ use vst3::{
     Steinberg::Vst::{IEventList, IEventListTrait},
 };
 
-use conformal_component::events::{Data, Event, NoteData, NoteID};
+use conformal_component::events::{
+    Data, Event, NoteData, NoteExpression, NoteExpressionData, NoteID,
+};
 
 unsafe fn get_event(
     event_list: ComRef<'_, IEventList>,
@@ -57,7 +59,7 @@ unsafe fn convert_event(event: &vst3::Steinberg::Vst::Event) -> Option<Event> {
             })
         }
         vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOffEvent => {
-            let pitch = u8::try_from(event.__field0.noteOn.pitch).ok()?;
+            let pitch = u8::try_from(event.__field0.noteOff.pitch).ok()?;
             Some(Event {
                 sample_offset: event.sampleOffset as usize,
                 data: Data::NoteOff {
@@ -74,6 +76,28 @@ unsafe fn convert_event(event: &vst3::Steinberg::Vst::Event) -> Option<Event> {
                 },
             })
         }
+        vst3::Steinberg::Vst::Event_::EventTypes_::kNoteExpressionValueEvent => Some(Event {
+            sample_offset: event.sampleOffset as usize,
+            data: Data::NoteExpression {
+                data: NoteExpressionData {
+                    id: NoteID::from_id(event.__field0.noteExpressionValue.noteId),
+                    expression: match event.__field0.noteExpressionValue.typeId {
+                        vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID => {
+                            NoteExpression::Tuning(
+                                (event.__field0.noteExpressionValue.value as f32 - 0.5) * 240.0,
+                            )
+                        }
+                        super::NOTE_EXPRESSION_TYPE_ID_VERTICAL => NoteExpression::Vertical(
+                            event.__field0.noteExpressionValue.value as f32,
+                        ),
+                        super::NOTE_EXPRESSION_TYPE_ID_DEPTH => {
+                            NoteExpression::Depth(event.__field0.noteExpressionValue.value as f32)
+                        }
+                        _ => return None,
+                    },
+                },
+            },
+        }),
         _ => None,
     }
 }

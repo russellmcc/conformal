@@ -21,7 +21,9 @@ use crate::{dummy_host, from_utf16_buffer};
 use assert_approx_eq::assert_approx_eq;
 use conformal_component;
 use conformal_component::audio::{channels, channels_mut, BufferMut};
-use conformal_component::events::{Data, Event, Events, NoteData, NoteID};
+use conformal_component::events::{
+    Data, Event, Events, NoteData, NoteExpression, NoteExpressionData, NoteID,
+};
 use conformal_component::parameters::{enum_per_sample, numeric_per_sample, switch_per_sample};
 use conformal_component::parameters::{
     BufferStates, Flags, InfoRef, States, StaticInfoRef, TypeSpecificInfoRef,
@@ -39,6 +41,31 @@ struct FakeSynthComponent<'a> {
 struct FakeSynth<'a> {
     processing: Option<&'a RefCell<bool>>,
     notes: HashSet<NoteID>,
+    tuning: f32,
+    vertical: f32,
+    depth: f32,
+}
+
+impl<'a> FakeSynth<'a> {
+    fn handle_note_expression(
+        &mut self,
+        NoteExpressionData { id, expression }: NoteExpressionData,
+    ) {
+        if !self.notes.contains(&id) {
+            return;
+        }
+        match expression {
+            NoteExpression::Tuning(tuning) => {
+                self.tuning = tuning;
+            }
+            NoteExpression::Vertical(vertical) => {
+                self.vertical = vertical;
+            }
+            NoteExpression::Depth(depth) => {
+                self.depth = depth;
+            }
+        }
+    }
 }
 
 struct FakeEffect {}
@@ -111,7 +138,9 @@ impl<'a> Synth for FakeSynth<'a> {
                 Data::NoteOff { data } => {
                     self.notes.remove(&data.id);
                 }
-                Data::NoteExpression { .. } => {}
+                Data::NoteExpression { data } => {
+                    self.handle_note_expression(data);
+                }
             }
         }
     }
@@ -143,7 +172,9 @@ impl<'a> Synth for FakeSynth<'a> {
                         Data::NoteOff { ref data } => {
                             self.notes.remove(&data.id);
                         }
-                        Data::NoteExpression { .. } => {}
+                        Data::NoteExpression { data } => {
+                            self.handle_note_expression(data);
+                        }
                     }
                     next_event = events_iter.next();
                 } else {
@@ -154,7 +185,10 @@ impl<'a> Synth for FakeSynth<'a> {
                 channel[frame_index] = mult
                     * ((enum_mult + 1) as f32)
                     * (if switch_mult { 1.0 } else { 0.0 })
-                    * self.notes.len() as f32;
+                    * self.notes.len() as f32
+                    + self.tuning
+                    + self.vertical
+                    + self.depth;
             }
         }
     }
@@ -172,6 +206,9 @@ impl<'a> Component for FakeSynthComponent<'a> {
         FakeSynth {
             processing: self.processing,
             notes,
+            tuning: 0f32,
+            vertical: 0f32,
+            depth: 0f32,
         }
     }
 
@@ -1368,6 +1405,118 @@ fn can_process() {
         assert_eq!(audio.as_ref().unwrap()[0][0], 1.0);
         assert_eq!(audio.as_ref().unwrap()[1][100], 0.0);
         assert_eq!(audio.as_ref().unwrap()[1][200], 2.0);
+    }
+}
+
+#[test]
+fn can_process_mpe() {
+    let proc = dummy_synth();
+    let host = ComWrapper::new(dummy_host::Host::default());
+
+    unsafe {
+        setup_proc(&proc, &host);
+
+        let audio = mock_process(
+            2,
+            vec![
+                Event {
+                    sample_offset: 0,
+                    data: Data::NoteOn {
+                        data: NoteData {
+                            id: NoteID::from_id(0),
+                            pitch: 64,
+                            velocity: 0.5,
+                            tuning: 0f32,
+                        },
+                    },
+                },
+                Event {
+                    sample_offset: 10,
+                    data: Data::NoteExpression {
+                        data: NoteExpressionData {
+                            id: NoteID::from_id(0),
+                            expression: NoteExpression::Tuning(12.0),
+                        },
+                    },
+                },
+                // Should ignore wrong-id events
+                Event {
+                    sample_offset: 11,
+                    data: Data::NoteExpression {
+                        data: NoteExpressionData {
+                            id: NoteID::from_id(4),
+                            expression: NoteExpression::Tuning(24.0),
+                        },
+                    },
+                },
+                Event {
+                    sample_offset: 16,
+                    data: Data::NoteExpression {
+                        data: NoteExpressionData {
+                            id: NoteID::from_id(0),
+                            expression: NoteExpression::Vertical(0.6),
+                        },
+                    },
+                },
+                Event {
+                    sample_offset: 20,
+                    data: Data::NoteExpression {
+                        data: NoteExpressionData {
+                            id: NoteID::from_id(0),
+                            expression: NoteExpression::Depth(0.7),
+                        },
+                    },
+                },
+                Event {
+                    sample_offset: 90,
+                    data: Data::NoteExpression {
+                        data: NoteExpressionData {
+                            id: NoteID::from_id(0),
+                            expression: NoteExpression::Tuning(0.0),
+                        },
+                    },
+                },
+                Event {
+                    sample_offset: 90,
+                    data: Data::NoteExpression {
+                        data: NoteExpressionData {
+                            id: NoteID::from_id(0),
+                            expression: NoteExpression::Vertical(0.0),
+                        },
+                    },
+                },
+                Event {
+                    sample_offset: 90,
+                    data: Data::NoteExpression {
+                        data: NoteExpressionData {
+                            id: NoteID::from_id(0),
+                            expression: NoteExpression::Depth(0.0),
+                        },
+                    },
+                },
+                Event {
+                    sample_offset: 100,
+                    data: Data::NoteOff {
+                        data: NoteData {
+                            id: NoteID::from_id(0),
+                            pitch: 64,
+                            velocity: 0.5,
+                            tuning: 0f32,
+                        },
+                    },
+                },
+            ],
+            vec![],
+            &proc,
+        );
+        assert!(audio.is_some());
+        assert_eq!(audio.as_ref().unwrap()[0][0], 1.0);
+        assert_approx_eq!(audio.as_ref().unwrap()[0][10], 13.0, 1e-5);
+        assert_approx_eq!(audio.as_ref().unwrap()[0][15], 13.0, 1e-5);
+        assert_approx_eq!(audio.as_ref().unwrap()[0][16], 13.6, 1e-5);
+        assert_approx_eq!(audio.as_ref().unwrap()[0][20], 14.3, 1e-5);
+        assert_approx_eq!(audio.as_ref().unwrap()[0][90], 1.0);
+        assert_eq!(audio.as_ref().unwrap()[1][100], 0.0);
     }
 }
 
