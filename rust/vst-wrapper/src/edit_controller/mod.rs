@@ -26,6 +26,7 @@ use vst3::{
             IComponentHandler, IComponentHandlerTrait, IConnectionPoint, IConnectionPointTrait,
             IEditController, IEditControllerTrait, IHostApplication, IMidiMapping,
             IMidiMappingTrait, INoteExpressionController, INoteExpressionControllerTrait,
+            INoteExpressionPhysicalUIMapping, INoteExpressionPhysicalUIMappingTrait,
             NoteExpressionTypeID, NoteExpressionTypeInfo, NoteExpressionValue,
         },
     },
@@ -134,11 +135,13 @@ pub fn create(
         IMidiMapping,
         IConnectionPoint,
         INoteExpressionController,
+        INoteExpressionPhysicalUIMapping,
     ),
 > + IEditControllerTrait
        + IMidiMappingTrait
        + IConnectionPointTrait
        + INoteExpressionControllerTrait
+       + INoteExpressionPhysicalUIMappingTrait
        + 'static {
     create_internal(
         parameter_model,
@@ -1105,6 +1108,44 @@ impl INoteExpressionControllerTrait for EditController {
     }
 }
 
+impl INoteExpressionPhysicalUIMappingTrait for EditController {
+    unsafe fn getPhysicalUIMapping(
+        &self,
+        bus_index: i32,
+        channel: i16,
+        list: *mut vst3::Steinberg::Vst::PhysicalUIMapList,
+    ) -> vst3::Steinberg::tresult {
+        if !matches!(self.s.borrow().as_ref().unwrap(), State::Initialized(_)) {
+            return vst3::Steinberg::kInvalidArgument;
+        }
+        if bus_index != 0 {
+            return vst3::Steinberg::kInvalidArgument;
+        }
+        if channel != 0 {
+            return vst3::Steinberg::kInvalidArgument;
+        }
+
+        let list = &mut *list;
+        for idx in 0..list.count {
+            let item = &mut (*list.map.offset(idx as isize));
+            match item.physicalUITypeID {
+                vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIXMovement => {
+                    item.noteExpressionTypeID =
+                        vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID;
+                }
+                vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIYMovement => {
+                    item.noteExpressionTypeID = crate::processor::NOTE_EXPRESSION_TYPE_ID_VERTICAL;
+                }
+                vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIPressure => {
+                    item.noteExpressionTypeID = crate::processor::NOTE_EXPRESSION_TYPE_ID_DEPTH;
+                }
+                _ => {}
+            }
+        }
+        vst3::Steinberg::kResultOk
+    }
+}
+
 impl Class for EditController {
     type Interfaces = (
         IPluginBase,
@@ -1112,5 +1153,6 @@ impl Class for EditController {
         IMidiMapping,
         IConnectionPoint,
         INoteExpressionController,
+        INoteExpressionPhysicalUIMapping,
     );
 }

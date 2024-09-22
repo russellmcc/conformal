@@ -5,6 +5,7 @@ use vst3::Class;
 use vst3::Steinberg::Vst::{
     IAudioProcessorTrait, IComponentHandler, IComponentHandlerTrait, IComponentTrait,
     IHostApplication, IMidiMappingTrait, INoteExpressionControllerTrait,
+    INoteExpressionPhysicalUIMappingTrait, PhysicalUIMap,
 };
 use vst3::Steinberg::{IBStreamTrait, IPluginBaseTrait};
 use vst3::{ComWrapper, Steinberg::Vst::IEditControllerTrait};
@@ -1598,6 +1599,7 @@ fn dummy_synth_edit_controller() -> impl IPluginBaseTrait
        + IEditControllerTrait
        + IMidiMappingTrait
        + INoteExpressionControllerTrait
+       + INoteExpressionPhysicalUIMappingTrait
        + GetStore {
     super::create_internal(
         create_parameter_model(
@@ -1702,7 +1704,7 @@ fn midi_mapping_bad_context_false() {
 }
 
 #[test]
-fn test_get_note_expression_count() {
+fn get_note_expression_count() {
     let ec = dummy_synth_edit_controller();
     let host = ComWrapper::new(dummy_host::Host::default());
     unsafe {
@@ -1716,7 +1718,7 @@ fn test_get_note_expression_count() {
 }
 
 #[test]
-fn test_get_note_expression_info() {
+fn get_note_expression_info() {
     let ec = dummy_synth_edit_controller();
     let host = ComWrapper::new(dummy_host::Host::default());
     unsafe {
@@ -1809,7 +1811,7 @@ fn test_get_note_expression_info() {
 }
 
 #[test]
-fn test_get_note_expression_string_by_value() {
+fn get_note_expression_string_by_value() {
     let ec = dummy_synth_edit_controller();
     let host = ComWrapper::new(dummy_host::Host::default());
     unsafe {
@@ -1911,7 +1913,7 @@ fn test_get_note_expression_string_by_value() {
 }
 
 #[test]
-fn test_get_note_expression_value_by_string() {
+fn get_note_expression_value_by_string() {
     let ec = dummy_synth_edit_controller();
     let host = ComWrapper::new(dummy_host::Host::default());
     unsafe {
@@ -1995,6 +1997,64 @@ fn test_get_note_expression_value_by_string() {
         assert_ne!(
             ec.getNoteExpressionValueByString(1, 1, 0, string.as_ptr(), &mut value),
             vst3::Steinberg::kResultOk
+        );
+    }
+}
+
+#[test]
+fn get_physical_ui_mapping() {
+    let ec = dummy_synth_edit_controller();
+    let host = ComWrapper::new(dummy_host::Host::default());
+    unsafe {
+        let mut map: [PhysicalUIMap; 3] = [PhysicalUIMap {
+            physicalUITypeID: 0,
+            noteExpressionTypeID: 0,
+        }; 3];
+        map[0].physicalUITypeID = vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIYMovement;
+        map[1].physicalUITypeID = vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIXMovement;
+        map[2].physicalUITypeID = vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIPressure;
+        let mut physical_ui_mapping = vst3::Steinberg::Vst::PhysicalUIMapList {
+            count: 3,
+            map: map.as_mut_ptr(),
+        };
+
+        assert_ne!(
+            ec.getPhysicalUIMapping(0, 0, &mut physical_ui_mapping),
+            vst3::Steinberg::kResultOk
+        );
+
+        assert_eq!(
+            ec.initialize(host.as_com_ref().unwrap().as_ptr()),
+            vst3::Steinberg::kResultOk
+        );
+
+        assert_ne!(
+            ec.getPhysicalUIMapping(1, 0, &mut physical_ui_mapping),
+            vst3::Steinberg::kResultOk
+        );
+        assert_ne!(
+            ec.getPhysicalUIMapping(0, 1, &mut physical_ui_mapping),
+            vst3::Steinberg::kResultOk
+        );
+        assert_ne!(
+            ec.getPhysicalUIMapping(1, 1, &mut physical_ui_mapping),
+            vst3::Steinberg::kResultOk
+        );
+        assert_eq!(
+            ec.getPhysicalUIMapping(0, 0, &mut physical_ui_mapping),
+            vst3::Steinberg::kResultOk
+        );
+        assert_eq!(
+            map[0].noteExpressionTypeID,
+            processor::NOTE_EXPRESSION_TYPE_ID_VERTICAL
+        );
+        assert_eq!(
+            map[1].noteExpressionTypeID,
+            vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID
+        );
+        assert_eq!(
+            map[2].noteExpressionTypeID,
+            processor::NOTE_EXPRESSION_TYPE_ID_DEPTH
         );
     }
 }
