@@ -23,8 +23,9 @@ use vst3::{
     Steinberg::{
         IPluginBase, IPluginBaseTrait,
         Vst::{
-            IComponentHandler, IComponentHandlerTrait, IEditController, IEditControllerTrait,
-            IHostApplication, IMidiMapping, IMidiMappingTrait,
+            IComponentHandler, IComponentHandlerTrait, IConnectionPoint, IConnectionPointTrait,
+            IEditController, IEditControllerTrait, IHostApplication, IMidiMapping,
+            IMidiMappingTrait,
         },
     },
 };
@@ -125,9 +126,10 @@ pub fn create(
     parameter_model: ParameterModel,
     ui_initial_size: Size,
     bypass_id: Option<&'static str>,
-) -> impl Class<Interfaces = (IPluginBase, IEditController, IMidiMapping)>
+) -> impl Class<Interfaces = (IPluginBase, IEditController, IMidiMapping, IConnectionPoint)>
        + IEditControllerTrait
        + IMidiMappingTrait
+       + IConnectionPointTrait
        + 'static {
     create_internal(
         parameter_model,
@@ -919,6 +921,20 @@ impl IMidiMappingTrait for EditController {
     }
 }
 
+impl IConnectionPointTrait for EditController {
+    unsafe fn connect(&self, _: *mut IConnectionPoint) -> vst3::Steinberg::tresult {
+        vst3::Steinberg::kResultOk
+    }
+
+    unsafe fn disconnect(&self, _: *mut IConnectionPoint) -> vst3::Steinberg::tresult {
+        vst3::Steinberg::kResultOk
+    }
+
+    unsafe fn notify(&self, _: *mut vst3::Steinberg::Vst::IMessage) -> vst3::Steinberg::tresult {
+        vst3::Steinberg::kResultOk
+    }
+}
+
 impl Class for EditController {
-    type Interfaces = (IPluginBase, IEditController, IMidiMapping);
+    type Interfaces = (IPluginBase, IEditController, IMidiMapping, IConnectionPoint);
 }
