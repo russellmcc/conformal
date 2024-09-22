@@ -25,7 +25,8 @@ use vst3::{
         Vst::{
             IComponentHandler, IComponentHandlerTrait, IConnectionPoint, IConnectionPointTrait,
             IEditController, IEditControllerTrait, IHostApplication, IMidiMapping,
-            IMidiMappingTrait,
+            IMidiMappingTrait, INoteExpressionController, INoteExpressionControllerTrait,
+            NoteExpressionTypeID, NoteExpressionTypeInfo, NoteExpressionValue,
         },
     },
 };
@@ -126,10 +127,18 @@ pub fn create(
     parameter_model: ParameterModel,
     ui_initial_size: Size,
     bypass_id: Option<&'static str>,
-) -> impl Class<Interfaces = (IPluginBase, IEditController, IMidiMapping, IConnectionPoint)>
-       + IEditControllerTrait
+) -> impl Class<
+    Interfaces = (
+        IPluginBase,
+        IEditController,
+        IMidiMapping,
+        IConnectionPoint,
+        INoteExpressionController,
+    ),
+> + IEditControllerTrait
        + IMidiMappingTrait
        + IConnectionPointTrait
+       + INoteExpressionControllerTrait
        + 'static {
     create_internal(
         parameter_model,
@@ -556,6 +565,7 @@ impl IEditControllerTrait for EditController {
 
             let info_out = &mut *info_out;
             info_out.id = param_hash.internal_hash();
+            info_out.unitId = 0;
             to_utf16(&info.title, &mut info_out.title);
             to_utf16(&info.short_title, &mut info_out.shortTitle);
             info_out.flags = if info.flags.automatable {
@@ -935,6 +945,172 @@ impl IConnectionPointTrait for EditController {
     }
 }
 
+impl INoteExpressionControllerTrait for EditController {
+    unsafe fn getNoteExpressionCount(&self, bus_index: i32, channel: i16) -> i32 {
+        if !matches!(self.s.borrow().as_ref().unwrap(), State::Initialized(_)) {
+            // Note - it is a host error to call this function if we are not intialized.
+            // However, this function has no way to return an error message, so we just return 0.
+            return 0;
+        }
+        if bus_index != 0 {
+            return 0;
+        }
+        if channel != 0 {
+            return 0;
+        }
+        3
+    }
+
+    unsafe fn getNoteExpressionInfo(
+        &self,
+        bus_index: i32,
+        channel: i16,
+        note_expression_index: i32,
+        info_out: *mut NoteExpressionTypeInfo,
+    ) -> vst3::Steinberg::tresult {
+        if !matches!(self.s.borrow().as_ref().unwrap(), State::Initialized(_)) {
+            return vst3::Steinberg::kInvalidArgument;
+        }
+        if bus_index != 0 {
+            return vst3::Steinberg::kInvalidArgument;
+        }
+        if channel != 0 {
+            return vst3::Steinberg::kInvalidArgument;
+        }
+        let info_out = &mut *info_out;
+
+        match note_expression_index {
+            0 => {
+                info_out.typeId = vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID;
+                to_utf16("Tuning", &mut info_out.title);
+                to_utf16("Tuning", &mut info_out.shortTitle);
+                to_utf16("semitones", &mut info_out.units);
+                info_out.unitId = 0;
+                // It's not clear from docs if this is necessary for a pre-defined tuning type.
+                info_out.valueDesc = vst3::Steinberg::Vst::NoteExpressionValueDescription {
+                    defaultValue: 0.5,
+                    minimum: 0.0,
+                    maximum: 1.0,
+                    stepCount: 0, // Continuous
+                };
+                info_out.flags = vst3::Steinberg::Vst::NoteExpressionTypeInfo_::NoteExpressionTypeFlags_::kIsBipolar as i32;
+                vst3::Steinberg::kResultOk
+            }
+            1 => {
+                info_out.typeId = crate::processor::NOTE_EXPRESSION_TYPE_ID_VERTICAL;
+                to_utf16("Vertical", &mut info_out.title);
+                to_utf16("Vertical", &mut info_out.shortTitle);
+                to_utf16("", &mut info_out.units);
+                info_out.unitId = 0;
+                info_out.valueDesc = vst3::Steinberg::Vst::NoteExpressionValueDescription {
+                    defaultValue: 0.0,
+                    minimum: 0.0,
+                    maximum: 1.0,
+                    stepCount: 0, // Continuous
+                };
+                info_out.flags = 0;
+
+                vst3::Steinberg::kResultOk
+            }
+            2 => {
+                info_out.typeId = crate::processor::NOTE_EXPRESSION_TYPE_ID_DEPTH;
+                to_utf16("Depth", &mut info_out.title);
+                to_utf16("Depth", &mut info_out.shortTitle);
+                to_utf16("", &mut info_out.units);
+                info_out.unitId = 0;
+                info_out.valueDesc = vst3::Steinberg::Vst::NoteExpressionValueDescription {
+                    defaultValue: 0.0,
+                    minimum: 0.0,
+                    maximum: 1.0,
+                    stepCount: 0, // Continuous
+                };
+                info_out.flags = 0;
+
+                vst3::Steinberg::kResultOk
+            }
+            _ => vst3::Steinberg::kInvalidArgument,
+        }
+    }
+
+    unsafe fn getNoteExpressionStringByValue(
+        &self,
+        bus_index: i32,
+        channel: i16,
+        id: NoteExpressionTypeID,
+        value_normalized: NoteExpressionValue,
+        string: *mut vst3::Steinberg::Vst::String128,
+    ) -> vst3::Steinberg::tresult {
+        if !matches!(self.s.borrow().as_ref().unwrap(), State::Initialized(_)) {
+            return vst3::Steinberg::kInvalidArgument;
+        }
+        if bus_index != 0 {
+            return vst3::Steinberg::kInvalidArgument;
+        }
+        if channel != 0 {
+            return vst3::Steinberg::kInvalidArgument;
+        }
+        match id {
+            vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID => {
+                let value = (value_normalized - 0.5) * 240.0;
+                to_utf16(&format!("{value:.2}"), &mut *string);
+                vst3::Steinberg::kResultOk
+            }
+            crate::processor::NOTE_EXPRESSION_TYPE_ID_DEPTH
+            | crate::processor::NOTE_EXPRESSION_TYPE_ID_VERTICAL => {
+                to_utf16(&format!("{value_normalized:.2}"), &mut *string);
+                vst3::Steinberg::kResultOk
+            }
+            _ => vst3::Steinberg::kInvalidArgument,
+        }
+    }
+
+    unsafe fn getNoteExpressionValueByString(
+        &self,
+        bus_index: i32,
+        channel: i16,
+        id: NoteExpressionTypeID,
+        string: *const vst3::Steinberg::Vst::TChar,
+        value_normalized: *mut NoteExpressionValue,
+    ) -> vst3::Steinberg::tresult {
+        // Note that VST3 doesn't put a limit on string sizes here,
+        // so we make a reasonable size up.
+        const MAX_STRING_SIZE: usize = 2049;
+
+        if !matches!(self.s.borrow().as_ref().unwrap(), State::Initialized(_)) {
+            return vst3::Steinberg::kInvalidArgument;
+        }
+        if bus_index != 0 {
+            return vst3::Steinberg::kInvalidArgument;
+        }
+        if channel != 0 {
+            return vst3::Steinberg::kInvalidArgument;
+        }
+        if let Some(value) = (|| -> Option<f64> {
+            let string = from_utf16_ptr(string, MAX_STRING_SIZE)?;
+            let value = string.parse::<f64>().ok()?;
+            match id {
+                vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID => {
+                    Some((value / 240.0) + 0.5)
+                }
+                crate::processor::NOTE_EXPRESSION_TYPE_ID_DEPTH
+                | crate::processor::NOTE_EXPRESSION_TYPE_ID_VERTICAL => Some(value),
+                _ => None,
+            }
+        })() {
+            *value_normalized = value;
+            vst3::Steinberg::kResultOk
+        } else {
+            vst3::Steinberg::kResultFalse
+        }
+    }
+}
+
 impl Class for EditController {
-    type Interfaces = (IPluginBase, IEditController, IMidiMapping, IConnectionPoint);
+    type Interfaces = (
+        IPluginBase,
+        IEditController,
+        IMidiMapping,
+        IConnectionPoint,
+        INoteExpressionController,
+    );
 }

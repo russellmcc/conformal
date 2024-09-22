@@ -81,6 +81,7 @@ unsafe fn convert_event(event: &vst3::Steinberg::Vst::Event) -> Option<Event> {
             data: Data::NoteExpression {
                 data: NoteExpressionData {
                     id: NoteID::from_id(event.__field0.noteExpressionValue.noteId),
+                    #[allow(clippy::cast_possible_truncation)]
                     expression: match event.__field0.noteExpressionValue.typeId {
                         vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID => {
                             NoteExpression::Tuning(
