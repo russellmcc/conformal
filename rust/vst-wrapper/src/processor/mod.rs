@@ -13,7 +13,8 @@ use conformal_component::{
 };
 use serde::Serialize;
 use vst3::Steinberg::Vst::{
-    IHostApplication, IProcessContextRequirements, IProcessContextRequirementsTrait,
+    IConnectionPoint, IConnectionPointTrait, IHostApplication, IProcessContextRequirements,
+    IProcessContextRequirementsTrait,
 };
 use vst3::{
     Class,
@@ -764,10 +765,12 @@ pub fn create_synth<'a, CF: ComponentFactory<Component: Component<Processor: Syn
         IComponent,
         IAudioProcessor,
         IProcessContextRequirements,
+        IConnectionPoint,
     ),
 > + IComponentTrait
        + IAudioProcessorTrait
        + IProcessContextRequirementsTrait
+       + IConnectionPointTrait
        + 'a {
     Processor {
         controller_cid,
@@ -787,10 +790,12 @@ pub fn create_effect<'a, CF: ComponentFactory<Component: Component<Processor: Ef
         IComponent,
         IAudioProcessor,
         IProcessContextRequirements,
+        IConnectionPoint,
     ),
 > + IComponentTrait
        + IAudioProcessorTrait
        + IProcessContextRequirementsTrait
+       + IConnectionPointTrait
        + 'a {
     Processor {
         controller_cid,
@@ -1433,6 +1438,26 @@ impl<
     }
 }
 
+impl<CF: ComponentFactory<Component: Component<Processor: ProcessorT>>, PC: ProcessorCategory>
+    IConnectionPointTrait
+    for Processor<<CF::Component as Component>::Processor, CF::Component, CF, PC, PC::Active>
+{
+    unsafe fn connect(&self, _: *mut IConnectionPoint) -> vst3::Steinberg::tresult {
+        vst3::Steinberg::kResultOk
+    }
+
+    unsafe fn disconnect(&self, _other: *mut IConnectionPoint) -> vst3::Steinberg::tresult {
+        vst3::Steinberg::kResultOk
+    }
+
+    unsafe fn notify(
+        &self,
+        _message: *mut vst3::Steinberg::Vst::IMessage,
+    ) -> vst3::Steinberg::tresult {
+        vst3::Steinberg::kResultOk
+    }
+}
+
 impl<
         CF: ComponentFactory<Component: Component>,
         PC: ProcessorCategory<Active: ActiveProcessorCategory<<CF::Component as Component>::Processor>>,
@@ -1444,5 +1469,6 @@ impl<
         IComponent,
         IAudioProcessor,
         IProcessContextRequirements,
+        IConnectionPoint,
     );
 }
