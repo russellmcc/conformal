@@ -32,7 +32,7 @@ use vst3::{
     },
 };
 
-use crate::{ExtraParameters, ParameterModel};
+use crate::ParameterModel;
 
 use super::{
     from_utf16_ptr, host_info,
@@ -102,11 +102,17 @@ enum State {
     Initialized(Initialized),
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum Kind {
+    Synth(),
+    Effect { bypass_id: &'static str },
+}
+
 struct EditController {
     s: RefCell<Option<State>>,
     host: RefCell<Option<ComPtr<IHostApplication>>>,
     ui_initial_size: Size,
-    bypass_id: Option<&'static str>,
+    kind: Kind,
 }
 
 // Brought out to a separate function for ease of testing
@@ -114,20 +120,20 @@ fn create_internal(
     parameter_model: ParameterModel,
     pref_domain: String,
     ui_initial_size: Size,
-    bypass_id: Option<&'static str>,
+    kind: Kind,
 ) -> EditController {
     EditController {
         s: Some(State::ReadyForInitialization(parameter_model, pref_domain)).into(),
         host: Default::default(),
         ui_initial_size,
-        bypass_id,
+        kind,
     }
 }
 
 pub fn create(
     parameter_model: ParameterModel,
     ui_initial_size: Size,
-    bypass_id: Option<&'static str>,
+    kind: Kind,
 ) -> impl Class<
     Interfaces = (
         IPluginBase,
@@ -149,7 +155,7 @@ pub fn create(
             .expect("Could not find bundle info")
             .identifier,
         ui_initial_size,
-        bypass_id,
+        kind,
     )
 }
 
@@ -365,7 +371,7 @@ impl IPluginBaseTrait for EditController {
             (State::ReadyForInitialization(parameter_model, pref_domain), Some(host_info)) => {
                 let parameter_infos = {
                     let mut infos = (parameter_model.parameter_infos)(&host_info);
-                    if parameter_model.extra_parameters == ExtraParameters::SynthControlParameters {
+                    if Kind::Synth() == self.kind {
                         infos.extend(CONTROLLER_PARAMETERS.iter().map(parameters::Info::from));
                     }
                     infos
@@ -382,7 +388,7 @@ impl IPluginBaseTrait for EditController {
 
                 // If the client provided a bypass ID, this must exist and be a switch parameter
                 // with default off.
-                if let Some(bypass_id) = self.bypass_id {
+                if let Kind::Effect { bypass_id } = self.kind {
                     assert!(parameters.contains_key(bypass_id));
                     if let Some(parameters::Info {
                         type_specific: TypeSpecificInfo::Switch { default },
@@ -575,8 +581,12 @@ impl IEditControllerTrait for EditController {
                 vst3::Steinberg::Vst::ParameterInfo_::ParameterFlags_::kCanAutomate as i32
             } else {
                 0
-            } | if self.bypass_id == Some(&param_id) {
-                vst3::Steinberg::Vst::ParameterInfo_::ParameterFlags_::kIsBypass as i32
+            } | if let Kind::Effect { bypass_id } = self.kind {
+                if param_id == bypass_id {
+                    vst3::Steinberg::Vst::ParameterInfo_::ParameterFlags_::kIsBypass as i32
+                } else {
+                    0
+                }
             } else {
                 0
             };
@@ -905,6 +915,13 @@ impl IMidiMappingTrait for EditController {
         midi_controller_number: vst3::Steinberg::Vst::CtrlNumber,
         id: *mut vst3::Steinberg::Vst::ParamID,
     ) -> vst3::Steinberg::tresult {
+        if !matches!(self.s.borrow().as_ref().unwrap(), State::Initialized(_)) {
+            return vst3::Steinberg::kInvalidArgument;
+        }
+        // Effects don't have midi mappings
+        if let Kind::Effect { .. } = self.kind {
+            return vst3::Steinberg::kResultFalse;
+        }
         if bus_index != 0 {
             return vst3::Steinberg::kResultFalse;
         }

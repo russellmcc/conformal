@@ -17,7 +17,7 @@ use crate::processor::test_utils::{
 };
 use crate::HostInfo;
 use crate::{dummy_host, from_utf16_buffer, to_utf16};
-use crate::{processor, ExtraParameters, ParameterModel};
+use crate::{processor, ParameterModel};
 use assert_approx_eq::assert_approx_eq;
 use conformal_component::audio::BufferMut;
 use conformal_component::events::{Data, Event, Events};
@@ -222,26 +222,23 @@ static DUPLICATE_PARAMETERS: [StaticInfoRef; 2] = [
 
 fn create_parameter_model<F: Fn(&HostInfo) -> Vec<parameters::Info> + 'static>(
     f: F,
-    extra_parameters: ExtraParameters,
 ) -> ParameterModel {
     ParameterModel {
         parameter_infos: Box::new(f),
-        extra_parameters,
     }
 }
 
-fn dummy_edit_controller() -> impl IPluginBaseTrait + IEditControllerTrait + GetStore {
+fn dummy_edit_controller() -> impl IEditControllerTrait + IMidiMappingTrait + GetStore {
     super::create_internal(
-        create_parameter_model(
-            |_: &HostInfo| parameters::to_infos(&PARAMETERS),
-            ExtraParameters::None,
-        ),
+        create_parameter_model(|_: &HostInfo| parameters::to_infos(&PARAMETERS)),
         "dummy_domain".to_string(),
         conformal_ui::Size {
             width: 0,
             height: 0,
         },
-        None,
+        super::Kind::Effect {
+            bypass_id: SWITCH_ID,
+        },
     )
 }
 
@@ -390,7 +387,8 @@ fn parameter_basics() {
     );
     assert_eq!(
         param_info.flags,
-        vst3::Steinberg::Vst::ParameterInfo_::ParameterFlags_::kCanAutomate as i32
+        (vst3::Steinberg::Vst::ParameterInfo_::ParameterFlags_::kCanAutomate
+            | vst3::Steinberg::Vst::ParameterInfo_::ParameterFlags_::kIsBypass) as i32
     );
     assert_eq!(param_info.stepCount, 1);
     assert_eq!(from_utf16_buffer(&param_info.units), Some("".to_string()));
@@ -1110,16 +1108,13 @@ fn defends_against_create_view_called_with_weird_name() {
 #[should_panic]
 fn panic_on_duplicate_ids() {
     let ec = super::create_internal(
-        create_parameter_model(
-            |_: &HostInfo| parameters::to_infos(&DUPLICATE_PARAMETERS),
-            ExtraParameters::None,
-        ),
+        create_parameter_model(|_: &HostInfo| parameters::to_infos(&DUPLICATE_PARAMETERS)),
         "test_prefs".to_string(),
         conformal_ui::Size {
             width: 0,
             height: 0,
         },
-        None,
+        super::Kind::Synth(),
     );
     let host = ComWrapper::new(dummy_host::Host::default());
     unsafe {
@@ -1472,16 +1467,15 @@ fn defends_against_get_info_bad_id() {
 #[should_panic]
 fn defends_against_missing_bypass_param() {
     let ec = super::create_internal(
-        create_parameter_model(
-            |_: &HostInfo| parameters::to_infos(&PARAMETERS),
-            ExtraParameters::None,
-        ),
+        create_parameter_model(|_: &HostInfo| parameters::to_infos(&PARAMETERS)),
         "dummy_domain".to_string(),
         conformal_ui::Size {
             width: 0,
             height: 0,
         },
-        Some("missing"),
+        super::Kind::Effect {
+            bypass_id: "missing",
+        },
     );
 
     let host = ComWrapper::new(dummy_host::Host::default());
@@ -1493,16 +1487,15 @@ fn defends_against_missing_bypass_param() {
 #[should_panic]
 fn defends_against_non_switch_bypass_param() {
     let ec = super::create_internal(
-        create_parameter_model(
-            |_: &HostInfo| parameters::to_infos(&PARAMETERS),
-            ExtraParameters::None,
-        ),
+        create_parameter_model(|_: &HostInfo| parameters::to_infos(&PARAMETERS)),
         "dummy_domain".to_string(),
         conformal_ui::Size {
             width: 0,
             height: 0,
         },
-        Some(NUMERIC_ID),
+        super::Kind::Effect {
+            bypass_id: NUMERIC_ID,
+        },
     );
 
     let host = ComWrapper::new(dummy_host::Host::default());
@@ -1514,24 +1507,23 @@ fn defends_against_non_switch_bypass_param() {
 #[should_panic]
 fn defends_against_default_on_bypass_param() {
     let ec = super::create_internal(
-        create_parameter_model(
-            |_: &HostInfo| {
-                parameters::to_infos(&[InfoRef {
-                    title: "Test Switch",
-                    short_title: "Switch",
-                    unique_id: SWITCH_ID,
-                    flags: Flags { automatable: true },
-                    type_specific: TypeSpecificInfoRef::Switch { default: true },
-                }])
-            },
-            ExtraParameters::None,
-        ),
+        create_parameter_model(|_: &HostInfo| {
+            parameters::to_infos(&[InfoRef {
+                title: "Test Switch",
+                short_title: "Switch",
+                unique_id: SWITCH_ID,
+                flags: Flags { automatable: true },
+                type_specific: TypeSpecificInfoRef::Switch { default: true },
+            }])
+        }),
         "dummy_domain".to_string(),
         conformal_ui::Size {
             width: 0,
             height: 0,
         },
-        Some(SWITCH_ID),
+        super::Kind::Effect {
+            bypass_id: SWITCH_ID,
+        },
     );
 
     let host = ComWrapper::new(dummy_host::Host::default());
@@ -1542,24 +1534,23 @@ fn defends_against_default_on_bypass_param() {
 #[test]
 fn bypass_parameter_exposed() {
     let ec = super::create_internal(
-        create_parameter_model(
-            |_: &HostInfo| {
-                parameters::to_infos(&[InfoRef {
-                    title: "Test Switch",
-                    short_title: "Switch",
-                    unique_id: SWITCH_ID,
-                    flags: Flags { automatable: true },
-                    type_specific: TypeSpecificInfoRef::Switch { default: false },
-                }])
-            },
-            ExtraParameters::None,
-        ),
+        create_parameter_model(|_: &HostInfo| {
+            parameters::to_infos(&[InfoRef {
+                title: "Test Switch",
+                short_title: "Switch",
+                unique_id: SWITCH_ID,
+                flags: Flags { automatable: true },
+                type_specific: TypeSpecificInfoRef::Switch { default: false },
+            }])
+        }),
         "dummy_domain".to_string(),
         conformal_ui::Size {
             width: 0,
             height: 0,
         },
-        Some(SWITCH_ID),
+        super::Kind::Effect {
+            bypass_id: SWITCH_ID,
+        },
     );
 
     let host = ComWrapper::new(dummy_host::Host::default());
@@ -1602,16 +1593,13 @@ fn dummy_synth_edit_controller() -> impl IPluginBaseTrait
        + INoteExpressionPhysicalUIMappingTrait
        + GetStore {
     super::create_internal(
-        create_parameter_model(
-            |_: &HostInfo| parameters::to_infos(&[]),
-            ExtraParameters::SynthControlParameters,
-        ),
+        create_parameter_model(|_: &HostInfo| parameters::to_infos(&[])),
         "dummy_domain".to_string(),
         conformal_ui::Size {
             width: 0,
             height: 0,
         },
-        None,
+        super::Kind::Synth(),
     )
 }
 
@@ -1620,6 +1608,8 @@ fn synth_control_parameters_exposed() {
     let ec = dummy_synth_edit_controller();
     let host = ComWrapper::new(dummy_host::Host::default());
     unsafe {
+        assert_eq!(ec.initialize(host.as_com_ref().unwrap().as_ptr()), 0);
+
         let check_assignment = |vst_id: std::ffi::c_uint, param_id| {
             let mut id: vst3::Steinberg::Vst::ParamID = 0;
             assert_eq!(
@@ -1650,7 +1640,6 @@ fn synth_control_parameters_exposed() {
             conformal_component::synth::AFTERTOUCH_PARAMETER,
         );
 
-        assert_eq!(ec.initialize(host.as_com_ref().unwrap().as_ptr()), 0);
         let store = ec.get_store().unwrap();
         assert_eq!(
             store.get(conformal_component::synth::PITCH_BEND_PARAMETER),
@@ -2055,6 +2044,48 @@ fn get_physical_ui_mapping() {
         assert_eq!(
             map[2].noteExpressionTypeID,
             processor::NOTE_EXPRESSION_TYPE_ID_DEPTH
+        );
+    }
+}
+
+#[test]
+fn get_midi_controller_assignment_effect() {
+    let ec = super::create_internal(
+        create_parameter_model(|_: &HostInfo| {
+            parameters::to_infos(&[InfoRef {
+                title: "Test Switch",
+                short_title: "Switch",
+                unique_id: SWITCH_ID,
+                flags: Flags { automatable: true },
+                type_specific: TypeSpecificInfoRef::Switch { default: false },
+            }])
+        }),
+        "dummy_domain".to_string(),
+        conformal_ui::Size {
+            width: 0,
+            height: 0,
+        },
+        super::Kind::Effect {
+            bypass_id: SWITCH_ID,
+        },
+    );
+    let host = ComWrapper::new(dummy_host::Host::default());
+    unsafe {
+        let mut id: vst3::Steinberg::Vst::ParamID = 0;
+        assert_eq!(
+            ec.initialize(host.as_com_ref().unwrap().as_ptr()),
+            vst3::Steinberg::kResultOk
+        );
+        assert_eq!(
+            ec.getMidiControllerAssignment(
+                0,
+                0,
+                vst3::Steinberg::Vst::ControllerNumbers_::kPitchBend
+                    .try_into()
+                    .unwrap(),
+                &mut id
+            ),
+            vst3::Steinberg::kResultFalse
         );
     }
 }

@@ -72,16 +72,8 @@ pub struct ClassInfo<'a> {
 }
 
 #[doc(hidden)]
-#[derive(Debug, Clone, PartialEq)]
-pub enum ExtraParameters {
-    None,
-    SynthControlParameters,
-}
-
-#[doc(hidden)]
 pub struct ParameterModel {
     pub parameter_infos: Box<dyn Fn(&HostInfo) -> Vec<conformal_component::parameters::Info>>,
-    pub extra_parameters: ExtraParameters,
 }
 
 #[doc(hidden)]
@@ -94,7 +86,7 @@ pub trait ClassCategory {
 
     fn create_parameter_model(&self) -> ParameterModel;
 
-    fn get_bypass_id(&self) -> Option<&'static str>;
+    fn get_kind(&self) -> edit_controller::Kind;
 }
 
 /// Information about a synth component
@@ -106,10 +98,7 @@ pub struct SynthClass<CF> {
     pub info: ClassInfo<'static>,
 }
 
-fn create_parameter_model_internal<CF: ComponentFactory + 'static>(
-    factory: CF,
-    extra_parameters: ExtraParameters,
-) -> ParameterModel
+fn create_parameter_model_internal<CF: ComponentFactory + 'static>(factory: CF) -> ParameterModel
 where
     CF::Component: Component,
 {
@@ -118,7 +107,6 @@ where
             let component = factory.create(host_info);
             component.parameter_infos()
         }),
-        extra_parameters,
     }
 }
 
@@ -136,10 +124,7 @@ where
     }
 
     fn create_parameter_model(&self) -> ParameterModel {
-        create_parameter_model_internal(
-            self.factory.clone(),
-            ExtraParameters::SynthControlParameters,
-        )
+        create_parameter_model_internal(self.factory.clone())
     }
 
     fn category_str(&self) -> &'static str {
@@ -150,8 +135,8 @@ where
         &self.info
     }
 
-    fn get_bypass_id(&self) -> Option<&'static str> {
-        None
+    fn get_kind(&self) -> edit_controller::Kind {
+        edit_controller::Kind::Synth()
     }
 }
 
@@ -193,11 +178,13 @@ impl<CF: ComponentFactory<Component: Component<Processor: Effect> + 'static> + '
     }
 
     fn create_parameter_model(&self) -> ParameterModel {
-        create_parameter_model_internal(self.factory.clone(), ExtraParameters::None)
+        create_parameter_model_internal(self.factory.clone())
     }
 
-    fn get_bypass_id(&self) -> Option<&'static str> {
-        Some(self.bypass_id)
+    fn get_kind(&self) -> edit_controller::Kind {
+        edit_controller::Kind::Effect {
+            bypass_id: self.bypass_id,
+        }
     }
 }
 
