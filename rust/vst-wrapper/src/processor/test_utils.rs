@@ -273,20 +273,20 @@ fn event_to_vst3_event(event: &Event) -> vst3::Steinberg::Vst::Event {
                 noteExpressionValue: vst3::Steinberg::Vst::NoteExpressionValueEvent {
                     noteId: to_vst_note_id(*id),
                     value: match expression {
-                        conformal_component::events::NoteExpression::Tuning(x) => {
+                        conformal_component::events::NoteExpression::PitchBend(x) => {
                             (*x / 240.0 + 0.5) as f64
                         }
-                        conformal_component::events::NoteExpression::Vertical(x) => *x as f64,
-                        conformal_component::events::NoteExpression::Depth(x) => *x as f64,
+                        conformal_component::events::NoteExpression::Timbre(x) => *x as f64,
+                        conformal_component::events::NoteExpression::Aftertouch(x) => *x as f64,
                     },
                     typeId: match expression {
-                        conformal_component::events::NoteExpression::Tuning(_) => {
+                        conformal_component::events::NoteExpression::PitchBend(_) => {
                             vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID
                         }
-                        conformal_component::events::NoteExpression::Vertical(_) => {
+                        conformal_component::events::NoteExpression::Timbre(_) => {
                             vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kCustomStart
                         }
-                        conformal_component::events::NoteExpression::Depth(_) => {
+                        conformal_component::events::NoteExpression::Aftertouch(_) => {
                             vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kCustomStart + 1
                         }
                     },

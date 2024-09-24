@@ -5,10 +5,10 @@ use std::{
 };
 
 use conformal_component::{
-    parameters::{self, InfoRef, TypeSpecificInfo, TypeSpecificInfoRef},
+    parameters::{self, Flags, InfoRef, TypeSpecificInfo, TypeSpecificInfoRef},
     synth::{
         AFTERTOUCH_PARAMETER, CONTROLLER_PARAMETERS, EXPRESSION_PARAMETER, MOD_WHEEL_PARAMETER,
-        PITCH_BEND_PARAMETER, SUSTAIN_PARAMETER,
+        PITCH_BEND_PARAMETER, SUSTAIN_PARAMETER, TIMBRE_PARAMETER,
     },
 };
 use conformal_core::parameters::serialization::{DeserializationError, ReadInfoRef};
@@ -32,7 +32,7 @@ use vst3::{
     },
 };
 
-use crate::ParameterModel;
+use crate::{HostInfo, ParameterModel};
 
 use super::{
     from_utf16_ptr, host_info,
@@ -84,6 +84,7 @@ struct SharedStore {
 }
 
 struct Initialized {
+    host_info: HostInfo,
     store: SharedStore,
     parameter_model: ParameterModel,
     pref_domain: String,
@@ -350,6 +351,62 @@ impl GetStore for EditController {
     }
 }
 
+// "MPE Quirks" is a _really_ unfortunately vst3 note expression implementation that is used
+// in several hosts, including Ableton as of 12.0.25. Instead of using the vst3 note expression
+// system, it insteads uses actual MPE messages that are expected to be midi-mapped to parameters
+// in the plugin.
+//
+// We begrudgingly support this, since we want our plug-ins to work with Ableton, even though
+// it means adding _several_ completely unnecessary dummy parameters, and a bunch of extra code.
+fn should_support_mpe_quirks(_: &HostInfo) -> bool {
+    // Currently support "mpe quirks" in all hosts. If this implementation of note expression
+    // becomes less common, we might want to use only a list of hosts known to use this quirky
+    // implementation.
+    true
+}
+
+fn mpe_quirks_parameters() -> Vec<parameters::Info> {
+    (1..16)
+        .flat_map(|idx| {
+            [
+                parameters::Info {
+                    unique_id: format!("mpe_quirks_aftertouch_{idx}"),
+                    title: format!("MPE Quirks Aftertouch {idx}"),
+                    short_title: format!("MPE After {idx}"),
+                    flags: Flags { automatable: false },
+                    type_specific: TypeSpecificInfo::Numeric {
+                        default: 0.0,
+                        valid_range: 0.0..=1.0,
+                        units: None,
+                    },
+                },
+                parameters::Info {
+                    unique_id: format!("mpe_quirks_pitch_{idx}"),
+                    title: format!("MPE Quirks Pitch {idx}"),
+                    short_title: format!("MPE Pitch {idx}"),
+                    flags: Flags { automatable: false },
+                    type_specific: TypeSpecificInfo::Numeric {
+                        default: 0.0,
+                        valid_range: -1.0..=1.0,
+                        units: None,
+                    },
+                },
+                parameters::Info {
+                    unique_id: format!("mpe_quirks_timbre_{idx}"),
+                    title: format!("MPE Quirks Timbre {idx}"),
+                    short_title: format!("MPE Timbre {idx}"),
+                    flags: Flags { automatable: false },
+                    type_specific: TypeSpecificInfo::Numeric {
+                        default: 0.0,
+                        valid_range: 0.0..=1.0,
+                        units: None,
+                    },
+                },
+            ]
+        })
+        .collect()
+}
+
 impl IPluginBaseTrait for EditController {
     unsafe fn initialize(
         &self,
@@ -373,6 +430,9 @@ impl IPluginBaseTrait for EditController {
                     let mut infos = (parameter_model.parameter_infos)(&host_info);
                     if Kind::Synth() == self.kind {
                         infos.extend(CONTROLLER_PARAMETERS.iter().map(parameters::Info::from));
+                        if should_support_mpe_quirks(&host_info) {
+                            infos.extend(mpe_quirks_parameters());
+                        }
                     }
                     infos
                 };
@@ -405,6 +465,7 @@ impl IPluginBaseTrait for EditController {
                 assert_eq!(parameter_infos.len(), parameters.len());
                 assert!(parameter_infos.len() < i32::MAX as usize);
                 let s = State::Initialized(Initialized {
+                    host_info,
                     store: SharedStore {store: rc::Rc::new(RefCell::new(ParameterStore {
                         unhash: hash_parameter_ids(parameter_infos.iter().map(Into::into)).expect("Duplicate parameter ID hash! This could be caused by duplicate parameter IDs or a hash collision."),
                         infos: parameters,
@@ -907,6 +968,8 @@ impl IEditControllerTrait for EditController {
     }
 }
 
+// TODO - make sure that controller parameters are not saved!
+
 impl IMidiMappingTrait for EditController {
     unsafe fn getMidiControllerAssignment(
         &self,
@@ -915,38 +978,65 @@ impl IMidiMappingTrait for EditController {
         midi_controller_number: vst3::Steinberg::Vst::CtrlNumber,
         id: *mut vst3::Steinberg::Vst::ParamID,
     ) -> vst3::Steinberg::tresult {
-        if !matches!(self.s.borrow().as_ref().unwrap(), State::Initialized(_)) {
-            return vst3::Steinberg::kInvalidArgument;
-        }
-        // Effects don't have midi mappings
-        if let Kind::Effect { .. } = self.kind {
-            return vst3::Steinberg::kResultFalse;
-        }
-        if bus_index != 0 {
-            return vst3::Steinberg::kResultFalse;
-        }
-        if channel_index != 0 {
-            return vst3::Steinberg::kResultFalse;
-        }
-        match match midi_controller_number.try_into() {
-            Ok(vst3::Steinberg::Vst::ControllerNumbers_::kPitchBend) => Some(PITCH_BEND_PARAMETER),
-            Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlModWheel) => {
-                Some(MOD_WHEEL_PARAMETER)
+        if let State::Initialized(Initialized { host_info, .. }) = self.s.borrow().as_ref().unwrap()
+        {
+            // Effects don't have midi mappings
+            if let Kind::Effect { .. } = self.kind {
+                return vst3::Steinberg::kResultFalse;
             }
-            Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlExpression) => {
-                Some(EXPRESSION_PARAMETER)
+            if bus_index != 0 {
+                return vst3::Steinberg::kResultFalse;
             }
-            Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlSustainOnOff) => {
-                Some(SUSTAIN_PARAMETER)
+            if channel_index != 0 {
+                if should_support_mpe_quirks(host_info) {
+                    (match midi_controller_number.try_into() {
+                        Ok(vst3::Steinberg::Vst::ControllerNumbers_::kPitchBend) => {
+                            Some(format!("mpe_quirks_pitch_bend_{channel_index}"))
+                        }
+                        Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlFilterResonance) => {
+                            Some(format!("mpe_quirks_timbre_{channel_index}"))
+                        }
+                        Ok(vst3::Steinberg::Vst::ControllerNumbers_::kAfterTouch) => {
+                            Some(format!("mpe_quirks_aftertouch_{channel_index}"))
+                        }
+                        _ => None,
+                    })
+                    .map_or(vst3::Steinberg::kResultFalse, |param_id| {
+                        *id = parameters::hash_id(&param_id).internal_hash();
+                        vst3::Steinberg::kResultOk
+                    })
+                } else {
+                    vst3::Steinberg::kResultFalse
+                }
+            } else {
+                (match midi_controller_number.try_into() {
+                    Ok(vst3::Steinberg::Vst::ControllerNumbers_::kPitchBend) => {
+                        Some(PITCH_BEND_PARAMETER)
+                    }
+                    Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlModWheel) => {
+                        Some(MOD_WHEEL_PARAMETER)
+                    }
+                    Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlExpression) => {
+                        Some(EXPRESSION_PARAMETER)
+                    }
+                    Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlSustainOnOff) => {
+                        Some(SUSTAIN_PARAMETER)
+                    }
+                    Ok(vst3::Steinberg::Vst::ControllerNumbers_::kAfterTouch) => {
+                        Some(AFTERTOUCH_PARAMETER)
+                    }
+                    Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlFilterResonance) => {
+                        Some(TIMBRE_PARAMETER)
+                    }
+                    _ => None,
+                })
+                .map_or(vst3::Steinberg::kResultFalse, |param_id| {
+                    *id = parameters::hash_id(param_id).internal_hash();
+                    vst3::Steinberg::kResultOk
+                })
             }
-            Ok(vst3::Steinberg::Vst::ControllerNumbers_::kAfterTouch) => Some(AFTERTOUCH_PARAMETER),
-            _ => None,
-        } {
-            Some(param_id) => {
-                *id = parameters::hash_id(param_id).internal_hash();
-                vst3::Steinberg::kResultOk
-            }
-            _ => vst3::Steinberg::kResultFalse,
+        } else {
+            vst3::Steinberg::kInvalidArgument
         }
     }
 }
@@ -1002,8 +1092,8 @@ impl INoteExpressionControllerTrait for EditController {
         match note_expression_index {
             0 => {
                 info_out.typeId = vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID;
-                to_utf16("Tuning", &mut info_out.title);
-                to_utf16("Tuning", &mut info_out.shortTitle);
+                to_utf16("Pitch Bend", &mut info_out.title);
+                to_utf16("Pitch", &mut info_out.shortTitle);
                 to_utf16("semitones", &mut info_out.units);
                 info_out.unitId = 0;
                 // It's not clear from docs if this is necessary for a pre-defined tuning type.
@@ -1017,9 +1107,9 @@ impl INoteExpressionControllerTrait for EditController {
                 vst3::Steinberg::kResultOk
             }
             1 => {
-                info_out.typeId = crate::processor::NOTE_EXPRESSION_TYPE_ID_VERTICAL;
-                to_utf16("Vertical", &mut info_out.title);
-                to_utf16("Vertical", &mut info_out.shortTitle);
+                info_out.typeId = crate::processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID;
+                to_utf16("Timbre", &mut info_out.title);
+                to_utf16("Timbre", &mut info_out.shortTitle);
                 to_utf16("", &mut info_out.units);
                 info_out.unitId = 0;
                 info_out.valueDesc = vst3::Steinberg::Vst::NoteExpressionValueDescription {
@@ -1033,9 +1123,9 @@ impl INoteExpressionControllerTrait for EditController {
                 vst3::Steinberg::kResultOk
             }
             2 => {
-                info_out.typeId = crate::processor::NOTE_EXPRESSION_TYPE_ID_DEPTH;
-                to_utf16("Depth", &mut info_out.title);
-                to_utf16("Depth", &mut info_out.shortTitle);
+                info_out.typeId = crate::processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID;
+                to_utf16("Aftertouch", &mut info_out.title);
+                to_utf16("Aftertouch", &mut info_out.shortTitle);
                 to_utf16("", &mut info_out.units);
                 info_out.unitId = 0;
                 info_out.valueDesc = vst3::Steinberg::Vst::NoteExpressionValueDescription {
@@ -1075,8 +1165,8 @@ impl INoteExpressionControllerTrait for EditController {
                 to_utf16(&format!("{value:.2}"), &mut *string);
                 vst3::Steinberg::kResultOk
             }
-            crate::processor::NOTE_EXPRESSION_TYPE_ID_DEPTH
-            | crate::processor::NOTE_EXPRESSION_TYPE_ID_VERTICAL => {
+            crate::processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID
+            | crate::processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID => {
                 to_utf16(&format!("{value_normalized:.2}"), &mut *string);
                 vst3::Steinberg::kResultOk
             }
@@ -1112,8 +1202,8 @@ impl INoteExpressionControllerTrait for EditController {
                 vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID => {
                     Some((value / 240.0) + 0.5)
                 }
-                crate::processor::NOTE_EXPRESSION_TYPE_ID_DEPTH
-                | crate::processor::NOTE_EXPRESSION_TYPE_ID_VERTICAL => Some(value),
+                crate::processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID
+                | crate::processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID => Some(value),
                 _ => None,
             }
         })() {
@@ -1151,10 +1241,11 @@ impl INoteExpressionPhysicalUIMappingTrait for EditController {
                         vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID;
                 }
                 vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIYMovement => {
-                    item.noteExpressionTypeID = crate::processor::NOTE_EXPRESSION_TYPE_ID_VERTICAL;
+                    item.noteExpressionTypeID = crate::processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID;
                 }
                 vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIPressure => {
-                    item.noteExpressionTypeID = crate::processor::NOTE_EXPRESSION_TYPE_ID_DEPTH;
+                    item.noteExpressionTypeID =
+                        crate::processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID;
                 }
                 _ => {}
             }

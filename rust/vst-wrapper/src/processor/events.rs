@@ -84,16 +84,16 @@ unsafe fn convert_event(event: &vst3::Steinberg::Vst::Event) -> Option<Event> {
                     #[allow(clippy::cast_possible_truncation)]
                     expression: match event.__field0.noteExpressionValue.typeId {
                         vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID => {
-                            NoteExpression::Tuning(
+                            NoteExpression::PitchBend(
                                 (event.__field0.noteExpressionValue.value as f32 - 0.5) * 240.0,
                             )
                         }
-                        super::NOTE_EXPRESSION_TYPE_ID_VERTICAL => NoteExpression::Vertical(
+                        super::NOTE_EXPRESSION_TIMBRE_TYPE_ID => {
+                            NoteExpression::Timbre(event.__field0.noteExpressionValue.value as f32)
+                        }
+                        super::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID => NoteExpression::Aftertouch(
                             event.__field0.noteExpressionValue.value as f32,
                         ),
-                        super::NOTE_EXPRESSION_TYPE_ID_DEPTH => {
-                            NoteExpression::Depth(event.__field0.noteExpressionValue.value as f32)
-                        }
                         _ => return None,
                     },
                 },

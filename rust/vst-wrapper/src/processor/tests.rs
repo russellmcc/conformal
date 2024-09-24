@@ -41,9 +41,9 @@ struct FakeSynthComponent<'a> {
 struct FakeSynth<'a> {
     processing: Option<&'a RefCell<bool>>,
     notes: HashSet<NoteID>,
-    tuning: f32,
-    vertical: f32,
-    depth: f32,
+    pitchbend: f32,
+    timbre: f32,
+    aftertouch: f32,
 }
 
 impl<'a> FakeSynth<'a> {
@@ -55,14 +55,14 @@ impl<'a> FakeSynth<'a> {
             return;
         }
         match expression {
-            NoteExpression::Tuning(tuning) => {
-                self.tuning = tuning;
+            NoteExpression::PitchBend(pitchbend) => {
+                self.pitchbend = pitchbend;
             }
-            NoteExpression::Vertical(vertical) => {
-                self.vertical = vertical;
+            NoteExpression::Timbre(timbre) => {
+                self.timbre = timbre;
             }
-            NoteExpression::Depth(depth) => {
-                self.depth = depth;
+            NoteExpression::Aftertouch(aftertouch) => {
+                self.aftertouch = aftertouch;
             }
         }
     }
@@ -186,9 +186,9 @@ impl<'a> Synth for FakeSynth<'a> {
                     * ((enum_mult + 1) as f32)
                     * (if switch_mult { 1.0 } else { 0.0 })
                     * self.notes.len() as f32
-                    + self.tuning
-                    + self.vertical
-                    + self.depth;
+                    + self.pitchbend
+                    + self.timbre
+                    + self.aftertouch;
             }
         }
     }
@@ -206,9 +206,9 @@ impl<'a> Component for FakeSynthComponent<'a> {
         FakeSynth {
             processing: self.processing,
             notes,
-            tuning: 0f32,
-            vertical: 0f32,
-            depth: 0f32,
+            pitchbend: 0f32,
+            timbre: 0f32,
+            aftertouch: 0f32,
         }
     }
 
@@ -1435,7 +1435,7 @@ fn can_process_mpe() {
                     data: Data::NoteExpression {
                         data: NoteExpressionData {
                             id: NoteID::from_id(0),
-                            expression: NoteExpression::Tuning(12.0),
+                            expression: NoteExpression::PitchBend(12.0),
                         },
                     },
                 },
@@ -1445,7 +1445,7 @@ fn can_process_mpe() {
                     data: Data::NoteExpression {
                         data: NoteExpressionData {
                             id: NoteID::from_id(4),
-                            expression: NoteExpression::Tuning(24.0),
+                            expression: NoteExpression::PitchBend(24.0),
                         },
                     },
                 },
@@ -1454,7 +1454,7 @@ fn can_process_mpe() {
                     data: Data::NoteExpression {
                         data: NoteExpressionData {
                             id: NoteID::from_id(0),
-                            expression: NoteExpression::Vertical(0.6),
+                            expression: NoteExpression::Timbre(0.6),
                         },
                     },
                 },
@@ -1463,7 +1463,7 @@ fn can_process_mpe() {
                     data: Data::NoteExpression {
                         data: NoteExpressionData {
                             id: NoteID::from_id(0),
-                            expression: NoteExpression::Depth(0.7),
+                            expression: NoteExpression::Aftertouch(0.7),
                         },
                     },
                 },
@@ -1472,7 +1472,7 @@ fn can_process_mpe() {
                     data: Data::NoteExpression {
                         data: NoteExpressionData {
                             id: NoteID::from_id(0),
-                            expression: NoteExpression::Tuning(0.0),
+                            expression: NoteExpression::PitchBend(0.0),
                         },
                     },
                 },
@@ -1481,7 +1481,7 @@ fn can_process_mpe() {
                     data: Data::NoteExpression {
                         data: NoteExpressionData {
                             id: NoteID::from_id(0),
-                            expression: NoteExpression::Vertical(0.0),
+                            expression: NoteExpression::Timbre(0.0),
                         },
                     },
                 },
@@ -1490,7 +1490,7 @@ fn can_process_mpe() {
                     data: Data::NoteExpression {
                         data: NoteExpressionData {
                             id: NoteID::from_id(0),
-                            expression: NoteExpression::Depth(0.0),
+                            expression: NoteExpression::Aftertouch(0.0),
                         },
                     },
                 },

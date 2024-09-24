@@ -1124,9 +1124,9 @@ impl BufferMut for UnsafeMutBufferFromRaw {
     }
 }
 
-pub const NOTE_EXPRESSION_TYPE_ID_VERTICAL: vst3::Steinberg::Vst::NoteExpressionTypeID =
+pub const NOTE_EXPRESSION_TIMBRE_TYPE_ID: vst3::Steinberg::Vst::NoteExpressionTypeID =
     vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kCustomStart;
-pub const NOTE_EXPRESSION_TYPE_ID_DEPTH: vst3::Steinberg::Vst::NoteExpressionTypeID =
+pub const NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID: vst3::Steinberg::Vst::NoteExpressionTypeID =
     vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kCustomStart + 1;
 
 mod events;

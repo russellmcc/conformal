@@ -1639,6 +1639,19 @@ fn synth_control_parameters_exposed() {
             vst3::Steinberg::Vst::ControllerNumbers_::kAfterTouch,
             conformal_component::synth::AFTERTOUCH_PARAMETER,
         );
+        {
+            // due to mpe quirks we should have _some_ mapping to aftertouch
+            let mut id: vst3::Steinberg::Vst::ParamID = 0;
+            assert_eq!(
+                ec.getMidiControllerAssignment(
+                    0,
+                    1,
+                    vst3::Steinberg::Vst::ControllerNumbers_::kAfterTouch as i16,
+                    &mut id
+                ),
+                vst3::Steinberg::kResultTrue
+            );
+        }
 
         let store = ec.get_store().unwrap();
         assert_eq!(
@@ -1659,17 +1672,6 @@ fn midi_mapping_bad_context_false() {
             ec.getMidiControllerAssignment(
                 1,
                 0,
-                vst3::Steinberg::Vst::ControllerNumbers_::kCtrlModWheel
-                    .try_into()
-                    .unwrap(),
-                &mut id as *mut _
-            ),
-            vst3::Steinberg::kResultFalse
-        );
-        assert_eq!(
-            ec.getMidiControllerAssignment(
-                0,
-                1,
                 vst3::Steinberg::Vst::ControllerNumbers_::kCtrlModWheel
                     .try_into()
                     .unwrap(),
@@ -1745,8 +1747,8 @@ fn get_note_expression_info() {
             info.typeId,
             vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID
         );
-        assert_eq!(from_utf16_buffer(&info.title).unwrap(), "Tuning");
-        assert_eq!(from_utf16_buffer(&info.shortTitle).unwrap(), "Tuning");
+        assert_eq!(from_utf16_buffer(&info.title).unwrap(), "Pitch Bend");
+        assert_eq!(from_utf16_buffer(&info.shortTitle).unwrap(), "Pitch");
         assert_eq!(from_utf16_buffer(&info.units).unwrap(), "semitones");
         assert_eq!(
             info.flags,
@@ -1758,9 +1760,9 @@ fn get_note_expression_info() {
             ec.getNoteExpressionInfo(0, 0, 1, &mut info),
             vst3::Steinberg::kResultOk
         );
-        assert_eq!(info.typeId, processor::NOTE_EXPRESSION_TYPE_ID_VERTICAL);
-        assert_eq!(from_utf16_buffer(&info.title).unwrap(), "Vertical");
-        assert_eq!(from_utf16_buffer(&info.shortTitle).unwrap(), "Vertical");
+        assert_eq!(info.typeId, processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID);
+        assert_eq!(from_utf16_buffer(&info.title).unwrap(), "Timbre");
+        assert_eq!(from_utf16_buffer(&info.shortTitle).unwrap(), "Timbre");
         assert_eq!(from_utf16_buffer(&info.units).unwrap(), "");
         assert_eq!(info.unitId, 0);
         assert_eq!(info.valueDesc.defaultValue, 0.);
@@ -1773,9 +1775,9 @@ fn get_note_expression_info() {
             ec.getNoteExpressionInfo(0, 0, 2, &mut info),
             vst3::Steinberg::kResultOk
         );
-        assert_eq!(info.typeId, processor::NOTE_EXPRESSION_TYPE_ID_DEPTH);
-        assert_eq!(from_utf16_buffer(&info.title).unwrap(), "Depth");
-        assert_eq!(from_utf16_buffer(&info.shortTitle).unwrap(), "Depth");
+        assert_eq!(info.typeId, processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID);
+        assert_eq!(from_utf16_buffer(&info.title).unwrap(), "Aftertouch");
+        assert_eq!(from_utf16_buffer(&info.shortTitle).unwrap(), "Aftertouch");
         assert_eq!(from_utf16_buffer(&info.units).unwrap(), "");
         assert_eq!(info.unitId, 0);
         assert_eq!(info.valueDesc.defaultValue, 0.);
@@ -1848,7 +1850,7 @@ fn get_note_expression_string_by_value() {
             ec.getNoteExpressionStringByValue(
                 0,
                 0,
-                crate::processor::NOTE_EXPRESSION_TYPE_ID_VERTICAL,
+                crate::processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID,
                 0.5,
                 string.as_mut_ptr().cast::<[i16; 128]>()
             ),
@@ -1860,7 +1862,7 @@ fn get_note_expression_string_by_value() {
             ec.getNoteExpressionStringByValue(
                 0,
                 0,
-                crate::processor::NOTE_EXPRESSION_TYPE_ID_DEPTH,
+                crate::processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID,
                 0.5,
                 string.as_mut_ptr().cast::<[i16; 128]>()
             ),
@@ -1955,7 +1957,7 @@ fn get_note_expression_value_by_string() {
             ec.getNoteExpressionValueByString(
                 0,
                 0,
-                crate::processor::NOTE_EXPRESSION_TYPE_ID_VERTICAL,
+                crate::processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID,
                 string.as_ptr(),
                 &mut value
             ),
@@ -1967,7 +1969,7 @@ fn get_note_expression_value_by_string() {
             ec.getNoteExpressionValueByString(
                 0,
                 0,
-                crate::processor::NOTE_EXPRESSION_TYPE_ID_DEPTH,
+                crate::processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID,
                 string.as_ptr(),
                 &mut value
             ),
@@ -2035,7 +2037,7 @@ fn get_physical_ui_mapping() {
         );
         assert_eq!(
             map[0].noteExpressionTypeID,
-            processor::NOTE_EXPRESSION_TYPE_ID_VERTICAL
+            processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID
         );
         assert_eq!(
             map[1].noteExpressionTypeID,
@@ -2043,7 +2045,7 @@ fn get_physical_ui_mapping() {
         );
         assert_eq!(
             map[2].noteExpressionTypeID,
-            processor::NOTE_EXPRESSION_TYPE_ID_DEPTH
+            processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID
         );
     }
 }

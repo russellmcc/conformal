@@ -75,25 +75,36 @@ pub struct NoteData {
 /// A specific type of note expression.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum NoteExpression {
-    /// Tuning note expression.
+    /// Pitch bend note expression.
     ///
-    /// This is expressed in semitones away from the root pitch of the note.
-    Tuning(f32),
+    /// This corresponds to the [`crate::synth::PITCH_BEND_PARAMETER`] controller and should
+    /// change the tuning of the note.
+    ///
+    /// This is expressed in semitones away from the root note of the note (which may itself
+    /// be affected by the global [`crate::synth::PITCH_BEND_PARAMETER`] controller).
+    PitchBend(f32),
 
-    /// Vertical movement note expression.
+    /// Vertical movement note expression, meant to control some sort of timbre of the synth.
     ///
     /// This is called "slide" in some DAW UIs.
     ///
+    /// This corresponds to the "timbre" controller ([`crate::synth::TIMBRE_PARAMETER`]), and
+    /// its effects must be combined with the global controller.
+    ///
     /// This value varies from 0->1, 0 being the bottommost position,
     /// and 1 being the topmost position.
-    Vertical(f32),
+    Timbre(f32),
 
     /// Depthwise note expression.
     ///
     /// This is called "Pressure" in some DAW UIs.
     ///
     /// This value varies from 0->1, 0 being neutral, and 1 being the maximum depth.
-    Depth(f32),
+    ///
+    /// This corresponds to the [`crate::synth::AFTERTOUCH_PARAMETER`] controller which
+    /// affects all notes. The total effect must be a combination of this per-note note
+    /// expression and the global controller.
+    Aftertouch(f32),
 }
 
 /// Contains data about note expression.
