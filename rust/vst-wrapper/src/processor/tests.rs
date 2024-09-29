@@ -12,7 +12,7 @@ use vst3::Steinberg::{
 use super::test_utils::{activate_busses, process_setup, setup_proc, DEFAULT_ENV};
 use super::{create_effect, create_synth, PartialProcessingEnvironment};
 use crate::fake_ibstream::Stream;
-use crate::mpe_quirks::mpe_quirks_aftertouch_id;
+use crate::mpe_quirks::aftertouch_param_id;
 use crate::processor::test_utils::{
     activate_effect_busses, mock_no_audio_process_data, mock_process, mock_process_effect,
     mock_process_mod, setup_proc_effect, ParameterValueQueueImpl, ParameterValueQueuePoint,
@@ -2942,7 +2942,7 @@ fn supports_mpe_quirks() {
                 sample_offset: 10,
                 data: Data::NoteOn {
                     data: NoteData {
-                        id: NoteID::from_channel_id(1),
+                        id: NoteID::from_channel_for_mpe_quirks(1),
                         pitch: 64,
                         velocity: 0.5,
                         tuning: 0f32,
@@ -2950,7 +2950,7 @@ fn supports_mpe_quirks() {
                 },
             }],
             vec![ParameterValueQueueImpl {
-                param_id: mpe_quirks_aftertouch_id(1).to_string(),
+                param_id: aftertouch_param_id(1).to_string(),
                 points: vec![ParameterValueQueuePoint {
                     sample_offset: 10,
                     value: 1.0,

@@ -7,7 +7,7 @@ use vst3::{
 };
 
 use conformal_component::{
-    events::{to_vst_note_channel, to_vst_note_id, Data, Event, NoteExpressionData},
+    events::{to_vst_note_channel_for_mpe_quirks, to_vst_note_id, Data, Event, NoteExpressionData},
     parameters::hash_id,
     ProcessingMode,
 };
@@ -236,7 +236,7 @@ fn event_to_vst3_event(event: &Event) -> vst3::Steinberg::Vst::Event {
             r#type: vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOnEvent as u16,
             __field0: vst3::Steinberg::Vst::Event__type0 {
                 noteOn: vst3::Steinberg::Vst::NoteOnEvent {
-                    channel: to_vst_note_channel(data.id),
+                    channel: to_vst_note_channel_for_mpe_quirks(data.id),
                     pitch: data.pitch as i16,
                     tuning: data.tuning,
                     velocity: data.velocity,
@@ -253,7 +253,7 @@ fn event_to_vst3_event(event: &Event) -> vst3::Steinberg::Vst::Event {
             r#type: vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOffEvent as u16,
             __field0: vst3::Steinberg::Vst::Event__type0 {
                 noteOff: vst3::Steinberg::Vst::NoteOffEvent {
-                    channel: to_vst_note_channel(data.id),
+                    channel: to_vst_note_channel_for_mpe_quirks(data.id),
                     pitch: data.pitch as i16,
                     tuning: data.tuning,
                     velocity: data.velocity,

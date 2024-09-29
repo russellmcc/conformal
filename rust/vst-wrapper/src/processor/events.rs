@@ -7,6 +7,8 @@ use conformal_component::events::{
     Data, Event, NoteData, NoteExpression, NoteExpressionData, NoteID,
 };
 
+use crate::mpe_quirks::SupportMpeQuirks;
+
 unsafe fn get_event(
     event_list: ComRef<'_, IEventList>,
     index: i32,
@@ -35,13 +37,20 @@ unsafe fn get_event(
     Some(event)
 }
 
-unsafe fn convert_event(event: &vst3::Steinberg::Vst::Event) -> Option<Event> {
+unsafe fn convert_event(
+    event: &vst3::Steinberg::Vst::Event,
+    support_mpe_quirks: SupportMpeQuirks,
+) -> Option<Event> {
     if event.sampleOffset < 0 {
         return None;
     }
     match u32::from(event.r#type) {
         vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOnEvent => {
             let pitch = u8::try_from(event.__field0.noteOn.pitch).ok()?;
+            let channel = event.__field0.noteOn.channel;
+            if support_mpe_quirks == SupportMpeQuirks::DoNotSupportQuirks && channel != 0 {
+                return None;
+            }
             Some(Event {
                 sample_offset: event.sampleOffset as usize,
                 data: Data::NoteOn {
@@ -49,7 +58,9 @@ unsafe fn convert_event(event: &vst3::Steinberg::Vst::Event) -> Option<Event> {
                         pitch,
                         tuning: event.__field0.noteOn.tuning,
                         velocity: event.__field0.noteOn.velocity,
-                        id: if event.__field0.noteOn.noteId == -1 {
+                        id: if channel != 0 {
+                            NoteID::from_channel_for_mpe_quirks(channel)
+                        } else if event.__field0.noteOn.noteId == -1 {
                             NoteID::from_pitch(pitch)
                         } else {
                             NoteID::from_id(event.__field0.noteOn.noteId)
@@ -60,6 +71,11 @@ unsafe fn convert_event(event: &vst3::Steinberg::Vst::Event) -> Option<Event> {
         }
         vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOffEvent => {
             let pitch = u8::try_from(event.__field0.noteOff.pitch).ok()?;
+            let channel = event.__field0.noteOff.channel;
+            if support_mpe_quirks == SupportMpeQuirks::DoNotSupportQuirks && channel != 0 {
+                return None;
+            }
+
             Some(Event {
                 sample_offset: event.sampleOffset as usize,
                 data: Data::NoteOff {
@@ -67,7 +83,9 @@ unsafe fn convert_event(event: &vst3::Steinberg::Vst::Event) -> Option<Event> {
                         pitch,
                         tuning: event.__field0.noteOff.tuning,
                         velocity: event.__field0.noteOff.velocity,
-                        id: if event.__field0.noteOff.noteId == -1 {
+                        id: if channel != 0 {
+                            NoteID::from_channel_for_mpe_quirks(channel)
+                        } else if event.__field0.noteOff.noteId == -1 {
                             NoteID::from_pitch(pitch)
                         } else {
                             NoteID::from_id(event.__field0.noteOff.noteId)
@@ -105,21 +123,23 @@ unsafe fn convert_event(event: &vst3::Steinberg::Vst::Event) -> Option<Event> {
 
 pub unsafe fn event_iterator(
     event_list: ComRef<'_, IEventList>,
+    support_mpe_quirks: SupportMpeQuirks,
 ) -> impl Iterator<Item = Event> + '_ + Clone {
     (0..event_list.getEventCount()).filter_map(move |i| -> Option<Event> {
         get_event(event_list, i)
             .as_ref()
-            .and_then(|x| unsafe { convert_event(x) })
+            .and_then(|x| unsafe { convert_event(x, support_mpe_quirks) })
     })
 }
 
 pub unsafe fn all_zero_event_iterator(
     event_list: ComRef<'_, IEventList>,
+    support_mpe_quirks: SupportMpeQuirks,
 ) -> Option<impl Iterator<Item = Data> + Clone + '_> {
     let i = (0..event_list.getEventCount()).filter_map(move |i| -> Option<Event> {
         get_event(event_list, i)
             .as_ref()
-            .and_then(|x| unsafe { convert_event(x) })
+            .and_then(|x| unsafe { convert_event(x, support_mpe_quirks) })
     });
     if i.clone().any(|x| x.sample_offset != 0) {
         None

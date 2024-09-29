@@ -49,7 +49,7 @@ impl NoteID {
 
     #[doc(hidden)]
     #[must_use]
-    pub const fn from_channel_id(id: i16) -> Self {
+    pub const fn from_channel_for_mpe_quirks(id: i16) -> Self {
         Self {
             internals: NoteIDInternals::NoteIDFromChannelID(id),
         }
@@ -67,7 +67,7 @@ pub fn to_vst_note_id(note_id: NoteID) -> i32 {
 
 #[doc(hidden)]
 #[must_use]
-pub fn to_vst_note_channel(note_id: NoteID) -> i16 {
+pub fn to_vst_note_channel_for_mpe_quirks(note_id: NoteID) -> i16 {
     match note_id.internals {
         NoteIDInternals::NoteIDFromChannelID(id) => id,
         NoteIDInternals::NoteIDFromPitch(_) | NoteIDInternals::NoteIDWithID(_) => 0,

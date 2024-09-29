@@ -2,11 +2,12 @@
 
 use std::cell::RefCell;
 
-use crate::{ClassID, ComponentFactory};
+use crate::mpe_quirks::{self, SupportMpeQuirks};
+use crate::{ClassID, ComponentFactory, HostInfo};
 use conformal_component::audio::{Buffer, BufferMut, ChannelLayout};
 use conformal_component::effect::Effect;
 use conformal_component::events::{Event, Events};
-use conformal_component::parameters::{BufferStates, InfoRef};
+use conformal_component::parameters::BufferStates;
 use conformal_component::synth::{Synth, CONTROLLER_PARAMETERS};
 use conformal_component::{
     Component, ProcessingEnvironment, ProcessingMode, Processor as ProcessorT,
@@ -67,6 +68,9 @@ struct ActiveProcessContext<P, A> {
 
     processor: P,
     category: A,
+    /// Whether we support host quirks for MPE note expression.
+    /// see [`crate::mpe_quirks`] for more details.
+    support_mpe_quirks: SupportMpeQuirks,
 }
 
 #[derive(Default)]
@@ -84,6 +88,10 @@ enum ProcessContext<P, A> {
         /// by keeping the `processing_active` state here, even when we are inactive.
         processing: bool,
         params: parameters::ProcessingStore,
+
+        /// Whether we support host quirks for MPE note expression.
+        /// see [`crate::mpe_quirks`] for more details.
+        support_mpe_quirks: SupportMpeQuirks,
     },
 }
 
@@ -187,7 +195,10 @@ trait ProcessorCategory {
         num_outs: vst3::Steinberg::int32,
     ) -> vst3::Steinberg::tresult;
 
-    fn get_extra_parameters(&self) -> impl Iterator<Item = InfoRef<'static, &'static str>> + Clone;
+    fn get_extra_parameters(
+        &self,
+        host_info: &HostInfo,
+    ) -> impl Iterator<Item = conformal_component::parameters::Info> + Clone;
 }
 
 impl ProcessorCategory for SynthProcessorCategory {
@@ -362,14 +373,21 @@ impl ProcessorCategory for SynthProcessorCategory {
         }
     }
 
-    fn get_extra_parameters(&self) -> impl Iterator<Item = InfoRef<'static, &'static str>> + Clone {
-        CONTROLLER_PARAMETERS.iter().cloned()
+    fn get_extra_parameters(
+        &self,
+        host_info: &HostInfo,
+    ) -> impl Iterator<Item = conformal_component::parameters::Info> + Clone {
+        CONTROLLER_PARAMETERS.iter().map(Into::into).chain(
+            mpe_quirks::parameters().filter(|_| {
+                mpe_quirks::should_support(host_info) == SupportMpeQuirks::SupportQuirks
+            }),
+        )
     }
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Default)]
 struct EffectBusActivationState {
-    autio_input_active: bool,
+    audio_input_active: bool,
     audio_output_active: bool,
 }
 
@@ -398,7 +416,7 @@ impl ProcessorCategory for EffectProcessorCategory {
 
     fn activate(&self) -> Option<Self::Active> {
         // We can only be activated if all our buses are active.
-        if self.bus_activation_state.autio_input_active
+        if self.bus_activation_state.audio_input_active
             && self.bus_activation_state.audio_output_active
         {
             Some(ActiveEffectProcessorCategory {
@@ -535,7 +553,7 @@ impl ProcessorCategory for EffectProcessorCategory {
                 vst3::Steinberg::Vst::BusDirections_::kInput,
                 0,
             ) => {
-                self.bus_activation_state.autio_input_active = state != 0;
+                self.bus_activation_state.audio_input_active = state != 0;
                 vst3::Steinberg::kResultOk
             }
             _ => vst3::Steinberg::kInvalidArgument,
@@ -573,7 +591,10 @@ impl ProcessorCategory for EffectProcessorCategory {
         }
     }
 
-    fn get_extra_parameters(&self) -> impl Iterator<Item = InfoRef<'static, &'static str>> + Clone {
+    fn get_extra_parameters(
+        &self,
+        _: &HostInfo,
+    ) -> impl Iterator<Item = conformal_component::parameters::Info> + Clone {
         core::iter::empty()
     }
 }
@@ -834,12 +855,7 @@ where
                 let (params_main, params_processing) = parameters::create_stores(
                     {
                         let mut infos = conformal_component.parameter_infos();
-                        infos.extend(
-                            self.category
-                                .borrow()
-                                .get_extra_parameters()
-                                .map(|info| (&info).into()),
-                        );
+                        infos.extend(self.category.borrow().get_extra_parameters(&host_info));
                         infos
                     }
                     .iter()
@@ -864,6 +880,7 @@ where
                 self.process_context.replace(ProcessContext::Inactive {
                     processing: false,
                     params: params_processing,
+                    support_mpe_quirks: mpe_quirks::should_support(&host_info),
                 });
                 (s, vst3::Steinberg::kResultOk)
             }
@@ -983,16 +1000,29 @@ impl<CF: ComponentFactory<Component: Component<Processor: ProcessorT>>, PC: Proc
                 }
                 (
                     ProcessContext::Active(ActiveProcessContext {
-                        params, processing, ..
+                        params,
+                        processing,
+                        support_mpe_quirks,
+                        ..
                     }),
                     false,
                 ) => {
-                    self.process_context
-                        .replace(ProcessContext::Inactive { processing, params });
+                    self.process_context.replace(ProcessContext::Inactive {
+                        processing,
+                        params,
+                        support_mpe_quirks,
+                    });
                     *process_context_active = false;
                     vst3::Steinberg::kResultOk
                 }
-                (ProcessContext::Inactive { params, processing }, true) => {
+                (
+                    ProcessContext::Inactive {
+                        params,
+                        processing,
+                        support_mpe_quirks,
+                    },
+                    true,
+                ) => {
                     if let Some(category) = self.category.borrow().activate() {
                         let mut processor = self
                             .category
@@ -1007,13 +1037,17 @@ impl<CF: ComponentFactory<Component: Component<Processor: ProcessorT>>, PC: Proc
                                 params,
                                 processor,
                                 category,
+                                support_mpe_quirks,
                             },
                         ));
                         *process_context_active = true;
                         vst3::Steinberg::kResultOk
                     } else {
-                        self.process_context
-                            .replace(ProcessContext::Inactive { processing, params });
+                        self.process_context.replace(ProcessContext::Inactive {
+                            processing,
+                            params,
+                            support_mpe_quirks,
+                        });
                         vst3::Steinberg::kInvalidArgument
                     }
                 }
@@ -1390,7 +1424,9 @@ impl<
 
             if num_frames == 0 {
                 if let Some(input_events) = ComRef::from_raw((*data).inputEvents) {
-                    if let Some(event_iter) = events::all_zero_event_iterator(input_events) {
+                    if let Some(event_iter) =
+                        events::all_zero_event_iterator(input_events, pd.support_mpe_quirks)
+                    {
                         let helper = NoAudioProcessHelper {
                             processor: &mut pd.processor,
                             events_empty: event_iter.clone().next().is_none(),
@@ -1417,9 +1453,10 @@ impl<
 
             if let Some(process_buffer) = pd.category.make_process_buffer(&mut pd.processor, data) {
                 if let Some(input_events) = ComRef::from_raw((*data).inputEvents) {
-                    if let Some(events) =
-                        Events::new(events::event_iterator(input_events), num_frames)
-                    {
+                    if let Some(events) = Events::new(
+                        events::event_iterator(input_events, pd.support_mpe_quirks),
+                        num_frames,
+                    ) {
                         return events.do_process(process_buffer, &mut pd.params, data, num_frames);
                     }
                 } else {

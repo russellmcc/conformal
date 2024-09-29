@@ -33,10 +33,7 @@ use vst3::{
 };
 
 use crate::{
-    mpe_quirks::{
-        mpe_quirks_aftertouch_id, mpe_quirks_parameters, mpe_quirks_pitch_id, mpe_quirks_timbre_id,
-        should_support_mpe_quirks,
-    },
+    mpe_quirks::{self, aftertouch_param_id, pitch_param_id, timbre_param_id, SupportMpeQuirks},
     HostInfo, ParameterModel,
 };
 
@@ -397,8 +394,9 @@ impl IPluginBaseTrait for EditController {
                     let mut infos = (parameter_model.parameter_infos)(&host_info);
                     if Kind::Synth() == self.kind {
                         infos.extend(CONTROLLER_PARAMETERS.iter().map(parameters::Info::from));
-                        if should_support_mpe_quirks(&host_info) {
-                            infos.extend(mpe_quirks_parameters());
+                        if mpe_quirks::should_support(&host_info) == SupportMpeQuirks::SupportQuirks
+                        {
+                            infos.extend(mpe_quirks::parameters());
                         }
                     }
                     infos
@@ -973,16 +971,16 @@ impl IMidiMappingTrait for EditController {
                 return vst3::Steinberg::kResultFalse;
             }
             if channel_index != 0 {
-                if should_support_mpe_quirks(host_info) {
+                if mpe_quirks::should_support(host_info) == SupportMpeQuirks::SupportQuirks {
                     (match midi_controller_number.try_into() {
                         Ok(vst3::Steinberg::Vst::ControllerNumbers_::kPitchBend) => {
-                            Some(mpe_quirks_pitch_id(channel_index))
+                            Some(pitch_param_id(channel_index))
                         }
                         Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlFilterResonance) => {
-                            Some(mpe_quirks_timbre_id(channel_index))
+                            Some(timbre_param_id(channel_index))
                         }
                         Ok(vst3::Steinberg::Vst::ControllerNumbers_::kAfterTouch) => {
-                            Some(mpe_quirks_aftertouch_id(channel_index))
+                            Some(aftertouch_param_id(channel_index))
                         }
                         _ => None,
                     })
