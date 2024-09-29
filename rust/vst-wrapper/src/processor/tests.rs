@@ -12,6 +12,7 @@ use vst3::Steinberg::{
 use super::test_utils::{activate_busses, process_setup, setup_proc, DEFAULT_ENV};
 use super::{create_effect, create_synth, PartialProcessingEnvironment};
 use crate::fake_ibstream::Stream;
+use crate::mpe_quirks::mpe_quirks_aftertouch_id;
 use crate::processor::test_utils::{
     activate_effect_busses, mock_no_audio_process_data, mock_process, mock_process_effect,
     mock_process_mod, setup_proc_effect, ParameterValueQueueImpl, ParameterValueQueuePoint,
@@ -1538,7 +1539,7 @@ fn can_process_effect() {
             vec![vec![1f32; 512]; 2],
             vec![
                 ParameterValueQueueImpl {
-                    param_id: NUMERIC_ID,
+                    param_id: NUMERIC_ID.to_string(),
                     points: vec![
                         ParameterValueQueuePoint {
                             sample_offset: 99,
@@ -1551,7 +1552,7 @@ fn can_process_effect() {
                     ],
                 },
                 ParameterValueQueueImpl {
-                    param_id: SWITCH_ID,
+                    param_id: SWITCH_ID.to_string(),
                     points: vec![
                         ParameterValueQueuePoint {
                             sample_offset: 500,
@@ -1564,7 +1565,7 @@ fn can_process_effect() {
                     ],
                 },
                 ParameterValueQueueImpl {
-                    param_id: ENUM_ID,
+                    param_id: ENUM_ID.to_string(),
                     points: vec![
                         ParameterValueQueuePoint {
                             sample_offset: 300,
@@ -1802,7 +1803,7 @@ fn can_handle_parameter_changes() {
             }],
             vec![
                 ParameterValueQueueImpl {
-                    param_id: NUMERIC_ID,
+                    param_id: NUMERIC_ID.to_string(),
                     points: vec![
                         ParameterValueQueuePoint {
                             sample_offset: 99,
@@ -1815,7 +1816,7 @@ fn can_handle_parameter_changes() {
                     ],
                 },
                 ParameterValueQueueImpl {
-                    param_id: SWITCH_ID,
+                    param_id: SWITCH_ID.to_string(),
                     points: vec![
                         ParameterValueQueuePoint {
                             sample_offset: 500,
@@ -1828,7 +1829,7 @@ fn can_handle_parameter_changes() {
                     ],
                 },
                 ParameterValueQueueImpl {
-                    param_id: ENUM_ID,
+                    param_id: ENUM_ID.to_string(),
                     points: vec![
                         ParameterValueQueuePoint {
                             sample_offset: 300,
@@ -1878,7 +1879,7 @@ fn parameter_changes_at_start_of_buffer() {
                 },
             }],
             vec![ParameterValueQueueImpl {
-                param_id: NUMERIC_ID,
+                param_id: NUMERIC_ID.to_string(),
                 points: vec![
                     ParameterValueQueuePoint {
                         sample_offset: 0,
@@ -1922,7 +1923,7 @@ fn defends_against_wild_parameter_ids() {
                 },
             }],
             vec![ParameterValueQueueImpl {
-                param_id: "some garbage parameter",
+                param_id: "some garbage parameter".to_string(),
                 points: vec![ParameterValueQueuePoint {
                     sample_offset: 0,
                     value: MAX_NUMERIC as f64,
@@ -1956,7 +1957,7 @@ fn empty_queues_are_ignored() {
                 },
             }],
             vec![ParameterValueQueueImpl {
-                param_id: NUMERIC_ID,
+                param_id: NUMERIC_ID.to_string(),
                 points: vec![],
             }],
             &proc,
@@ -1988,7 +1989,7 @@ fn defends_against_unsorted_param_queues() {
                 },
             }],
             vec![ParameterValueQueueImpl {
-                param_id: NUMERIC_ID,
+                param_id: NUMERIC_ID.to_string(),
                 points: vec![
                     ParameterValueQueuePoint {
                         sample_offset: 100,
@@ -2028,7 +2029,7 @@ fn defends_against_doubled_curve_points() {
                 },
             }],
             vec![ParameterValueQueueImpl {
-                param_id: NUMERIC_ID,
+                param_id: NUMERIC_ID.to_string(),
                 points: vec![
                     ParameterValueQueuePoint {
                         sample_offset: 99,
@@ -2068,7 +2069,7 @@ fn defends_against_points_outside_buffer() {
                 },
             }],
             vec![ParameterValueQueueImpl {
-                param_id: NUMERIC_ID,
+                param_id: NUMERIC_ID.to_string(),
                 points: vec![ParameterValueQueuePoint {
                     sample_offset: 700,
                     value: 1.0,
@@ -2103,14 +2104,14 @@ fn defends_against_multiple_queues_for_same_param() {
             }],
             vec![
                 ParameterValueQueueImpl {
-                    param_id: NUMERIC_ID,
+                    param_id: NUMERIC_ID.to_string(),
                     points: vec![ParameterValueQueuePoint {
                         sample_offset: 99,
                         value: ((1.0 - MIN_NUMERIC) / (MAX_NUMERIC - MIN_NUMERIC)) as f64,
                     }],
                 },
                 ParameterValueQueueImpl {
-                    param_id: NUMERIC_ID,
+                    param_id: NUMERIC_ID.to_string(),
                     points: vec![ParameterValueQueuePoint {
                         sample_offset: 100,
                         value: 1.0,
@@ -2134,7 +2135,7 @@ fn defends_against_non_zero_time_parameter_change() {
         let mut data = mock_no_audio_process_data(
             vec![],
             vec![ParameterValueQueueImpl {
-                param_id: NUMERIC_ID,
+                param_id: NUMERIC_ID.to_string(),
                 points: vec![ParameterValueQueuePoint {
                     sample_offset: 1,
                     value: 1.0,
@@ -2159,7 +2160,7 @@ fn defends_against_out_of_range_parameter_values() {
         let mut data = mock_no_audio_process_data(
             vec![],
             vec![ParameterValueQueueImpl {
-                param_id: NUMERIC_ID,
+                param_id: NUMERIC_ID.to_string(),
                 points: vec![ParameterValueQueuePoint {
                     sample_offset: 0,
                     value: -5.0,
@@ -2187,21 +2188,21 @@ fn can_change_parameters_in_handle_events() {
                     vec![],
                     vec![
                         ParameterValueQueueImpl {
-                            param_id: NUMERIC_ID,
+                            param_id: NUMERIC_ID.to_string(),
                             points: vec![ParameterValueQueuePoint {
                                 sample_offset: 0,
                                 value: 1.0,
                             }],
                         },
                         ParameterValueQueueImpl {
-                            param_id: ENUM_ID,
+                            param_id: ENUM_ID.to_string(),
                             points: vec![ParameterValueQueuePoint {
                                 sample_offset: 0,
                                 value: 0.5,
                             }],
                         },
                         ParameterValueQueueImpl {
-                            param_id: SWITCH_ID,
+                            param_id: SWITCH_ID.to_string(),
                             points: vec![ParameterValueQueuePoint {
                                 sample_offset: 0,
                                 value: 0.0,
@@ -2228,7 +2229,7 @@ fn can_change_parameters_in_handle_events() {
                 },
             }],
             vec![ParameterValueQueueImpl {
-                param_id: SWITCH_ID,
+                param_id: SWITCH_ID.to_string(),
                 points: vec![ParameterValueQueuePoint {
                     sample_offset: 100,
                     value: 1.0,
@@ -2325,14 +2326,15 @@ fn set_state_sets_parameters() {
                     vec![],
                     vec![
                         ParameterValueQueueImpl {
-                            param_id: NUMERIC_ID,
+                            param_id: NUMERIC_ID.to_string(),
                             points: vec![ParameterValueQueuePoint {
                                 sample_offset: 0,
                                 value: 1.0,
                             }],
                         },
+                        // Test that pitch bend parameter is _not_ saved
                         ParameterValueQueueImpl {
-                            param_id: PITCH_BEND_PARAMETER,
+                            param_id: PITCH_BEND_PARAMETER.to_string(),
                             points: vec![ParameterValueQueuePoint {
                                 sample_offset: 0,
                                 value: 1.0,
@@ -2442,7 +2444,7 @@ fn get_state_sees_automation() {
                 &mut mock_no_audio_process_data(
                     vec![],
                     vec![ParameterValueQueueImpl {
-                        param_id: NUMERIC_ID,
+                        param_id: NUMERIC_ID.to_string(),
                         points: vec![ParameterValueQueuePoint {
                             sample_offset: 0,
                             value: 1.0,
@@ -2488,7 +2490,7 @@ fn get_state_sees_automation() {
                 &mut mock_no_audio_process_data(
                     vec![],
                     vec![ParameterValueQueueImpl {
-                        param_id: ENUM_ID,
+                        param_id: ENUM_ID.to_string(),
                         points: vec![ParameterValueQueuePoint {
                             sample_offset: 0,
                             value: 0.5,
@@ -2758,7 +2760,7 @@ fn loading_too_new_parameters_loads_default_state() {
                 &mut mock_no_audio_process_data(
                     vec![],
                     vec![ParameterValueQueueImpl {
-                        param_id: NUMERIC_ID,
+                        param_id: NUMERIC_ID.to_string(),
                         points: vec![ParameterValueQueuePoint {
                             sample_offset: 0,
                             value: 1.0, // Set it to the old max of 10!
@@ -2774,7 +2776,7 @@ fn loading_too_new_parameters_loads_default_state() {
                 &mut mock_no_audio_process_data(
                     vec![],
                     vec![ParameterValueQueueImpl {
-                        param_id: NUMERIC_ID,
+                        param_id: NUMERIC_ID.to_string(),
                         points: vec![ParameterValueQueuePoint {
                             sample_offset: 0,
                             value: 1.0, // Set it to the new max of 20!
@@ -2923,5 +2925,40 @@ fn supports_toggling_active_while_processing() {
         assert!(audio.is_some());
         assert_eq!(audio.as_ref().unwrap()[0][0], 0.0);
         assert_eq!(audio.as_ref().unwrap()[1][100], 1.0);
+    }
+}
+
+#[test]
+fn supports_mpe_quirks() {
+    let proc = dummy_synth();
+    let host = ComWrapper::new(dummy_host::Host::default());
+
+    unsafe {
+        setup_proc(&proc, &host);
+
+        let audio = mock_process(
+            2,
+            vec![Event {
+                sample_offset: 10,
+                data: Data::NoteOn {
+                    data: NoteData {
+                        id: NoteID::from_channel_id(1),
+                        pitch: 64,
+                        velocity: 0.5,
+                        tuning: 0f32,
+                    },
+                },
+            }],
+            vec![ParameterValueQueueImpl {
+                param_id: mpe_quirks_aftertouch_id(1).to_string(),
+                points: vec![ParameterValueQueuePoint {
+                    sample_offset: 10,
+                    value: 1.0,
+                }],
+            }],
+            &proc,
+        );
+
+        assert_approx_eq!(audio.as_ref().unwrap()[0][10], 2.0);
     }
 }

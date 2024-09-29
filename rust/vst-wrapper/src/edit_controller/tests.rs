@@ -842,7 +842,7 @@ fn set_component_state_basics() {
                 &mut mock_no_audio_process_data(
                     vec![],
                     vec![ParameterValueQueueImpl {
-                        param_id: ENUM_ID,
+                        param_id: ENUM_ID.to_string(),
                         points: vec![ParameterValueQueuePoint {
                             sample_offset: 0,
                             value: 1.0,
@@ -955,7 +955,7 @@ fn set_component_newer_loads_defaults() {
                 &mut mock_no_audio_process_data(
                     vec![],
                     vec![ParameterValueQueueImpl {
-                        param_id: NUMERIC_ID,
+                        param_id: NUMERIC_ID.to_string(),
                         points: vec![ParameterValueQueuePoint {
                             sample_offset: 0,
                             value: 0.5,
@@ -1224,7 +1224,7 @@ fn set_component_state_sets_params() {
                 &mut mock_no_audio_process_data(
                     vec![],
                     vec![ParameterValueQueueImpl {
-                        param_id: ENUM_ID,
+                        param_id: ENUM_ID.to_string(),
                         points: vec![ParameterValueQueuePoint {
                             sample_offset: 0,
                             value: 1.0,

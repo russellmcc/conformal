@@ -7,7 +7,7 @@ use vst3::{
 };
 
 use conformal_component::{
-    events::{to_vst_note_id, Data, Event, NoteExpressionData},
+    events::{to_vst_note_channel, to_vst_note_id, Data, Event, NoteExpressionData},
     parameters::hash_id,
     ProcessingMode,
 };
@@ -136,13 +136,13 @@ pub struct ParameterValueQueuePoint {
 }
 
 pub struct ParameterValueQueueImpl {
-    pub param_id: &'static str,
+    pub param_id: String,
     pub points: Vec<ParameterValueQueuePoint>,
 }
 
 impl vst3::Steinberg::Vst::IParamValueQueueTrait for ParameterValueQueueImpl {
     unsafe fn getParameterId(&self) -> vst3::Steinberg::Vst::ParamID {
-        hash_id(self.param_id).internal_hash()
+        hash_id(&self.param_id).internal_hash()
     }
 
     unsafe fn getPointCount(&self) -> vst3::Steinberg::int32 {
@@ -236,7 +236,7 @@ fn event_to_vst3_event(event: &Event) -> vst3::Steinberg::Vst::Event {
             r#type: vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOnEvent as u16,
             __field0: vst3::Steinberg::Vst::Event__type0 {
                 noteOn: vst3::Steinberg::Vst::NoteOnEvent {
-                    channel: 0 as i16,
+                    channel: to_vst_note_channel(data.id),
                     pitch: data.pitch as i16,
                     tuning: data.tuning,
                     velocity: data.velocity,
@@ -253,7 +253,7 @@ fn event_to_vst3_event(event: &Event) -> vst3::Steinberg::Vst::Event {
             r#type: vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOffEvent as u16,
             __field0: vst3::Steinberg::Vst::Event__type0 {
                 noteOff: vst3::Steinberg::Vst::NoteOffEvent {
-                    channel: 0 as i16,
+                    channel: to_vst_note_channel(data.id),
                     pitch: data.pitch as i16,
                     tuning: data.tuning,
                     velocity: data.velocity,

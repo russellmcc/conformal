@@ -7,6 +7,7 @@ mod tests;
 enum NoteIDInternals {
     NoteIDWithID(i32),
     NoteIDFromPitch(u8),
+    NoteIDFromChannelID(i16),
 }
 
 /// Represents an identifier for a note
@@ -45,6 +46,14 @@ impl NoteID {
             internals: NoteIDInternals::NoteIDFromPitch(pitch),
         }
     }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn from_channel_id(id: i16) -> Self {
+        Self {
+            internals: NoteIDInternals::NoteIDFromChannelID(id),
+        }
+    }
 }
 
 #[doc(hidden)]
@@ -52,7 +61,16 @@ impl NoteID {
 pub fn to_vst_note_id(note_id: NoteID) -> i32 {
     match note_id.internals {
         NoteIDInternals::NoteIDWithID(id) => id,
-        NoteIDInternals::NoteIDFromPitch(_) => -1,
+        NoteIDInternals::NoteIDFromPitch(_) | NoteIDInternals::NoteIDFromChannelID(_) => -1,
+    }
+}
+
+#[doc(hidden)]
+#[must_use]
+pub fn to_vst_note_channel(note_id: NoteID) -> i16 {
+    match note_id.internals {
+        NoteIDInternals::NoteIDFromChannelID(id) => id,
+        NoteIDInternals::NoteIDFromPitch(_) | NoteIDInternals::NoteIDWithID(_) => 0,
     }
 }
 
