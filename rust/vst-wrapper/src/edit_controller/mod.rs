@@ -351,7 +351,7 @@ impl GetStore for EditController {
     }
 }
 
-// "MPE Quirks" is a _really_ unfortunately vst3 note expression implementation that is used
+// "MPE Quirks" is a _really_ unfortunate vst3 note expression implementation that is used
 // in several hosts, including Ableton as of 12.0.25. Instead of using the vst3 note expression
 // system, it insteads uses actual MPE messages that are expected to be midi-mapped to parameters
 // in the plugin.
@@ -361,7 +361,8 @@ impl GetStore for EditController {
 fn should_support_mpe_quirks(_: &HostInfo) -> bool {
     // Currently support "mpe quirks" in all hosts. If this implementation of note expression
     // becomes less common, we might want to use only a list of hosts known to use this quirky
-    // implementation.
+    // implementation. There isn't much of a downside to supporting the quirks, since we
+    // don't support multi-channel synths anyways. When and if we do, we'll have to reconsider this.
     true
 }
 
