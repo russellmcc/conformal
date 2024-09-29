@@ -2984,6 +2984,16 @@ fn supports_mpe_quirks_no_audio() {
                             },
                         },
                     }],
+                    vec![],
+                )
+                .process_data
+            ),
+            vst3::Steinberg::kResultOk
+        );
+        assert_eq!(
+            proc.process(
+                &mut mock_no_audio_process_data(
+                    vec![],
                     vec![ParameterValueQueueImpl {
                         param_id: aftertouch_param_id(1).to_string(),
                         points: vec![ParameterValueQueuePoint {

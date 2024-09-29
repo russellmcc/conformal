@@ -261,7 +261,9 @@ pub fn update_mpe_quirk_events_no_audio(
     quirks_state: &mut State,
     buffer_states: impl States,
 ) {
-    // TODO
+    let mut iter = NoAudioIter::new(events.into_iter(), quirks_state.clone(), buffer_states);
+    for _ in iter.by_ref() {}
+    quirks_state.clone_from(&iter.state);
 }
 
 #[derive(Debug, Clone, PartialEq)]
