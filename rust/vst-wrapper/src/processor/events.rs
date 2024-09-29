@@ -7,7 +7,7 @@ use conformal_component::events::{
     Data, Event, NoteData, NoteExpression, NoteExpressionData, NoteID,
 };
 
-use crate::mpe_quirks::SupportMpeQuirks;
+use crate::mpe_quirks::Support;
 
 unsafe fn get_event(
     event_list: ComRef<'_, IEventList>,
@@ -39,7 +39,7 @@ unsafe fn get_event(
 
 unsafe fn convert_event(
     event: &vst3::Steinberg::Vst::Event,
-    support_mpe_quirks: SupportMpeQuirks,
+    support_mpe_quirks: Support,
 ) -> Option<Event> {
     if event.sampleOffset < 0 {
         return None;
@@ -48,7 +48,7 @@ unsafe fn convert_event(
         vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOnEvent => {
             let pitch = u8::try_from(event.__field0.noteOn.pitch).ok()?;
             let channel = event.__field0.noteOn.channel;
-            if support_mpe_quirks == SupportMpeQuirks::DoNotSupportQuirks && channel != 0 {
+            if support_mpe_quirks == Support::DoNotSupportQuirks && channel != 0 {
                 return None;
             }
             Some(Event {
@@ -72,7 +72,7 @@ unsafe fn convert_event(
         vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOffEvent => {
             let pitch = u8::try_from(event.__field0.noteOff.pitch).ok()?;
             let channel = event.__field0.noteOff.channel;
-            if support_mpe_quirks == SupportMpeQuirks::DoNotSupportQuirks && channel != 0 {
+            if support_mpe_quirks == Support::DoNotSupportQuirks && channel != 0 {
                 return None;
             }
 
@@ -123,7 +123,7 @@ unsafe fn convert_event(
 
 pub unsafe fn event_iterator(
     event_list: ComRef<'_, IEventList>,
-    support_mpe_quirks: SupportMpeQuirks,
+    support_mpe_quirks: Support,
 ) -> impl Iterator<Item = Event> + '_ + Clone {
     (0..event_list.getEventCount()).filter_map(move |i| -> Option<Event> {
         get_event(event_list, i)
@@ -134,7 +134,7 @@ pub unsafe fn event_iterator(
 
 pub unsafe fn all_zero_event_iterator(
     event_list: ComRef<'_, IEventList>,
-    support_mpe_quirks: SupportMpeQuirks,
+    support_mpe_quirks: Support,
 ) -> Option<impl Iterator<Item = Data> + Clone + '_> {
     let i = (0..event_list.getEventCount()).filter_map(move |i| -> Option<Event> {
         get_event(event_list, i)

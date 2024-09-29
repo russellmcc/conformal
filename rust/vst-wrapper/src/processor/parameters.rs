@@ -627,6 +627,7 @@ pub enum ChangesStatus {
 
 // This is a marker type that indicates the scratch data
 // has been initialized.
+#[derive(Clone)]
 struct InitializedScratch<'a> {
     metadata: &'a Metadata,
     data: &'a HashMap<cp::IdHash, Option<ValueOrQueue>>,
@@ -829,6 +830,7 @@ impl<'a> BufferStates for InitializedScratch<'a> {
     }
 }
 
+#[derive(Clone)]
 pub struct ExistingBufferStates<'a> {
     store: &'a ProcessingStoreCore,
 }
@@ -992,7 +994,7 @@ pub unsafe fn param_changes_from_vst3<'a>(
     com_changes: ComRef<'a, IParameterChanges>,
     store: &'a mut ProcessingStore,
     buffer_size: usize,
-) -> Option<impl BufferStates + 'a> {
+) -> Option<impl BufferStates + Clone + 'a> {
     let (_, states) = check_changes_and_update_scratch_and_store(
         com_changes,
         &mut store.scratch,
@@ -1005,7 +1007,7 @@ pub unsafe fn param_changes_from_vst3<'a>(
 pub unsafe fn no_audio_param_changes_from_vst3<'a>(
     com_changes: ComRef<'a, IParameterChanges>,
     store: &'a mut ProcessingStore,
-) -> Option<(ChangesStatus, impl cp::States + 'a)> {
+) -> Option<(ChangesStatus, impl cp::States + Clone + 'a)> {
     let (status, scratch) = check_changes_and_update_scratch_and_store(
         com_changes,
         &mut store.scratch,

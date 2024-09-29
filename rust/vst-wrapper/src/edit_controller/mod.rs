@@ -33,7 +33,7 @@ use vst3::{
 };
 
 use crate::{
-    mpe_quirks::{self, aftertouch_param_id, pitch_param_id, timbre_param_id, SupportMpeQuirks},
+    mpe_quirks::{self, aftertouch_param_id, pitch_param_id, timbre_param_id, Support},
     HostInfo, ParameterModel,
 };
 
@@ -394,8 +394,7 @@ impl IPluginBaseTrait for EditController {
                     let mut infos = (parameter_model.parameter_infos)(&host_info);
                     if Kind::Synth() == self.kind {
                         infos.extend(CONTROLLER_PARAMETERS.iter().map(parameters::Info::from));
-                        if mpe_quirks::should_support(&host_info) == SupportMpeQuirks::SupportQuirks
-                        {
+                        if mpe_quirks::should_support(&host_info) == Support::SupportQuirks {
                             infos.extend(mpe_quirks::parameters());
                         }
                     }
@@ -971,7 +970,7 @@ impl IMidiMappingTrait for EditController {
                 return vst3::Steinberg::kResultFalse;
             }
             if channel_index != 0 {
-                if mpe_quirks::should_support(host_info) == SupportMpeQuirks::SupportQuirks {
+                if mpe_quirks::should_support(host_info) == Support::SupportQuirks {
                     (match midi_controller_number.try_into() {
                         Ok(vst3::Steinberg::Vst::ControllerNumbers_::kPitchBend) => {
                             Some(pitch_param_id(channel_index))

@@ -2,7 +2,10 @@
 
 use std::cell::RefCell;
 
-use crate::mpe_quirks::{self, SupportMpeQuirks};
+use crate::mpe_quirks::{
+    self, add_mpe_quirk_events_buffer, add_mpe_quirk_events_no_audio,
+    update_mpe_quirk_events_buffer, update_mpe_quirk_events_no_audio, Support,
+};
 use crate::{ClassID, ComponentFactory, HostInfo};
 use conformal_component::audio::{Buffer, BufferMut, ChannelLayout};
 use conformal_component::effect::Effect;
@@ -68,9 +71,9 @@ struct ActiveProcessContext<P, A> {
 
     processor: P,
     category: A,
-    /// Whether we support host quirks for MPE note expression.
-    /// see [`crate::mpe_quirks`] for more details.
-    support_mpe_quirks: SupportMpeQuirks,
+
+    /// If we support hosts with MPE Quirks, the current state for MPE quirks.
+    mpe_quirks: Option<mpe_quirks::State>,
 }
 
 #[derive(Default)]
@@ -91,7 +94,7 @@ enum ProcessContext<P, A> {
 
         /// Whether we support host quirks for MPE note expression.
         /// see [`crate::mpe_quirks`] for more details.
-        support_mpe_quirks: SupportMpeQuirks,
+        support_mpe_quirks: Support,
     },
 }
 
@@ -378,9 +381,8 @@ impl ProcessorCategory for SynthProcessorCategory {
         host_info: &HostInfo,
     ) -> impl Iterator<Item = conformal_component::parameters::Info> + Clone {
         CONTROLLER_PARAMETERS.iter().map(Into::into).chain(
-            mpe_quirks::parameters().filter(|_| {
-                mpe_quirks::should_support(host_info) == SupportMpeQuirks::SupportQuirks
-            }),
+            mpe_quirks::parameters()
+                .filter(|_| mpe_quirks::should_support(host_info) == Support::SupportQuirks),
         )
     }
 }
@@ -1002,7 +1004,7 @@ impl<CF: ComponentFactory<Component: Component<Processor: ProcessorT>>, PC: Proc
                     ProcessContext::Active(ActiveProcessContext {
                         params,
                         processing,
-                        support_mpe_quirks,
+                        mpe_quirks,
                         ..
                     }),
                     false,
@@ -1010,7 +1012,11 @@ impl<CF: ComponentFactory<Component: Component<Processor: ProcessorT>>, PC: Proc
                     self.process_context.replace(ProcessContext::Inactive {
                         processing,
                         params,
-                        support_mpe_quirks,
+                        support_mpe_quirks: if mpe_quirks.is_some() {
+                            Support::SupportQuirks
+                        } else {
+                            Support::DoNotSupportQuirks
+                        },
                     });
                     *process_context_active = false;
                     vst3::Steinberg::kResultOk
@@ -1037,7 +1043,11 @@ impl<CF: ComponentFactory<Component: Component<Processor: ProcessorT>>, PC: Proc
                                 params,
                                 processor,
                                 category,
-                                support_mpe_quirks,
+                                mpe_quirks: if support_mpe_quirks == Support::SupportQuirks {
+                                    Some(Default::default())
+                                } else {
+                                    None
+                                },
                             },
                         ));
                         *process_context_active = true;
@@ -1194,6 +1204,7 @@ trait InternalProcessHelper<H> {
         helper: H,
         params: &mut parameters::ProcessingStore,
         data: *mut vst3::Steinberg::Vst::ProcessData,
+        mpe_quirks: Option<&mut mpe_quirks::State>,
         num_frames: usize,
     ) -> vst3::Steinberg::tresult;
 }
@@ -1206,19 +1217,35 @@ impl<H: ProcessBuffer, I: Iterator<Item = conformal_component::events::Event> + 
         mut helper: H,
         params: &mut parameters::ProcessingStore,
         data: *mut vst3::Steinberg::Vst::ProcessData,
+        mpe_quirks: Option<&mut mpe_quirks::State>,
         num_frames: usize,
     ) -> vst3::Steinberg::tresult {
         if let Some(com_changes) = vst3::ComRef::from_raw((*data).inputParameterChanges) {
             if let Some(buffer_states) =
                 parameters::param_changes_from_vst3(com_changes, params, num_frames)
             {
-                helper.process(self, buffer_states);
+                if let Some(mpe_quirks) = mpe_quirks {
+                    let events = add_mpe_quirk_events_buffer(
+                        self.clone(),
+                        mpe_quirks.clone(),
+                        buffer_states.clone(),
+                        num_frames,
+                    );
+                    helper.process(events, buffer_states.clone());
+                    update_mpe_quirk_events_buffer(self, mpe_quirks, buffer_states);
+                } else {
+                    helper.process(self, buffer_states);
+                }
                 vst3::Steinberg::kResultOk
             } else {
                 vst3::Steinberg::kInvalidArgument
             }
         } else {
-            helper.process(self, parameters::ExistingBufferStates::new(params));
+            let buffer_states = parameters::ExistingBufferStates::new(params);
+            helper.process(self.clone(), buffer_states.clone());
+            if let Some(mpe_quirks) = mpe_quirks {
+                update_mpe_quirk_events_buffer(self, mpe_quirks, buffer_states);
+            }
             vst3::Steinberg::kResultOk
         }
     }
@@ -1242,6 +1269,7 @@ impl<
         helper: NoAudioProcessHelper<'a, P, C>,
         params: &mut parameters::ProcessingStore,
         data: *mut vst3::Steinberg::Vst::ProcessData,
+        mpe_quirks: Option<&mut mpe_quirks::State>,
         _: usize,
     ) -> vst3::Steinberg::tresult {
         if let Some(param_changes) = ComRef::from_raw((*data).inputParameterChanges) {
@@ -1249,9 +1277,23 @@ impl<
                 parameters::no_audio_param_changes_from_vst3(param_changes, params)
             {
                 if change_status == parameters::ChangesStatus::Changes || !helper.events_empty {
-                    helper
-                        .category
-                        .handle_events(helper.processor, self, param_states);
+                    if let Some(mpe_quirks) = mpe_quirks {
+                        let events = add_mpe_quirk_events_no_audio(
+                            self.clone(),
+                            mpe_quirks.clone(),
+                            param_states.clone(),
+                        );
+                        helper.category.handle_events(
+                            helper.processor,
+                            events,
+                            param_states.clone(),
+                        );
+                        update_mpe_quirk_events_no_audio(self, mpe_quirks, param_states);
+                    } else {
+                        helper
+                            .category
+                            .handle_events(helper.processor, self, param_states);
+                    }
                 }
                 return vst3::Steinberg::kResultOk;
             }
@@ -1424,15 +1466,26 @@ impl<
 
             if num_frames == 0 {
                 if let Some(input_events) = ComRef::from_raw((*data).inputEvents) {
-                    if let Some(event_iter) =
-                        events::all_zero_event_iterator(input_events, pd.support_mpe_quirks)
-                    {
+                    if let Some(event_iter) = events::all_zero_event_iterator(
+                        input_events,
+                        if pd.mpe_quirks.is_some() {
+                            Support::SupportQuirks
+                        } else {
+                            Support::DoNotSupportQuirks
+                        },
+                    ) {
                         let helper = NoAudioProcessHelper {
                             processor: &mut pd.processor,
                             events_empty: event_iter.clone().next().is_none(),
                             category: &pd.category,
                         };
-                        return event_iter.do_process(helper, &mut pd.params, data, 0);
+                        return event_iter.do_process(
+                            helper,
+                            &mut pd.params,
+                            data,
+                            pd.mpe_quirks.as_mut(),
+                            0,
+                        );
                     }
                 } else {
                     let helper = NoAudioProcessHelper {
@@ -1440,7 +1493,13 @@ impl<
                         events_empty: true,
                         category: &pd.category,
                     };
-                    return std::iter::empty().do_process(helper, &mut pd.params, data, 0);
+                    return std::iter::empty().do_process(
+                        helper,
+                        &mut pd.params,
+                        data,
+                        pd.mpe_quirks.as_mut(),
+                        0,
+                    );
                 }
                 // If we got here, some pre-condition of the parameters was not met by the host
                 return vst3::Steinberg::kInvalidArgument;
@@ -1454,15 +1513,34 @@ impl<
             if let Some(process_buffer) = pd.category.make_process_buffer(&mut pd.processor, data) {
                 if let Some(input_events) = ComRef::from_raw((*data).inputEvents) {
                     if let Some(events) = Events::new(
-                        events::event_iterator(input_events, pd.support_mpe_quirks),
+                        events::event_iterator(
+                            input_events,
+                            if pd.mpe_quirks.is_some() {
+                                Support::SupportQuirks
+                            } else {
+                                Support::DoNotSupportQuirks
+                            },
+                        ),
                         num_frames,
                     ) {
-                        return events.do_process(process_buffer, &mut pd.params, data, num_frames);
+                        return events.do_process(
+                            process_buffer,
+                            &mut pd.params,
+                            data,
+                            pd.mpe_quirks.as_mut(),
+                            num_frames,
+                        );
                     }
                 } else {
                     return Events::new(std::iter::empty(), num_frames)
                         .unwrap()
-                        .do_process(process_buffer, &mut pd.params, data, num_frames);
+                        .do_process(
+                            process_buffer,
+                            &mut pd.params,
+                            data,
+                            pd.mpe_quirks.as_mut(),
+                            num_frames,
+                        );
                 }
             }
         }

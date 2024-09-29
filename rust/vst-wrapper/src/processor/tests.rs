@@ -2962,3 +2962,43 @@ fn supports_mpe_quirks() {
         assert_approx_eq!(audio.as_ref().unwrap()[0][10], 2.0);
     }
 }
+
+#[test]
+fn supports_mpe_quirks_no_audio() {
+    let proc = dummy_synth();
+    let host = ComWrapper::new(dummy_host::Host::default());
+
+    unsafe {
+        setup_proc(&proc, &host);
+        assert_eq!(
+            proc.process(
+                &mut mock_no_audio_process_data(
+                    vec![Event {
+                        sample_offset: 0,
+                        data: Data::NoteOn {
+                            data: NoteData {
+                                id: NoteID::from_channel_for_mpe_quirks(1),
+                                pitch: 64,
+                                velocity: 0.5,
+                                tuning: 0f32,
+                            },
+                        },
+                    }],
+                    vec![ParameterValueQueueImpl {
+                        param_id: aftertouch_param_id(1).to_string(),
+                        points: vec![ParameterValueQueuePoint {
+                            sample_offset: 0,
+                            value: 1.0, // Set it to the old max of 10!
+                        }],
+                    },],
+                )
+                .process_data
+            ),
+            vst3::Steinberg::kResultOk
+        );
+
+        let audio = mock_process(2, vec![], vec![], &proc);
+
+        assert_approx_eq!(audio.as_ref().unwrap()[0][10], 2.0);
+    }
+}
