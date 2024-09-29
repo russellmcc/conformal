@@ -68,7 +68,17 @@ fn as_deserialization(info: &parameters::Info) -> ReadInfoRef<impl Iterator<Item
 
 struct ParameterStore {
     unhash: HashMap<parameters::IdHash, String>,
-    infos: HashMap<String, parameters::Info>,
+
+    /// Parameters actually exposed by the component
+    component_parameter_infos: HashMap<String, parameters::Info>,
+
+    /// All parameters we expose to the host.  This includes:
+    ///  - component parameters
+    ///  - controller parameters (in Conformal, we don't think of these as "parameters",
+    ///    but they are VST3 paramaeters. This includes e.g., mod wheel.)
+    ///  - quirks parameters that are only needed for buggy implementations of note expression in some host
+    host_parameter_infos: HashMap<String, parameters::Info>,
+
     values: HashMap<String, parameters::InternalValue>,
     order: Vec<String>,
 
@@ -229,7 +239,7 @@ impl store::Store for SharedStore {
             .borrow()
             .values
             .get(id)
-            .map(|v| from_internal(id, *v, &self.store.borrow().infos))
+            .map(|v| from_internal(id, *v, &self.store.borrow().host_parameter_infos))
     }
 
     fn set_listener(&mut self, listener: rc::Weak<dyn store::Listener>) {
@@ -239,12 +249,12 @@ impl store::Store for SharedStore {
     fn set(&mut self, unique_id: &str, value: parameters::Value) -> Result<(), store::SetError> {
         let maybe_set = if let ParameterStore {
             component_handler: Some(component_handler),
-            infos,
+            host_parameter_infos,
             values,
             ..
         } = &mut (*self.store.borrow_mut())
         {
-            (match (&value, infos.get(unique_id)) {
+            (match (&value, host_parameter_infos.get(unique_id)) {
                 (
                     parameters::Value::Numeric(value),
                     Some(parameters::Info {
@@ -282,7 +292,10 @@ impl store::Store for SharedStore {
                 (_, None) => Err(store::SetError::NotFound),
             })
             .map(|v| {
-                values.insert(unique_id.to_string(), to_internal(unique_id, &value, infos));
+                values.insert(
+                    unique_id.to_string(),
+                    to_internal(unique_id, &value, host_parameter_infos),
+                );
                 (component_handler.clone(), parameters::hash_id(unique_id), v)
             })
         } else {
@@ -302,11 +315,11 @@ impl store::Store for SharedStore {
     ) -> Result<(), store::SetGrabbedError> {
         let maybe_set = if let ParameterStore {
             component_handler: Some(component_handler),
-            infos,
+            host_parameter_infos,
             ..
         } = &(*self.store.borrow())
         {
-            if infos.contains_key(unique_id) {
+            if host_parameter_infos.contains_key(unique_id) {
                 Ok((component_handler.clone(), parameters::hash_id(unique_id)))
             } else {
                 Err(store::SetGrabbedError::NotFound)
@@ -328,7 +341,11 @@ impl store::Store for SharedStore {
     }
 
     fn get_info(&self, unique_id: &str) -> Option<parameters::Info> {
-        self.store.borrow().infos.get(unique_id).cloned()
+        self.store
+            .borrow()
+            .host_parameter_infos
+            .get(unique_id)
+            .cloned()
     }
 }
 
@@ -351,6 +368,20 @@ impl GetStore for EditController {
     }
 }
 
+const MPE_QUIRKS_PREFIX: &str = "_conformal_internal_mpe_quirks";
+
+fn mpe_quirks_aftertouch_id(channel_index: i16) -> String {
+    format!("{MPE_QUIRKS_PREFIX}_aftertouch_{channel_index}")
+}
+
+fn mpe_quirks_pitch_id(channel_index: i16) -> String {
+    format!("{MPE_QUIRKS_PREFIX}_pitch_{channel_index}")
+}
+
+fn mpe_quirks_timbre_id(channel_index: i16) -> String {
+    format!("{MPE_QUIRKS_PREFIX}_timbre_{channel_index}")
+}
+
 // "MPE Quirks" is a _really_ unfortunate vst3 note expression implementation that is used
 // in several hosts, including Ableton as of 12.0.25. Instead of using the vst3 note expression
 // system, it insteads uses actual MPE messages that are expected to be midi-mapped to parameters
@@ -371,7 +402,7 @@ fn mpe_quirks_parameters() -> Vec<parameters::Info> {
         .flat_map(|idx| {
             [
                 parameters::Info {
-                    unique_id: format!("mpe_quirks_aftertouch_{idx}"),
+                    unique_id: mpe_quirks_aftertouch_id(idx),
                     title: format!("MPE Quirks Aftertouch {idx}"),
                     short_title: format!("MPE After {idx}"),
                     flags: Flags { automatable: false },
@@ -382,7 +413,7 @@ fn mpe_quirks_parameters() -> Vec<parameters::Info> {
                     },
                 },
                 parameters::Info {
-                    unique_id: format!("mpe_quirks_pitch_{idx}"),
+                    unique_id: mpe_quirks_pitch_id(idx),
                     title: format!("MPE Quirks Pitch {idx}"),
                     short_title: format!("MPE Pitch {idx}"),
                     flags: Flags { automatable: false },
@@ -393,7 +424,7 @@ fn mpe_quirks_parameters() -> Vec<parameters::Info> {
                     },
                 },
                 parameters::Info {
-                    unique_id: format!("mpe_quirks_timbre_{idx}"),
+                    unique_id: mpe_quirks_timbre_id(idx),
                     title: format!("MPE Quirks Timbre {idx}"),
                     short_title: format!("MPE Timbre {idx}"),
                     flags: Flags { automatable: false },
@@ -465,11 +496,17 @@ impl IPluginBaseTrait for EditController {
                 // All parameters must have unique ids.
                 assert_eq!(parameter_infos.len(), parameters.len());
                 assert!(parameter_infos.len() < i32::MAX as usize);
+                let component_parameters = parameters
+                    .iter()
+                    .filter(|(id, _)| crate::should_include_parameter_in_snapshot(id))
+                    .map(|(id, info)| (id.clone(), info.clone()))
+                    .collect();
                 let s = State::Initialized(Initialized {
                     host_info,
                     store: SharedStore {store: rc::Rc::new(RefCell::new(ParameterStore {
                         unhash: hash_parameter_ids(parameter_infos.iter().map(Into::into)).expect("Duplicate parameter ID hash! This could be caused by duplicate parameter IDs or a hash collision."),
-                        infos: parameters,
+                        host_parameter_infos: parameters,
+                        component_parameter_infos: component_parameters,
                         values: parameter_infos.iter()
                             .map(|info| {
                             (
@@ -549,7 +586,7 @@ impl IEditControllerTrait for EditController {
         if let State::Initialized(Initialized { store, .. }) = self.s.borrow_mut().as_mut().unwrap()
         {
             let ParameterStore {
-                ref infos,
+                component_parameter_infos: ref infos,
                 ref mut values,
                 ref listener,
                 ..
@@ -613,7 +650,9 @@ impl IEditControllerTrait for EditController {
     unsafe fn getParameterCount(&self) -> vst3::Steinberg::int32 {
         #[allow(clippy::match_wildcard_for_single_variants)]
         match self.s.borrow().as_ref().unwrap() {
-            State::Initialized(s) => i32::try_from(s.store.store.borrow().infos.len()).unwrap(),
+            State::Initialized(s) => {
+                i32::try_from(s.store.store.borrow().host_parameter_infos.len()).unwrap()
+            }
             // Note - it is a host error to call this function if we are not intialized.
             // However, this function has no way to return an error message, so we just return 0.
             _ => 0,
@@ -626,7 +665,11 @@ impl IEditControllerTrait for EditController {
         info_out: *mut vst3::Steinberg::Vst::ParameterInfo,
     ) -> vst3::Steinberg::tresult {
         if let State::Initialized(Initialized { store, .. }) = self.s.borrow().as_ref().unwrap() {
-            let ParameterStore { infos, order, .. } = &*store.store.borrow();
+            let ParameterStore {
+                host_parameter_infos: infos,
+                order,
+                ..
+            } = &*store.store.borrow();
             if param_index < 0 || param_index as usize >= order.len() {
                 return vst3::Steinberg::kInvalidArgument;
             }
@@ -706,7 +749,11 @@ impl IEditControllerTrait for EditController {
         string: *mut vst3::Steinberg::Vst::String128,
     ) -> vst3::Steinberg::tresult {
         if let State::Initialized(Initialized { store, .. }) = self.s.borrow().as_ref().unwrap() {
-            let ParameterStore { unhash, infos, .. } = &*store.store.borrow();
+            let ParameterStore {
+                unhash,
+                host_parameter_infos: infos,
+                ..
+            } = &*store.store.borrow();
             match lookup_by_hash(parameters::id_hash_from_internal_hash(id), unhash, infos) {
                 Some(parameters::Info {
                     type_specific: TypeSpecificInfo::Numeric { valid_range, .. },
@@ -757,7 +804,11 @@ impl IEditControllerTrait for EditController {
         const MAX_STRING_SIZE: usize = 2049;
 
         if let State::Initialized(Initialized { store, .. }) = self.s.borrow().as_ref().unwrap() {
-            let ParameterStore { unhash, infos, .. } = &*store.store.borrow();
+            let ParameterStore {
+                unhash,
+                host_parameter_infos: infos,
+                ..
+            } = &*store.store.borrow();
             if let Some(string) = from_utf16_ptr(string, MAX_STRING_SIZE) {
                 match lookup_by_hash(parameters::id_hash_from_internal_hash(id), unhash, infos) {
                     Some(parameters::Info {
@@ -837,7 +888,7 @@ impl IEditControllerTrait for EditController {
         if let State::Initialized(Initialized { store, .. }) = self.s.borrow().as_ref().unwrap() {
             let ParameterStore {
                 unhash,
-                infos,
+                host_parameter_infos: infos,
                 values,
                 ..
             } = &*store.store.borrow();
@@ -893,7 +944,7 @@ impl IEditControllerTrait for EditController {
         {
             let ParameterStore {
                 unhash,
-                infos,
+                host_parameter_infos: infos,
                 values,
                 listener,
                 ..
@@ -969,8 +1020,6 @@ impl IEditControllerTrait for EditController {
     }
 }
 
-// TODO - make sure that controller parameters are not saved!
-
 impl IMidiMappingTrait for EditController {
     unsafe fn getMidiControllerAssignment(
         &self,
@@ -992,13 +1041,13 @@ impl IMidiMappingTrait for EditController {
                 if should_support_mpe_quirks(host_info) {
                     (match midi_controller_number.try_into() {
                         Ok(vst3::Steinberg::Vst::ControllerNumbers_::kPitchBend) => {
-                            Some(format!("mpe_quirks_pitch_bend_{channel_index}"))
+                            Some(mpe_quirks_pitch_id(channel_index))
                         }
                         Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlFilterResonance) => {
-                            Some(format!("mpe_quirks_timbre_{channel_index}"))
+                            Some(mpe_quirks_timbre_id(channel_index))
                         }
                         Ok(vst3::Steinberg::Vst::ControllerNumbers_::kAfterTouch) => {
-                            Some(format!("mpe_quirks_aftertouch_{channel_index}"))
+                            Some(mpe_quirks_aftertouch_id(channel_index))
                         }
                         _ => None,
                     })

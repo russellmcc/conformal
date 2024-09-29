@@ -277,6 +277,10 @@ impl Default for Flags {
     }
 }
 
+/// Reserved unique id prefix for internal parameters. No component
+/// should have any parameters with unique ids that start with this prefix.
+pub const UNIQUE_ID_INTERNAL_PREFIX: &str = "_conformal_internal_";
+
 macro_rules! unique_id_doc {
     () => {
         "The unique ID of the parameter.
@@ -285,7 +289,10 @@ As the name implies, each parameter's id must be unique within
 the comonent's parameters.
 
 Note that this ID will not be presented to the user, it is only
-used to refer to the parameter in code."
+used to refer to the parameter in code.
+
+The ID must not begin with the prefix `_conformal_internal`, as
+this is reserved for use by the Conformal library itself."
     };
 }
 

@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 
 use conformal_component::effect::Effect;
+use conformal_component::synth::PITCH_BEND_PARAMETER;
 use vst3::ComWrapper;
 use vst3::Steinberg::{
     IBStreamTrait, IPluginBaseTrait,
@@ -157,11 +158,15 @@ impl<'a> Synth for FakeSynth<'a> {
         let mult_iter = numeric_per_sample(parameters.get_numeric(NUMERIC_ID).unwrap());
         let enum_iter = enum_per_sample(parameters.get_enum(ENUM_ID).unwrap());
         let switch_iter = switch_per_sample(parameters.get_switch(SWITCH_ID).unwrap());
+        let global_pitch_bend_iter =
+            numeric_per_sample(parameters.get_numeric(PITCH_BEND_PARAMETER).unwrap());
 
-        for (((frame_index, mult), enum_mult), switch_mult) in (0..output.num_frames())
+        for ((((frame_index, mult), enum_mult), switch_mult), global_pich_bend) in (0..output
+            .num_frames())
             .zip(mult_iter)
             .zip(enum_iter)
             .zip(switch_iter)
+            .zip(global_pitch_bend_iter)
         {
             while let Some(event) = &next_event {
                 if event.sample_offset == frame_index {
@@ -188,7 +193,8 @@ impl<'a> Synth for FakeSynth<'a> {
                     * self.notes.len() as f32
                     + self.pitchbend
                     + self.timbre
-                    + self.aftertouch;
+                    + self.aftertouch
+                    + global_pich_bend;
             }
         }
     }
@@ -2317,13 +2323,22 @@ fn set_state_sets_parameters() {
             proc1.process(
                 &mut mock_no_audio_process_data(
                     vec![],
-                    vec![ParameterValueQueueImpl {
-                        param_id: NUMERIC_ID,
-                        points: vec![ParameterValueQueuePoint {
-                            sample_offset: 0,
-                            value: 1.0,
-                        }],
-                    },],
+                    vec![
+                        ParameterValueQueueImpl {
+                            param_id: NUMERIC_ID,
+                            points: vec![ParameterValueQueuePoint {
+                                sample_offset: 0,
+                                value: 1.0,
+                            }],
+                        },
+                        ParameterValueQueueImpl {
+                            param_id: PITCH_BEND_PARAMETER,
+                            points: vec![ParameterValueQueuePoint {
+                                sample_offset: 0,
+                                value: 1.0,
+                            }],
+                        }
+                    ],
                 )
                 .process_data
             ),
