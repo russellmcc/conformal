@@ -67,7 +67,7 @@ pub fn parameters() -> impl Iterator<Item = parameters::Info> + Clone + 'static 
                 flags: Flags { automatable: false },
                 type_specific: TypeSpecificInfo::Numeric {
                     default: 0.0,
-                    valid_range: -1.0..=1.0,
+                    valid_range: -48.0..=48.0,
                     units: None,
                 },
             },
@@ -205,17 +205,17 @@ fn update_state_for_param_and_get_event(
     value: f32,
     quirks_state: &mut State,
 ) -> Option<events::Data> {
-    if let Some(channel_state) = &mut quirks_state.channels[(channel - 1) as usize] {
-        if approx_eq(channel_state[param], value, 1e-6) {
-            return None;
-        }
-        channel_state[param] = value;
-        Some(events::Data::NoteExpression {
-            data: note_expression_data(param, channel, value),
+    quirks_state.channels[(channel - 1) as usize]
+        .as_mut()
+        .and_then(|channel_state| {
+            if approx_eq(channel_state[param], value, 1e-6) {
+                return None;
+            }
+            channel_state[param] = value;
+            Some(events::Data::NoteExpression {
+                data: note_expression_data(param, channel, value),
+            })
         })
-    } else {
-        None
-    }
 }
 
 fn update_state_and_get_event(ev: EventData, quirks_state: &mut State) -> Option<events::Data> {
@@ -256,7 +256,7 @@ fn param_event_iters_no_audio<'a>(
     buffer_states: &'a impl States,
 ) -> impl Iterator<Item = Event> + Clone + 'a {
     let mut i = 0;
-    let iters = hashes.map(move |hash| {
+    interleave_events_for_channel(hashes.map(move |hash| {
         let c = i;
         i += 1;
         buffer_states
@@ -270,8 +270,7 @@ fn param_event_iters_no_audio<'a>(
                     value: v,
                 },
             })
-    });
-    interleave_events_for_channel(iters)
+    }))
 }
 
 fn param_event_iters<'a>(
