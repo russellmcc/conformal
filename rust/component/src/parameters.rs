@@ -668,6 +668,7 @@ pub struct PiecewiseLinearCurvePoint {
 ///  - `sample_offset`s will be monotonically increasing and only one
 ///    point will appear for each `sample_offset`
 ///  - All point's `value` will be between the parameter's `min` and `max`
+#[derive(Clone)]
 pub struct PiecewiseLinearCurve<I> {
     points: I,
 
@@ -837,6 +838,7 @@ impl<V> ValueAndSampleOffset<V> for TimedValue<V> {
 ///  - `sample_offset`s will be monotonically increasing and only one
 ///    point will appear for each `sample_offset`
 ///  - All point's `value` will be valid
+#[derive(Clone)]
 pub struct TimedEnumValues<I> {
     points: I,
     buffer_size: usize,
@@ -903,6 +905,7 @@ impl<I: IntoIterator<Item = TimedValue<u32>>> IntoIterator for TimedEnumValues<I
 ///  - The first point's `sample_offset` will be 0
 ///  - `sample_offset`s will be monotonically increasing and only one
 ///    point will appear for each `sample_offset`
+#[derive(Clone)]
 pub struct TimedSwitchValues<I> {
     points: I,
     buffer_size: usize,
@@ -956,6 +959,7 @@ impl<I: IntoIterator<Item = TimedValue<bool>>> IntoIterator for TimedSwitchValue
 }
 
 /// Represents the state of a numeric value across a buffer
+#[derive(Clone)]
 pub enum NumericBufferState<I> {
     /// The value is constant across the buffer.
     Constant(f32),
@@ -992,6 +996,7 @@ impl<I: IntoIterator<Item = PiecewiseLinearCurvePoint>> NumericBufferState<I> {
 ///
 /// Here we refer to the enum by the _index_ of the value,
 /// that is, the index of the value in the `values` array of the parameter.
+#[derive(Clone)]
 pub enum EnumBufferState<I> {
     /// The value is constant across the buffer.
     Constant(u32),
@@ -1026,6 +1031,7 @@ impl<I: IntoIterator<Item = TimedValue<u32>>> EnumBufferState<I> {
 }
 
 /// Represents the state of an switched value across a buffer
+#[derive(Clone)]
 pub enum SwitchBufferState<I> {
     /// The value is constant across the buffer.
     Constant(bool),

@@ -1225,14 +1225,15 @@ impl<H: ProcessBuffer, I: Iterator<Item = conformal_component::events::Event> + 
                 parameters::param_changes_from_vst3(com_changes, params, num_frames)
             {
                 if let Some(mpe_quirks) = mpe_quirks {
+                    let buffer_states_clone = buffer_states.clone();
                     let events = add_mpe_quirk_events_buffer(
-                        self.clone(),
+                        self.clone().into_iter(),
                         mpe_quirks.clone(),
-                        buffer_states.clone(),
+                        &buffer_states_clone,
                         num_frames,
                     );
                     helper.process(events, buffer_states.clone());
-                    update_mpe_quirk_events_buffer(self, mpe_quirks, buffer_states);
+                    update_mpe_quirk_events_buffer(self.into_iter(), mpe_quirks, &buffer_states);
                 } else {
                     helper.process(self, buffer_states);
                 }
@@ -1244,7 +1245,7 @@ impl<H: ProcessBuffer, I: Iterator<Item = conformal_component::events::Event> + 
             let buffer_states = parameters::ExistingBufferStates::new(params);
             helper.process(self.clone(), buffer_states.clone());
             if let Some(mpe_quirks) = mpe_quirks {
-                update_mpe_quirk_events_buffer(self, mpe_quirks, buffer_states);
+                update_mpe_quirk_events_buffer(self.into_iter(), mpe_quirks, &buffer_states);
             }
             vst3::Steinberg::kResultOk
         }
@@ -1278,17 +1279,18 @@ impl<
             {
                 if change_status == parameters::ChangesStatus::Changes || !helper.events_empty {
                     if let Some(mpe_quirks) = mpe_quirks {
+                        let param_states_clone = param_states.clone();
                         let events = add_mpe_quirk_events_no_audio(
                             self.clone(),
                             mpe_quirks.clone(),
-                            param_states.clone(),
+                            &param_states_clone,
                         );
                         helper.category.handle_events(
                             helper.processor,
                             events,
                             param_states.clone(),
                         );
-                        update_mpe_quirk_events_no_audio(self, mpe_quirks, param_states);
+                        update_mpe_quirk_events_no_audio(self, mpe_quirks, &param_states);
                     } else {
                         helper
                             .category
