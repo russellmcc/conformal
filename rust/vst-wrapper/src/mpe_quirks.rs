@@ -187,15 +187,10 @@ fn update_state_for_event(ev: &events::Data, quirks_state: &mut State) {
     match ev {
         events::Data::NoteOn { data } => {
             if let c @ 1..=16 = to_vst_note_channel_for_mpe_quirks(data.id) {
-                quirks_state.channels[(c - 1) as usize] = Some(Default::default());
+                quirks_state.channels[(c - 1) as usize] = Default::default();
             }
         }
-        events::Data::NoteOff { data } => {
-            if let c @ 1..=16 = to_vst_note_channel_for_mpe_quirks(data.id) {
-                quirks_state.channels[(c - 1) as usize] = None;
-            }
-        }
-        events::Data::NoteExpression { .. } => {}
+        events::Data::NoteOff { .. } | events::Data::NoteExpression { .. } => {}
     }
 }
 
@@ -205,17 +200,14 @@ fn update_state_for_param_and_get_event(
     value: f32,
     quirks_state: &mut State,
 ) -> Option<events::Data> {
-    quirks_state.channels[(channel - 1) as usize]
-        .as_mut()
-        .and_then(|channel_state| {
-            if approx_eq(channel_state[param], value, 1e-6) {
-                return None;
-            }
-            channel_state[param] = value;
-            Some(events::Data::NoteExpression {
-                data: note_expression_data(param, channel, value),
-            })
-        })
+    let mut channel_state = quirks_state.channels[(channel - 1) as usize];
+    if approx_eq(channel_state[param], value, 1e-6) {
+        return None;
+    }
+    channel_state[param] = value;
+    Some(events::Data::NoteExpression {
+        data: note_expression_data(param, channel, value),
+    })
 }
 
 fn update_state_and_get_event(ev: EventData, quirks_state: &mut State) -> Option<events::Data> {
@@ -468,7 +460,7 @@ impl std::ops::IndexMut<Parameter> for ChannelState {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct State {
-    channels: [Option<ChannelState>; 15],
+    channels: [ChannelState; 15],
 
     hashes: Hashes,
 }
