@@ -367,7 +367,7 @@ pub fn add_mpe_quirk_events_buffer<'a>(
     quirks_state: State,
     buffer_states: &'a (impl BufferStates + Clone),
     buffer_size: usize,
-) -> Events<impl IntoIterator<Item = events::Event> + Clone + 'a> {
+) -> Events<impl Iterator<Item = events::Event> + Clone + 'a> {
     events::Events::new(
         with_mpe_events(
             all_param_event_iters_audio(events.into_iter(), &quirks_state.hashes, buffer_states),

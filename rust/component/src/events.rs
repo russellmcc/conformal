@@ -200,7 +200,7 @@ fn check_events_invariants<I: Iterator<Item = Event>>(iter: I, buffer_size: usiz
     true
 }
 
-impl<I: IntoIterator<Item = Event> + Clone> Events<I> {
+impl<I: Iterator<Item = Event> + Clone> Events<I> {
     /// Create an `Events` object from the given iterator of events.
     ///
     /// Note that if any of the invariants are missed, this will return `None`.
@@ -213,11 +213,11 @@ impl<I: IntoIterator<Item = Event> + Clone> Events<I> {
     }
 }
 
-impl<I: IntoIterator<Item = Event>> IntoIterator for Events<I> {
+impl<I: Iterator<Item = Event>> IntoIterator for Events<I> {
     type Item = Event;
-    type IntoIter = I::IntoIter;
+    type IntoIter = I;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.events.into_iter()
+        self.events
     }
 }

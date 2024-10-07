@@ -140,7 +140,7 @@ trait ActiveProcessorCategory<P> {
     ) -> Option<Self::ProcessBuffer<'a>>;
 
     fn handle_events<
-        E: IntoIterator<Item = conformal_component::events::Data> + Clone,
+        E: Iterator<Item = conformal_component::events::Data> + Clone,
         Parameters: conformal_component::parameters::States,
     >(
         &self,
@@ -1181,15 +1181,11 @@ struct SynthProcessBuffer<'a, P> {
 }
 
 trait ProcessBuffer {
-    fn process<E: IntoIterator<Item = Event> + Clone, P: BufferStates>(
-        &mut self,
-        e: Events<E>,
-        p: P,
-    );
+    fn process<E: Iterator<Item = Event> + Clone, P: BufferStates>(&mut self, e: Events<E>, p: P);
 }
 
 impl<'a, P: Synth> ProcessBuffer for SynthProcessBuffer<'a, P> {
-    fn process<E: IntoIterator<Item = Event> + Clone, Parameters: BufferStates>(
+    fn process<E: Iterator<Item = Event> + Clone, Parameters: BufferStates>(
         &mut self,
         e: Events<E>,
         p: Parameters,
@@ -1333,7 +1329,7 @@ impl<P: Synth> ActiveProcessorCategory<P> for ActiveSynthProcessorCategory {
     }
 
     fn handle_events<
-        E: IntoIterator<Item = conformal_component::events::Data> + Clone,
+        E: Iterator<Item = conformal_component::events::Data> + Clone,
         Parameters: conformal_component::parameters::States,
     >(
         &self,

@@ -149,7 +149,7 @@ pub trait Synth: Processor {
     /// Note that `parameters` will include [`CONTROLLER_PARAMETERS`] related to controller state
     /// (e.g. pitch bend, mod wheel, etc.) above, in addition to all the parameters
     /// returned by `crate::Component::parameter_infos`.
-    fn handle_events<E: IntoIterator<Item = events::Data> + Clone, P: parameters::States>(
+    fn handle_events<E: Iterator<Item = events::Data> + Clone, P: parameters::States>(
         &mut self,
         events: E,
         parameters: P,
@@ -176,7 +176,7 @@ pub trait Synth: Processor {
     /// Note that it's guaranteed that `output` will be no longer than
     /// `environment.max_samples_per_process_call` provided in the call to
     /// `crate::Component::create_processor`.
-    fn process<E: IntoIterator<Item = Event> + Clone, P: BufferStates, O: BufferMut>(
+    fn process<E: Iterator<Item = Event> + Clone, P: BufferStates, O: BufferMut>(
         &mut self,
         events: Events<E>,
         parameters: P,
