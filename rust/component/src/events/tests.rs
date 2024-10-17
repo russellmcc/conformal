@@ -1,7 +1,6 @@
 use super::{Data, Event, Events, NoteData, NoteID};
 
 static EXAMPLE_NOTE: NoteData = NoteData {
-    channel: 0,
     id: NoteID::from_pitch(60),
     pitch: 60,
     velocity: 1.0,

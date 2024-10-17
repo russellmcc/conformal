@@ -8,6 +8,9 @@ use crate::{
 };
 
 /// The parameter ID of the pitch bend parameter. See [`CONTROLLER_PARAMETERS`] for more.
+///
+/// This is the global version of the [`crate::events::NoteExpression::PitchBend`] note expression event.
+/// Notes should be shifted by the value of this controller plus the per-note pitch bend expression.
 pub const PITCH_BEND_PARAMETER: &str = "pitch_bend";
 
 /// The parameter ID of the mod wheel parameter. See [`CONTROLLER_PARAMETERS`] for more.
@@ -20,7 +23,28 @@ pub const EXPRESSION_PARAMETER: &str = "expression_pedal";
 pub const SUSTAIN_PARAMETER: &str = "sustain_pedal";
 
 /// The parameter ID of the aftertouch parameter. See [`CONTROLLER_PARAMETERS`] for more.
+///
+/// Aftertouch is a pressure sensor sent by some controllers.
+///
+/// This is the global version of the [`crate::events::NoteExpression::Aftertouch`] note expression event.
+/// This controller parameter should affect all notes,
+/// while the note expression event affects a single note. Note that hosts are free
+/// to use a combination of this global controller with per-note controllers. This means
+/// plug-ins must combine this global controller with the per-note controller to get the total
+/// expression value.
 pub const AFTERTOUCH_PARAMETER: &str = "aftertouch";
+
+/// The parameter ID of the timbre parameter. See [`CONTROLLER_PARAMETERS`] for more.
+///
+/// Generally the timbre controller will be some sort of vertical motion, and
+/// is the global version of the [`crate::events::NoteExpression::Timbre`] note expression event.
+///
+/// This controller parameter should affect all notes,
+/// while the note expression event affects a single note. Note that hosts are free
+/// to use a combination of this global controller with per-note controllers. This means
+/// plug-ins must combine this global controller with the per-note controller to get the total
+/// expression value.
+pub const TIMBRE_PARAMETER: &str = "timbre";
 
 /// Parameter info for the pitch bend parameter. See [`CONTROLLER_PARAMETERS`] for more.
 pub const PITCH_BEND_INFO: InfoRef<'static, &'static str> = InfoRef {
@@ -83,6 +107,19 @@ pub const AFTERTOUCH_INFO: InfoRef<'static, &'static str> = InfoRef {
     },
 };
 
+/// Parameter info for the timbre parameter. See [`CONTROLLER_PARAMETERS`] for more.
+pub const TIMBRE_INFO: InfoRef<'static, &'static str> = InfoRef {
+    title: "Timbre",
+    short_title: "Timbre",
+    unique_id: TIMBRE_PARAMETER,
+    flags: Flags { automatable: false },
+    type_specific: TypeSpecificInfoRef::Numeric {
+        default: 0.0,
+        valid_range: 0.0..=1.0,
+        units: None,
+    },
+};
+
 /// This represents a set of "controller parameters" that are common to
 /// all synths.
 ///
@@ -92,12 +129,13 @@ pub const AFTERTOUCH_INFO: InfoRef<'static, &'static str> = InfoRef {
 ///
 /// Note that synths will receive these regardless of what they returned
 /// from `crate::Component::parameter_infos`.
-pub const CONTROLLER_PARAMETERS: [InfoRef<'static, &'static str>; 5] = [
+pub const CONTROLLER_PARAMETERS: [InfoRef<'static, &'static str>; 6] = [
     PITCH_BEND_INFO,
     MOD_WHEEL_INFO,
     EXPRESSION_INFO,
     SUSTAIN_INFO,
     AFTERTOUCH_INFO,
+    TIMBRE_INFO,
 ];
 
 /// A trait for synthesizers
@@ -111,7 +149,7 @@ pub trait Synth: Processor {
     /// Note that `parameters` will include [`CONTROLLER_PARAMETERS`] related to controller state
     /// (e.g. pitch bend, mod wheel, etc.) above, in addition to all the parameters
     /// returned by `crate::Component::parameter_infos`.
-    fn handle_events<E: IntoIterator<Item = events::Data> + Clone, P: parameters::States>(
+    fn handle_events<E: Iterator<Item = events::Data> + Clone, P: parameters::States>(
         &mut self,
         events: E,
         parameters: P,
@@ -138,7 +176,7 @@ pub trait Synth: Processor {
     /// Note that it's guaranteed that `output` will be no longer than
     /// `environment.max_samples_per_process_call` provided in the call to
     /// `crate::Component::create_processor`.
-    fn process<E: IntoIterator<Item = Event> + Clone, P: BufferStates, O: BufferMut>(
+    fn process<E: Iterator<Item = Event> + Clone, P: BufferStates, O: BufferMut>(
         &mut self,
         events: Events<E>,
         parameters: P,

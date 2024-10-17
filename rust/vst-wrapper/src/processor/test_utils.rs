@@ -7,7 +7,7 @@ use vst3::{
 };
 
 use conformal_component::{
-    events::{to_vst_note_id, Data, Event},
+    events::{to_vst_note_channel_for_mpe_quirks, to_vst_note_id, Data, Event, NoteExpressionData},
     parameters::hash_id,
     ProcessingMode,
 };
@@ -136,13 +136,13 @@ pub struct ParameterValueQueuePoint {
 }
 
 pub struct ParameterValueQueueImpl {
-    pub param_id: &'static str,
+    pub param_id: String,
     pub points: Vec<ParameterValueQueuePoint>,
 }
 
 impl vst3::Steinberg::Vst::IParamValueQueueTrait for ParameterValueQueueImpl {
     unsafe fn getParameterId(&self) -> vst3::Steinberg::Vst::ParamID {
-        hash_id(self.param_id).internal_hash()
+        hash_id(&self.param_id).internal_hash()
     }
 
     unsafe fn getPointCount(&self) -> vst3::Steinberg::int32 {
@@ -236,7 +236,7 @@ fn event_to_vst3_event(event: &Event) -> vst3::Steinberg::Vst::Event {
             r#type: vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOnEvent as u16,
             __field0: vst3::Steinberg::Vst::Event__type0 {
                 noteOn: vst3::Steinberg::Vst::NoteOnEvent {
-                    channel: data.channel as i16,
+                    channel: to_vst_note_channel_for_mpe_quirks(data.id),
                     pitch: data.pitch as i16,
                     tuning: data.tuning,
                     velocity: data.velocity,
@@ -253,11 +253,43 @@ fn event_to_vst3_event(event: &Event) -> vst3::Steinberg::Vst::Event {
             r#type: vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOffEvent as u16,
             __field0: vst3::Steinberg::Vst::Event__type0 {
                 noteOff: vst3::Steinberg::Vst::NoteOffEvent {
-                    channel: data.channel as i16,
+                    channel: to_vst_note_channel_for_mpe_quirks(data.id),
                     pitch: data.pitch as i16,
                     tuning: data.tuning,
                     velocity: data.velocity,
                     noteId: to_vst_note_id(data.id),
+                },
+            },
+        },
+        Data::NoteExpression {
+            data: NoteExpressionData { id, expression },
+        } => vst3::Steinberg::Vst::Event {
+            busIndex: 0,
+            sampleOffset: event.sample_offset as i32,
+            ppqPosition: 0f64,
+            flags: 0,
+            r#type: vst3::Steinberg::Vst::Event_::EventTypes_::kNoteExpressionValueEvent as u16,
+            __field0: vst3::Steinberg::Vst::Event__type0 {
+                noteExpressionValue: vst3::Steinberg::Vst::NoteExpressionValueEvent {
+                    noteId: to_vst_note_id(*id),
+                    value: match expression {
+                        conformal_component::events::NoteExpression::PitchBend(x) => {
+                            (*x / 240.0 + 0.5) as f64
+                        }
+                        conformal_component::events::NoteExpression::Timbre(x) => *x as f64,
+                        conformal_component::events::NoteExpression::Aftertouch(x) => *x as f64,
+                    },
+                    typeId: match expression {
+                        conformal_component::events::NoteExpression::PitchBend(_) => {
+                            vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID
+                        }
+                        conformal_component::events::NoteExpression::Timbre(_) => {
+                            vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kCustomStart
+                        }
+                        conformal_component::events::NoteExpression::Aftertouch(_) => {
+                            vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kCustomStart + 1
+                        }
+                    },
                 },
             },
         },

@@ -4,18 +4,21 @@ use std::rc;
 use vst3::Class;
 use vst3::Steinberg::Vst::{
     IAudioProcessorTrait, IComponentHandler, IComponentHandlerTrait, IComponentTrait,
-    IHostApplication, IMidiMappingTrait,
+    IHostApplication, IMidiMappingTrait, INoteExpressionControllerTrait,
+    INoteExpressionPhysicalUIMappingTrait, PhysicalUIMap,
 };
 use vst3::Steinberg::{IBStreamTrait, IPluginBaseTrait};
 use vst3::{ComWrapper, Steinberg::Vst::IEditControllerTrait};
 
+use super::GetStore;
 use crate::fake_ibstream::Stream;
 use crate::processor::test_utils::{
     mock_no_audio_process_data, setup_proc, ParameterValueQueueImpl, ParameterValueQueuePoint,
 };
 use crate::HostInfo;
 use crate::{dummy_host, from_utf16_buffer, to_utf16};
-use crate::{processor, ExtraParameters, ParameterModel};
+use crate::{processor, ParameterModel};
+use assert_approx_eq::assert_approx_eq;
 use conformal_component::audio::BufferMut;
 use conformal_component::events::{Data, Event, Events};
 use conformal_component::parameters::{self, hash_id, BufferStates, Flags, States, StaticInfoRef};
@@ -26,8 +29,6 @@ use conformal_component::{
 };
 use conformal_core::parameters::store;
 use conformal_core::parameters::store::Store;
-
-use super::GetStore;
 
 #[derive(Default)]
 struct DummyComponent {}
@@ -221,26 +222,23 @@ static DUPLICATE_PARAMETERS: [StaticInfoRef; 2] = [
 
 fn create_parameter_model<F: Fn(&HostInfo) -> Vec<parameters::Info> + 'static>(
     f: F,
-    extra_parameters: ExtraParameters,
 ) -> ParameterModel {
     ParameterModel {
         parameter_infos: Box::new(f),
-        extra_parameters,
     }
 }
 
-fn dummy_edit_controller() -> impl IPluginBaseTrait + IEditControllerTrait + GetStore {
+fn dummy_edit_controller() -> impl IEditControllerTrait + IMidiMappingTrait + GetStore {
     super::create_internal(
-        create_parameter_model(
-            |_: &HostInfo| parameters::to_infos(&PARAMETERS),
-            ExtraParameters::None,
-        ),
+        create_parameter_model(|_: &HostInfo| parameters::to_infos(&PARAMETERS)),
         "dummy_domain".to_string(),
         conformal_ui::Size {
             width: 0,
             height: 0,
         },
-        None,
+        super::Kind::Effect {
+            bypass_id: SWITCH_ID,
+        },
     )
 }
 
@@ -389,7 +387,8 @@ fn parameter_basics() {
     );
     assert_eq!(
         param_info.flags,
-        vst3::Steinberg::Vst::ParameterInfo_::ParameterFlags_::kCanAutomate as i32
+        (vst3::Steinberg::Vst::ParameterInfo_::ParameterFlags_::kCanAutomate
+            | vst3::Steinberg::Vst::ParameterInfo_::ParameterFlags_::kIsBypass) as i32
     );
     assert_eq!(param_info.stepCount, 1);
     assert_eq!(from_utf16_buffer(&param_info.units), Some("".to_string()));
@@ -843,7 +842,7 @@ fn set_component_state_basics() {
                 &mut mock_no_audio_process_data(
                     vec![],
                     vec![ParameterValueQueueImpl {
-                        param_id: ENUM_ID,
+                        param_id: ENUM_ID.to_string(),
                         points: vec![ParameterValueQueuePoint {
                             sample_offset: 0,
                             value: 1.0,
@@ -956,7 +955,7 @@ fn set_component_newer_loads_defaults() {
                 &mut mock_no_audio_process_data(
                     vec![],
                     vec![ParameterValueQueueImpl {
-                        param_id: NUMERIC_ID,
+                        param_id: NUMERIC_ID.to_string(),
                         points: vec![ParameterValueQueuePoint {
                             sample_offset: 0,
                             value: 0.5,
@@ -1109,16 +1108,13 @@ fn defends_against_create_view_called_with_weird_name() {
 #[should_panic]
 fn panic_on_duplicate_ids() {
     let ec = super::create_internal(
-        create_parameter_model(
-            |_: &HostInfo| parameters::to_infos(&DUPLICATE_PARAMETERS),
-            ExtraParameters::None,
-        ),
+        create_parameter_model(|_: &HostInfo| parameters::to_infos(&DUPLICATE_PARAMETERS)),
         "test_prefs".to_string(),
         conformal_ui::Size {
             width: 0,
             height: 0,
         },
-        None,
+        super::Kind::Synth(),
     );
     let host = ComWrapper::new(dummy_host::Host::default());
     unsafe {
@@ -1228,7 +1224,7 @@ fn set_component_state_sets_params() {
                 &mut mock_no_audio_process_data(
                     vec![],
                     vec![ParameterValueQueueImpl {
-                        param_id: ENUM_ID,
+                        param_id: ENUM_ID.to_string(),
                         points: vec![ParameterValueQueuePoint {
                             sample_offset: 0,
                             value: 1.0,
@@ -1471,16 +1467,15 @@ fn defends_against_get_info_bad_id() {
 #[should_panic]
 fn defends_against_missing_bypass_param() {
     let ec = super::create_internal(
-        create_parameter_model(
-            |_: &HostInfo| parameters::to_infos(&PARAMETERS),
-            ExtraParameters::None,
-        ),
+        create_parameter_model(|_: &HostInfo| parameters::to_infos(&PARAMETERS)),
         "dummy_domain".to_string(),
         conformal_ui::Size {
             width: 0,
             height: 0,
         },
-        Some("missing"),
+        super::Kind::Effect {
+            bypass_id: "missing",
+        },
     );
 
     let host = ComWrapper::new(dummy_host::Host::default());
@@ -1492,16 +1487,15 @@ fn defends_against_missing_bypass_param() {
 #[should_panic]
 fn defends_against_non_switch_bypass_param() {
     let ec = super::create_internal(
-        create_parameter_model(
-            |_: &HostInfo| parameters::to_infos(&PARAMETERS),
-            ExtraParameters::None,
-        ),
+        create_parameter_model(|_: &HostInfo| parameters::to_infos(&PARAMETERS)),
         "dummy_domain".to_string(),
         conformal_ui::Size {
             width: 0,
             height: 0,
         },
-        Some(NUMERIC_ID),
+        super::Kind::Effect {
+            bypass_id: NUMERIC_ID,
+        },
     );
 
     let host = ComWrapper::new(dummy_host::Host::default());
@@ -1513,24 +1507,23 @@ fn defends_against_non_switch_bypass_param() {
 #[should_panic]
 fn defends_against_default_on_bypass_param() {
     let ec = super::create_internal(
-        create_parameter_model(
-            |_: &HostInfo| {
-                parameters::to_infos(&[InfoRef {
-                    title: "Test Switch",
-                    short_title: "Switch",
-                    unique_id: SWITCH_ID,
-                    flags: Flags { automatable: true },
-                    type_specific: TypeSpecificInfoRef::Switch { default: true },
-                }])
-            },
-            ExtraParameters::None,
-        ),
+        create_parameter_model(|_: &HostInfo| {
+            parameters::to_infos(&[InfoRef {
+                title: "Test Switch",
+                short_title: "Switch",
+                unique_id: SWITCH_ID,
+                flags: Flags { automatable: true },
+                type_specific: TypeSpecificInfoRef::Switch { default: true },
+            }])
+        }),
         "dummy_domain".to_string(),
         conformal_ui::Size {
             width: 0,
             height: 0,
         },
-        Some(SWITCH_ID),
+        super::Kind::Effect {
+            bypass_id: SWITCH_ID,
+        },
     );
 
     let host = ComWrapper::new(dummy_host::Host::default());
@@ -1541,24 +1534,23 @@ fn defends_against_default_on_bypass_param() {
 #[test]
 fn bypass_parameter_exposed() {
     let ec = super::create_internal(
-        create_parameter_model(
-            |_: &HostInfo| {
-                parameters::to_infos(&[InfoRef {
-                    title: "Test Switch",
-                    short_title: "Switch",
-                    unique_id: SWITCH_ID,
-                    flags: Flags { automatable: true },
-                    type_specific: TypeSpecificInfoRef::Switch { default: false },
-                }])
-            },
-            ExtraParameters::None,
-        ),
+        create_parameter_model(|_: &HostInfo| {
+            parameters::to_infos(&[InfoRef {
+                title: "Test Switch",
+                short_title: "Switch",
+                unique_id: SWITCH_ID,
+                flags: Flags { automatable: true },
+                type_specific: TypeSpecificInfoRef::Switch { default: false },
+            }])
+        }),
         "dummy_domain".to_string(),
         conformal_ui::Size {
             width: 0,
             height: 0,
         },
-        Some(SWITCH_ID),
+        super::Kind::Effect {
+            bypass_id: SWITCH_ID,
+        },
     );
 
     let host = ComWrapper::new(dummy_host::Host::default());
@@ -1594,19 +1586,20 @@ fn bypass_parameter_exposed() {
     );
 }
 
-fn dummy_synth_edit_controller(
-) -> impl IPluginBaseTrait + IEditControllerTrait + IMidiMappingTrait + GetStore {
+fn dummy_synth_edit_controller() -> impl IPluginBaseTrait
+       + IEditControllerTrait
+       + IMidiMappingTrait
+       + INoteExpressionControllerTrait
+       + INoteExpressionPhysicalUIMappingTrait
+       + GetStore {
     super::create_internal(
-        create_parameter_model(
-            |_: &HostInfo| parameters::to_infos(&[]),
-            ExtraParameters::SynthControlParameters,
-        ),
+        create_parameter_model(|_: &HostInfo| parameters::to_infos(&[])),
         "dummy_domain".to_string(),
         conformal_ui::Size {
             width: 0,
             height: 0,
         },
-        None,
+        super::Kind::Synth(),
     )
 }
 
@@ -1615,6 +1608,8 @@ fn synth_control_parameters_exposed() {
     let ec = dummy_synth_edit_controller();
     let host = ComWrapper::new(dummy_host::Host::default());
     unsafe {
+        assert_eq!(ec.initialize(host.as_com_ref().unwrap().as_ptr()), 0);
+
         let check_assignment = |vst_id: std::ffi::c_uint, param_id| {
             let mut id: vst3::Steinberg::Vst::ParamID = 0;
             assert_eq!(
@@ -1644,8 +1639,20 @@ fn synth_control_parameters_exposed() {
             vst3::Steinberg::Vst::ControllerNumbers_::kAfterTouch,
             conformal_component::synth::AFTERTOUCH_PARAMETER,
         );
+        {
+            // due to mpe quirks we should have _some_ mapping to aftertouch
+            let mut id: vst3::Steinberg::Vst::ParamID = 0;
+            assert_eq!(
+                ec.getMidiControllerAssignment(
+                    0,
+                    1,
+                    vst3::Steinberg::Vst::ControllerNumbers_::kAfterTouch as i16,
+                    &mut id
+                ),
+                vst3::Steinberg::kResultTrue
+            );
+        }
 
-        assert_eq!(ec.initialize(host.as_com_ref().unwrap().as_ptr()), 0);
         let store = ec.get_store().unwrap();
         assert_eq!(
             store.get(conformal_component::synth::PITCH_BEND_PARAMETER),
@@ -1675,23 +1682,410 @@ fn midi_mapping_bad_context_false() {
         assert_eq!(
             ec.getMidiControllerAssignment(
                 0,
-                1,
-                vst3::Steinberg::Vst::ControllerNumbers_::kCtrlModWheel
-                    .try_into()
-                    .unwrap(),
-                &mut id as *mut _
-            ),
-            vst3::Steinberg::kResultFalse
-        );
-        assert_eq!(
-            ec.getMidiControllerAssignment(
-                0,
                 0,
                 // This test will have to change if we ever support kCtrlGPC8...
                 vst3::Steinberg::Vst::ControllerNumbers_::kCtrlGPC8
                     .try_into()
                     .unwrap(),
                 &mut id as *mut _
+            ),
+            vst3::Steinberg::kResultFalse
+        );
+    }
+}
+
+#[test]
+fn get_note_expression_count() {
+    let ec = dummy_synth_edit_controller();
+    let host = ComWrapper::new(dummy_host::Host::default());
+    unsafe {
+        assert_eq!(ec.getNoteExpressionCount(0, 0), 0);
+        assert_eq!(ec.initialize(host.as_com_ref().unwrap().as_ptr()), 0);
+        assert_eq!(ec.getNoteExpressionCount(0, 0), 3);
+        assert_eq!(ec.getNoteExpressionCount(1, 0), 0);
+        assert_eq!(ec.getNoteExpressionCount(0, 1), 0);
+        assert_eq!(ec.getNoteExpressionCount(1, 1), 0);
+    }
+}
+
+#[test]
+fn get_note_expression_info() {
+    let ec = dummy_synth_edit_controller();
+    let host = ComWrapper::new(dummy_host::Host::default());
+    unsafe {
+        let mut info = vst3::Steinberg::Vst::NoteExpressionTypeInfo {
+            typeId: 0,
+            title: [0; 128],
+            shortTitle: [0; 128],
+            units: [0; 128],
+            unitId: 0,
+            valueDesc: vst3::Steinberg::Vst::NoteExpressionValueDescription {
+                defaultValue: 0.0,
+                minimum: 0.0,
+                maximum: 1.0,
+                stepCount: 0,
+            },
+            associatedParameterId: 0,
+            flags: 0,
+        };
+
+        assert_ne!(
+            ec.getNoteExpressionInfo(0, 0, 0, &mut info),
+            vst3::Steinberg::kResultOk
+        );
+
+        assert_eq!(
+            ec.initialize(host.as_com_ref().unwrap().as_ptr()),
+            vst3::Steinberg::kResultOk
+        );
+
+        assert_eq!(
+            ec.getNoteExpressionInfo(0, 0, 0, &mut info),
+            vst3::Steinberg::kResultOk
+        );
+        assert_eq!(
+            info.typeId,
+            vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID
+        );
+        assert_eq!(from_utf16_buffer(&info.title).unwrap(), "Pitch Bend");
+        assert_eq!(from_utf16_buffer(&info.shortTitle).unwrap(), "Pitch");
+        assert_eq!(from_utf16_buffer(&info.units).unwrap(), "semitones");
+        assert_eq!(
+            info.flags,
+            vst3::Steinberg::Vst::NoteExpressionTypeInfo_::NoteExpressionTypeFlags_::kIsBipolar
+                as i32
+        );
+
+        assert_eq!(
+            ec.getNoteExpressionInfo(0, 0, 1, &mut info),
+            vst3::Steinberg::kResultOk
+        );
+        assert_eq!(info.typeId, processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID);
+        assert_eq!(from_utf16_buffer(&info.title).unwrap(), "Timbre");
+        assert_eq!(from_utf16_buffer(&info.shortTitle).unwrap(), "Timbre");
+        assert_eq!(from_utf16_buffer(&info.units).unwrap(), "");
+        assert_eq!(info.unitId, 0);
+        assert_eq!(info.valueDesc.defaultValue, 0.);
+        assert_eq!(info.valueDesc.minimum, 0.);
+        assert_eq!(info.valueDesc.maximum, 1.0);
+        assert_eq!(info.valueDesc.stepCount, 0);
+        assert_eq!(info.flags, 0);
+
+        assert_eq!(
+            ec.getNoteExpressionInfo(0, 0, 2, &mut info),
+            vst3::Steinberg::kResultOk
+        );
+        assert_eq!(info.typeId, processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID);
+        assert_eq!(from_utf16_buffer(&info.title).unwrap(), "Aftertouch");
+        assert_eq!(from_utf16_buffer(&info.shortTitle).unwrap(), "Aftertouch");
+        assert_eq!(from_utf16_buffer(&info.units).unwrap(), "");
+        assert_eq!(info.unitId, 0);
+        assert_eq!(info.valueDesc.defaultValue, 0.);
+        assert_eq!(info.valueDesc.minimum, 0.);
+        assert_eq!(info.valueDesc.maximum, 1.0);
+        assert_eq!(info.valueDesc.stepCount, 0);
+        assert_eq!(info.flags, 0);
+
+        assert_ne!(
+            ec.getNoteExpressionInfo(1, 0, 0, &mut info),
+            vst3::Steinberg::kResultOk
+        );
+        assert_ne!(
+            ec.getNoteExpressionInfo(0, 1, 0, &mut info),
+            vst3::Steinberg::kResultOk
+        );
+        assert_ne!(
+            ec.getNoteExpressionInfo(0, 0, 3, &mut info),
+            vst3::Steinberg::kResultOk
+        );
+    }
+}
+
+#[test]
+fn get_note_expression_string_by_value() {
+    let ec = dummy_synth_edit_controller();
+    let host = ComWrapper::new(dummy_host::Host::default());
+    unsafe {
+        let mut string = [0i16; 128];
+        assert_ne!(
+            ec.getNoteExpressionStringByValue(
+                0,
+                0,
+                vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID,
+                0.5,
+                string.as_mut_ptr().cast::<[i16; 128]>()
+            ),
+            vst3::Steinberg::kResultOk
+        );
+
+        assert_eq!(
+            ec.initialize(host.as_com_ref().unwrap().as_ptr()),
+            vst3::Steinberg::kResultOk
+        );
+
+        assert_eq!(
+            ec.getNoteExpressionStringByValue(
+                0,
+                0,
+                vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID,
+                0.5,
+                string.as_mut_ptr().cast::<[i16; 128]>()
+            ),
+            vst3::Steinberg::kResultOk
+        );
+        assert_eq!(from_utf16_buffer(&string).unwrap(), "0.00");
+        assert_eq!(
+            ec.getNoteExpressionStringByValue(
+                0,
+                0,
+                vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID,
+                1.0,
+                string.as_mut_ptr().cast::<[i16; 128]>()
+            ),
+            vst3::Steinberg::kResultOk
+        );
+        assert_eq!(from_utf16_buffer(&string).unwrap(), "120.00");
+
+        assert_eq!(
+            ec.getNoteExpressionStringByValue(
+                0,
+                0,
+                crate::processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID,
+                0.5,
+                string.as_mut_ptr().cast::<[i16; 128]>()
+            ),
+            vst3::Steinberg::kResultOk
+        );
+        assert_eq!(from_utf16_buffer(&string).unwrap(), "0.50");
+
+        assert_eq!(
+            ec.getNoteExpressionStringByValue(
+                0,
+                0,
+                crate::processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID,
+                0.5,
+                string.as_mut_ptr().cast::<[i16; 128]>()
+            ),
+            vst3::Steinberg::kResultOk
+        );
+        assert_eq!(from_utf16_buffer(&string).unwrap(), "0.50");
+
+        assert_ne!(
+            ec.getNoteExpressionStringByValue(
+                1,
+                0,
+                0,
+                0.5,
+                string.as_mut_ptr().cast::<[i16; 128]>()
+            ),
+            vst3::Steinberg::kResultOk
+        );
+        assert_ne!(
+            ec.getNoteExpressionStringByValue(
+                0,
+                1,
+                0,
+                0.5,
+                string.as_mut_ptr().cast::<[i16; 128]>()
+            ),
+            vst3::Steinberg::kResultOk
+        );
+        assert_ne!(
+            ec.getNoteExpressionStringByValue(
+                1,
+                1,
+                0,
+                0.5,
+                string.as_mut_ptr().cast::<[i16; 128]>()
+            ),
+            vst3::Steinberg::kResultOk
+        );
+    }
+}
+
+#[test]
+fn get_note_expression_value_by_string() {
+    let ec = dummy_synth_edit_controller();
+    let host = ComWrapper::new(dummy_host::Host::default());
+    unsafe {
+        let mut value = 0.0;
+        let mut string = [0i16; 128];
+        to_utf16("60", &mut string);
+        assert_ne!(
+            ec.getNoteExpressionValueByString(
+                0,
+                0,
+                vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID,
+                string.as_ptr(),
+                &mut value
+            ),
+            vst3::Steinberg::kResultOk
+        );
+
+        assert_eq!(
+            ec.initialize(host.as_com_ref().unwrap().as_ptr()),
+            vst3::Steinberg::kResultOk
+        );
+
+        assert_eq!(
+            ec.getNoteExpressionValueByString(
+                0,
+                0,
+                vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID,
+                string.as_ptr(),
+                &mut value
+            ),
+            vst3::Steinberg::kResultOk
+        );
+        assert_approx_eq!(value, 0.75);
+
+        to_utf16("120", &mut string);
+        assert_eq!(
+            ec.getNoteExpressionValueByString(
+                0,
+                0,
+                vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID,
+                string.as_ptr(),
+                &mut value
+            ),
+            vst3::Steinberg::kResultOk
+        );
+        assert_approx_eq!(value, 1.0);
+
+        to_utf16("0.5", &mut string);
+        assert_eq!(
+            ec.getNoteExpressionValueByString(
+                0,
+                0,
+                crate::processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID,
+                string.as_ptr(),
+                &mut value
+            ),
+            vst3::Steinberg::kResultOk
+        );
+        assert_approx_eq!(value, 0.5);
+
+        assert_eq!(
+            ec.getNoteExpressionValueByString(
+                0,
+                0,
+                crate::processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID,
+                string.as_ptr(),
+                &mut value
+            ),
+            vst3::Steinberg::kResultOk
+        );
+        assert_approx_eq!(value, 0.5);
+
+        assert_ne!(
+            ec.getNoteExpressionValueByString(1, 0, 0, string.as_ptr(), &mut value),
+            vst3::Steinberg::kResultOk
+        );
+        assert_ne!(
+            ec.getNoteExpressionValueByString(0, 1, 0, string.as_ptr(), &mut value),
+            vst3::Steinberg::kResultOk
+        );
+        assert_ne!(
+            ec.getNoteExpressionValueByString(1, 1, 0, string.as_ptr(), &mut value),
+            vst3::Steinberg::kResultOk
+        );
+    }
+}
+
+#[test]
+fn get_physical_ui_mapping() {
+    let ec = dummy_synth_edit_controller();
+    let host = ComWrapper::new(dummy_host::Host::default());
+    unsafe {
+        let mut map: [PhysicalUIMap; 3] = [PhysicalUIMap {
+            physicalUITypeID: 0,
+            noteExpressionTypeID: 0,
+        }; 3];
+        map[0].physicalUITypeID = vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIYMovement;
+        map[1].physicalUITypeID = vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIXMovement;
+        map[2].physicalUITypeID = vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIPressure;
+        let mut physical_ui_mapping = vst3::Steinberg::Vst::PhysicalUIMapList {
+            count: 3,
+            map: map.as_mut_ptr(),
+        };
+
+        assert_ne!(
+            ec.getPhysicalUIMapping(0, 0, &mut physical_ui_mapping),
+            vst3::Steinberg::kResultOk
+        );
+
+        assert_eq!(
+            ec.initialize(host.as_com_ref().unwrap().as_ptr()),
+            vst3::Steinberg::kResultOk
+        );
+
+        assert_ne!(
+            ec.getPhysicalUIMapping(1, 0, &mut physical_ui_mapping),
+            vst3::Steinberg::kResultOk
+        );
+        assert_ne!(
+            ec.getPhysicalUIMapping(0, 1, &mut physical_ui_mapping),
+            vst3::Steinberg::kResultOk
+        );
+        assert_ne!(
+            ec.getPhysicalUIMapping(1, 1, &mut physical_ui_mapping),
+            vst3::Steinberg::kResultOk
+        );
+        assert_eq!(
+            ec.getPhysicalUIMapping(0, 0, &mut physical_ui_mapping),
+            vst3::Steinberg::kResultOk
+        );
+        assert_eq!(
+            map[0].noteExpressionTypeID,
+            processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID
+        );
+        assert_eq!(
+            map[1].noteExpressionTypeID,
+            vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID
+        );
+        assert_eq!(
+            map[2].noteExpressionTypeID,
+            processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID
+        );
+    }
+}
+
+#[test]
+fn get_midi_controller_assignment_effect() {
+    let ec = super::create_internal(
+        create_parameter_model(|_: &HostInfo| {
+            parameters::to_infos(&[InfoRef {
+                title: "Test Switch",
+                short_title: "Switch",
+                unique_id: SWITCH_ID,
+                flags: Flags { automatable: true },
+                type_specific: TypeSpecificInfoRef::Switch { default: false },
+            }])
+        }),
+        "dummy_domain".to_string(),
+        conformal_ui::Size {
+            width: 0,
+            height: 0,
+        },
+        super::Kind::Effect {
+            bypass_id: SWITCH_ID,
+        },
+    );
+    let host = ComWrapper::new(dummy_host::Host::default());
+    unsafe {
+        let mut id: vst3::Steinberg::Vst::ParamID = 0;
+        assert_eq!(
+            ec.initialize(host.as_com_ref().unwrap().as_ptr()),
+            vst3::Steinberg::kResultOk
+        );
+        assert_eq!(
+            ec.getMidiControllerAssignment(
+                0,
+                0,
+                vst3::Steinberg::Vst::ControllerNumbers_::kPitchBend
+                    .try_into()
+                    .unwrap(),
+                &mut id
             ),
             vst3::Steinberg::kResultFalse
         );

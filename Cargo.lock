@@ -262,6 +262,7 @@ dependencies = [
  "conformal_core",
  "conformal_macos_bundle",
  "conformal_ui",
+ "itertools",
  "rmp-serde",
  "serde",
  "vst3",

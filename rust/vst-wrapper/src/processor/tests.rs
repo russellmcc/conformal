@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 
 use conformal_component::effect::Effect;
+use conformal_component::synth::PITCH_BEND_PARAMETER;
 use vst3::ComWrapper;
 use vst3::Steinberg::{
     IBStreamTrait, IPluginBaseTrait,
@@ -11,6 +12,7 @@ use vst3::Steinberg::{
 use super::test_utils::{activate_busses, process_setup, setup_proc, DEFAULT_ENV};
 use super::{create_effect, create_synth, PartialProcessingEnvironment};
 use crate::fake_ibstream::Stream;
+use crate::mpe_quirks::aftertouch_param_id;
 use crate::processor::test_utils::{
     activate_effect_busses, mock_no_audio_process_data, mock_process, mock_process_effect,
     mock_process_mod, setup_proc_effect, ParameterValueQueueImpl, ParameterValueQueuePoint,
@@ -21,7 +23,9 @@ use crate::{dummy_host, from_utf16_buffer};
 use assert_approx_eq::assert_approx_eq;
 use conformal_component;
 use conformal_component::audio::{channels, channels_mut, BufferMut};
-use conformal_component::events::{Data, Event, Events, NoteData, NoteID};
+use conformal_component::events::{
+    Data, Event, Events, NoteData, NoteExpression, NoteExpressionData, NoteID,
+};
 use conformal_component::parameters::{enum_per_sample, numeric_per_sample, switch_per_sample};
 use conformal_component::parameters::{
     BufferStates, Flags, InfoRef, States, StaticInfoRef, TypeSpecificInfoRef,
@@ -39,6 +43,31 @@ struct FakeSynthComponent<'a> {
 struct FakeSynth<'a> {
     processing: Option<&'a RefCell<bool>>,
     notes: HashSet<NoteID>,
+    pitchbend: f32,
+    timbre: f32,
+    aftertouch: f32,
+}
+
+impl<'a> FakeSynth<'a> {
+    fn handle_note_expression(
+        &mut self,
+        NoteExpressionData { id, expression }: NoteExpressionData,
+    ) {
+        if !self.notes.contains(&id) {
+            return;
+        }
+        match expression {
+            NoteExpression::PitchBend(pitchbend) => {
+                self.pitchbend = pitchbend;
+            }
+            NoteExpression::Timbre(timbre) => {
+                self.timbre = timbre;
+            }
+            NoteExpression::Aftertouch(aftertouch) => {
+                self.aftertouch = aftertouch;
+            }
+        }
+    }
 }
 
 struct FakeEffect {}
@@ -111,11 +140,14 @@ impl<'a> Synth for FakeSynth<'a> {
                 Data::NoteOff { data } => {
                     self.notes.remove(&data.id);
                 }
+                Data::NoteExpression { data } => {
+                    self.handle_note_expression(data);
+                }
             }
         }
     }
 
-    fn process<E: IntoIterator<Item = Event>, P: BufferStates, O: BufferMut>(
+    fn process<E: Iterator<Item = Event>, P: BufferStates, O: BufferMut>(
         &mut self,
         events: Events<E>,
         parameters: P,
@@ -127,11 +159,15 @@ impl<'a> Synth for FakeSynth<'a> {
         let mult_iter = numeric_per_sample(parameters.get_numeric(NUMERIC_ID).unwrap());
         let enum_iter = enum_per_sample(parameters.get_enum(ENUM_ID).unwrap());
         let switch_iter = switch_per_sample(parameters.get_switch(SWITCH_ID).unwrap());
+        let global_pitch_bend_iter =
+            numeric_per_sample(parameters.get_numeric(PITCH_BEND_PARAMETER).unwrap());
 
-        for (((frame_index, mult), enum_mult), switch_mult) in (0..output.num_frames())
+        for ((((frame_index, mult), enum_mult), switch_mult), global_pich_bend) in (0..output
+            .num_frames())
             .zip(mult_iter)
             .zip(enum_iter)
             .zip(switch_iter)
+            .zip(global_pitch_bend_iter)
         {
             while let Some(event) = &next_event {
                 if event.sample_offset == frame_index {
@@ -141,6 +177,9 @@ impl<'a> Synth for FakeSynth<'a> {
                         }
                         Data::NoteOff { ref data } => {
                             self.notes.remove(&data.id);
+                        }
+                        Data::NoteExpression { data } => {
+                            self.handle_note_expression(data);
                         }
                     }
                     next_event = events_iter.next();
@@ -152,7 +191,11 @@ impl<'a> Synth for FakeSynth<'a> {
                 channel[frame_index] = mult
                     * ((enum_mult + 1) as f32)
                     * (if switch_mult { 1.0 } else { 0.0 })
-                    * self.notes.len() as f32;
+                    * self.notes.len() as f32
+                    + self.pitchbend
+                    + self.timbre
+                    + self.aftertouch
+                    + global_pich_bend;
             }
         }
     }
@@ -170,6 +213,9 @@ impl<'a> Component for FakeSynthComponent<'a> {
         FakeSynth {
             processing: self.processing,
             notes,
+            pitchbend: 0f32,
+            timbre: 0f32,
+            aftertouch: 0f32,
         }
     }
 
@@ -1318,7 +1364,6 @@ fn can_process() {
                     sample_offset: 0,
                     data: Data::NoteOn {
                         data: NoteData {
-                            channel: 0,
                             id: NoteID::from_id(0),
                             pitch: 64,
                             velocity: 0.5,
@@ -1330,7 +1375,6 @@ fn can_process() {
                     sample_offset: 100,
                     data: Data::NoteOff {
                         data: NoteData {
-                            channel: 0,
                             id: NoteID::from_id(0),
                             pitch: 64,
                             velocity: 0.5,
@@ -1342,7 +1386,6 @@ fn can_process() {
                     sample_offset: 200,
                     data: Data::NoteOn {
                         data: NoteData {
-                            channel: 0,
                             id: NoteID::from_id(0),
                             pitch: 64,
                             velocity: 0.5,
@@ -1354,7 +1397,6 @@ fn can_process() {
                     sample_offset: 200,
                     data: Data::NoteOn {
                         data: NoteData {
-                            channel: 0,
                             id: NoteID::from_id(1),
                             pitch: 65,
                             velocity: 0.5,
@@ -1374,6 +1416,118 @@ fn can_process() {
 }
 
 #[test]
+fn can_process_mpe() {
+    let proc = dummy_synth();
+    let host = ComWrapper::new(dummy_host::Host::default());
+
+    unsafe {
+        setup_proc(&proc, &host);
+
+        let audio = mock_process(
+            2,
+            vec![
+                Event {
+                    sample_offset: 0,
+                    data: Data::NoteOn {
+                        data: NoteData {
+                            id: NoteID::from_id(0),
+                            pitch: 64,
+                            velocity: 0.5,
+                            tuning: 0f32,
+                        },
+                    },
+                },
+                Event {
+                    sample_offset: 10,
+                    data: Data::NoteExpression {
+                        data: NoteExpressionData {
+                            id: NoteID::from_id(0),
+                            expression: NoteExpression::PitchBend(12.0),
+                        },
+                    },
+                },
+                // Should ignore wrong-id events
+                Event {
+                    sample_offset: 11,
+                    data: Data::NoteExpression {
+                        data: NoteExpressionData {
+                            id: NoteID::from_id(4),
+                            expression: NoteExpression::PitchBend(24.0),
+                        },
+                    },
+                },
+                Event {
+                    sample_offset: 16,
+                    data: Data::NoteExpression {
+                        data: NoteExpressionData {
+                            id: NoteID::from_id(0),
+                            expression: NoteExpression::Timbre(0.6),
+                        },
+                    },
+                },
+                Event {
+                    sample_offset: 20,
+                    data: Data::NoteExpression {
+                        data: NoteExpressionData {
+                            id: NoteID::from_id(0),
+                            expression: NoteExpression::Aftertouch(0.7),
+                        },
+                    },
+                },
+                Event {
+                    sample_offset: 90,
+                    data: Data::NoteExpression {
+                        data: NoteExpressionData {
+                            id: NoteID::from_id(0),
+                            expression: NoteExpression::PitchBend(0.0),
+                        },
+                    },
+                },
+                Event {
+                    sample_offset: 90,
+                    data: Data::NoteExpression {
+                        data: NoteExpressionData {
+                            id: NoteID::from_id(0),
+                            expression: NoteExpression::Timbre(0.0),
+                        },
+                    },
+                },
+                Event {
+                    sample_offset: 90,
+                    data: Data::NoteExpression {
+                        data: NoteExpressionData {
+                            id: NoteID::from_id(0),
+                            expression: NoteExpression::Aftertouch(0.0),
+                        },
+                    },
+                },
+                Event {
+                    sample_offset: 100,
+                    data: Data::NoteOff {
+                        data: NoteData {
+                            id: NoteID::from_id(0),
+                            pitch: 64,
+                            velocity: 0.5,
+                            tuning: 0f32,
+                        },
+                    },
+                },
+            ],
+            vec![],
+            &proc,
+        );
+        assert!(audio.is_some());
+        assert_eq!(audio.as_ref().unwrap()[0][0], 1.0);
+        assert_approx_eq!(audio.as_ref().unwrap()[0][10], 13.0, 1e-5);
+        assert_approx_eq!(audio.as_ref().unwrap()[0][15], 13.0, 1e-5);
+        assert_approx_eq!(audio.as_ref().unwrap()[0][16], 13.6, 1e-5);
+        assert_approx_eq!(audio.as_ref().unwrap()[0][20], 14.3, 1e-5);
+        assert_approx_eq!(audio.as_ref().unwrap()[0][90], 1.0);
+        assert_eq!(audio.as_ref().unwrap()[1][100], 0.0);
+    }
+}
+
+#[test]
 fn can_process_effect() {
     let proc = dummy_effect();
     let host = ComWrapper::new(dummy_host::Host::default());
@@ -1385,7 +1539,7 @@ fn can_process_effect() {
             vec![vec![1f32; 512]; 2],
             vec![
                 ParameterValueQueueImpl {
-                    param_id: NUMERIC_ID,
+                    param_id: NUMERIC_ID.to_string(),
                     points: vec![
                         ParameterValueQueuePoint {
                             sample_offset: 99,
@@ -1398,7 +1552,7 @@ fn can_process_effect() {
                     ],
                 },
                 ParameterValueQueueImpl {
-                    param_id: SWITCH_ID,
+                    param_id: SWITCH_ID.to_string(),
                     points: vec![
                         ParameterValueQueuePoint {
                             sample_offset: 500,
@@ -1411,7 +1565,7 @@ fn can_process_effect() {
                     ],
                 },
                 ParameterValueQueueImpl {
-                    param_id: ENUM_ID,
+                    param_id: ENUM_ID.to_string(),
                     points: vec![
                         ParameterValueQueuePoint {
                             sample_offset: 300,
@@ -1445,7 +1599,6 @@ fn defends_against_events_past_buffer() {
                 sample_offset: SAMPLE_COUNT + 1000,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -1475,7 +1628,6 @@ fn defends_against_shuffled_events() {
                     sample_offset: 200,
                     data: Data::NoteOn {
                         data: NoteData {
-                            channel: 0,
                             id: NoteID::from_id(0),
                             pitch: 64,
                             velocity: 0.5,
@@ -1487,7 +1639,6 @@ fn defends_against_shuffled_events() {
                     sample_offset: 100,
                     data: Data::NoteOff {
                         data: NoteData {
-                            channel: 0,
                             id: NoteID::from_id(0),
                             pitch: 64,
                             velocity: 0.5,
@@ -1532,7 +1683,6 @@ fn defends_against_timed_events_without_audio() {
                 sample_offset: 100,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -1564,7 +1714,6 @@ fn can_handle_events_without_audio() {
                     sample_offset: 0,
                     data: Data::NoteOn {
                         data: NoteData {
-                            channel: 0,
                             id: NoteID::from_id(0),
                             pitch: 64,
                             velocity: 0.5,
@@ -1576,7 +1725,6 @@ fn can_handle_events_without_audio() {
                     sample_offset: 0,
                     data: Data::NoteOn {
                         data: NoteData {
-                            channel: 0,
                             id: NoteID::from_id(1),
                             pitch: 64,
                             velocity: 0.5,
@@ -1596,7 +1744,6 @@ fn can_handle_events_without_audio() {
                 sample_offset: 0,
                 data: Data::NoteOff {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -1618,7 +1765,6 @@ fn can_handle_events_without_audio() {
                 sample_offset: 100,
                 data: Data::NoteOff {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(1),
                         pitch: 64,
                         velocity: 0.5,
@@ -1648,7 +1794,6 @@ fn can_handle_parameter_changes() {
                 sample_offset: 0,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -1658,7 +1803,7 @@ fn can_handle_parameter_changes() {
             }],
             vec![
                 ParameterValueQueueImpl {
-                    param_id: NUMERIC_ID,
+                    param_id: NUMERIC_ID.to_string(),
                     points: vec![
                         ParameterValueQueuePoint {
                             sample_offset: 99,
@@ -1671,7 +1816,7 @@ fn can_handle_parameter_changes() {
                     ],
                 },
                 ParameterValueQueueImpl {
-                    param_id: SWITCH_ID,
+                    param_id: SWITCH_ID.to_string(),
                     points: vec![
                         ParameterValueQueuePoint {
                             sample_offset: 500,
@@ -1684,7 +1829,7 @@ fn can_handle_parameter_changes() {
                     ],
                 },
                 ParameterValueQueueImpl {
-                    param_id: ENUM_ID,
+                    param_id: ENUM_ID.to_string(),
                     points: vec![
                         ParameterValueQueuePoint {
                             sample_offset: 300,
@@ -1726,7 +1871,6 @@ fn parameter_changes_at_start_of_buffer() {
                 sample_offset: 0,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -1735,7 +1879,7 @@ fn parameter_changes_at_start_of_buffer() {
                 },
             }],
             vec![ParameterValueQueueImpl {
-                param_id: NUMERIC_ID,
+                param_id: NUMERIC_ID.to_string(),
                 points: vec![
                     ParameterValueQueuePoint {
                         sample_offset: 0,
@@ -1771,7 +1915,6 @@ fn defends_against_wild_parameter_ids() {
                 sample_offset: 0,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -1780,7 +1923,7 @@ fn defends_against_wild_parameter_ids() {
                 },
             }],
             vec![ParameterValueQueueImpl {
-                param_id: "some garbage parameter",
+                param_id: "some garbage parameter".to_string(),
                 points: vec![ParameterValueQueuePoint {
                     sample_offset: 0,
                     value: MAX_NUMERIC as f64,
@@ -1806,7 +1949,6 @@ fn empty_queues_are_ignored() {
                 sample_offset: 0,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -1815,7 +1957,7 @@ fn empty_queues_are_ignored() {
                 },
             }],
             vec![ParameterValueQueueImpl {
-                param_id: NUMERIC_ID,
+                param_id: NUMERIC_ID.to_string(),
                 points: vec![],
             }],
             &proc,
@@ -1839,7 +1981,6 @@ fn defends_against_unsorted_param_queues() {
                 sample_offset: 0,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -1848,7 +1989,7 @@ fn defends_against_unsorted_param_queues() {
                 },
             }],
             vec![ParameterValueQueueImpl {
-                param_id: NUMERIC_ID,
+                param_id: NUMERIC_ID.to_string(),
                 points: vec![
                     ParameterValueQueuePoint {
                         sample_offset: 100,
@@ -1880,7 +2021,6 @@ fn defends_against_doubled_curve_points() {
                 sample_offset: 0,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -1889,7 +2029,7 @@ fn defends_against_doubled_curve_points() {
                 },
             }],
             vec![ParameterValueQueueImpl {
-                param_id: NUMERIC_ID,
+                param_id: NUMERIC_ID.to_string(),
                 points: vec![
                     ParameterValueQueuePoint {
                         sample_offset: 99,
@@ -1921,7 +2061,6 @@ fn defends_against_points_outside_buffer() {
                 sample_offset: 0,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -1930,7 +2069,7 @@ fn defends_against_points_outside_buffer() {
                 },
             }],
             vec![ParameterValueQueueImpl {
-                param_id: NUMERIC_ID,
+                param_id: NUMERIC_ID.to_string(),
                 points: vec![ParameterValueQueuePoint {
                     sample_offset: 700,
                     value: 1.0,
@@ -1956,7 +2095,6 @@ fn defends_against_multiple_queues_for_same_param() {
                 sample_offset: 0,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -1966,14 +2104,14 @@ fn defends_against_multiple_queues_for_same_param() {
             }],
             vec![
                 ParameterValueQueueImpl {
-                    param_id: NUMERIC_ID,
+                    param_id: NUMERIC_ID.to_string(),
                     points: vec![ParameterValueQueuePoint {
                         sample_offset: 99,
                         value: ((1.0 - MIN_NUMERIC) / (MAX_NUMERIC - MIN_NUMERIC)) as f64,
                     }],
                 },
                 ParameterValueQueueImpl {
-                    param_id: NUMERIC_ID,
+                    param_id: NUMERIC_ID.to_string(),
                     points: vec![ParameterValueQueuePoint {
                         sample_offset: 100,
                         value: 1.0,
@@ -1997,7 +2135,7 @@ fn defends_against_non_zero_time_parameter_change() {
         let mut data = mock_no_audio_process_data(
             vec![],
             vec![ParameterValueQueueImpl {
-                param_id: NUMERIC_ID,
+                param_id: NUMERIC_ID.to_string(),
                 points: vec![ParameterValueQueuePoint {
                     sample_offset: 1,
                     value: 1.0,
@@ -2022,7 +2160,7 @@ fn defends_against_out_of_range_parameter_values() {
         let mut data = mock_no_audio_process_data(
             vec![],
             vec![ParameterValueQueueImpl {
-                param_id: NUMERIC_ID,
+                param_id: NUMERIC_ID.to_string(),
                 points: vec![ParameterValueQueuePoint {
                     sample_offset: 0,
                     value: -5.0,
@@ -2050,21 +2188,21 @@ fn can_change_parameters_in_handle_events() {
                     vec![],
                     vec![
                         ParameterValueQueueImpl {
-                            param_id: NUMERIC_ID,
+                            param_id: NUMERIC_ID.to_string(),
                             points: vec![ParameterValueQueuePoint {
                                 sample_offset: 0,
                                 value: 1.0,
                             }],
                         },
                         ParameterValueQueueImpl {
-                            param_id: ENUM_ID,
+                            param_id: ENUM_ID.to_string(),
                             points: vec![ParameterValueQueuePoint {
                                 sample_offset: 0,
                                 value: 0.5,
                             }],
                         },
                         ParameterValueQueueImpl {
-                            param_id: SWITCH_ID,
+                            param_id: SWITCH_ID.to_string(),
                             points: vec![ParameterValueQueuePoint {
                                 sample_offset: 0,
                                 value: 0.0,
@@ -2083,7 +2221,6 @@ fn can_change_parameters_in_handle_events() {
                 sample_offset: 0,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -2092,7 +2229,7 @@ fn can_change_parameters_in_handle_events() {
                 },
             }],
             vec![ParameterValueQueueImpl {
-                param_id: SWITCH_ID,
+                param_id: SWITCH_ID.to_string(),
                 points: vec![ParameterValueQueuePoint {
                     sample_offset: 100,
                     value: 1.0,
@@ -2187,13 +2324,23 @@ fn set_state_sets_parameters() {
             proc1.process(
                 &mut mock_no_audio_process_data(
                     vec![],
-                    vec![ParameterValueQueueImpl {
-                        param_id: NUMERIC_ID,
-                        points: vec![ParameterValueQueuePoint {
-                            sample_offset: 0,
-                            value: 1.0,
-                        }],
-                    },],
+                    vec![
+                        ParameterValueQueueImpl {
+                            param_id: NUMERIC_ID.to_string(),
+                            points: vec![ParameterValueQueuePoint {
+                                sample_offset: 0,
+                                value: 1.0,
+                            }],
+                        },
+                        // Test that pitch bend parameter is _not_ saved
+                        ParameterValueQueueImpl {
+                            param_id: PITCH_BEND_PARAMETER.to_string(),
+                            points: vec![ParameterValueQueuePoint {
+                                sample_offset: 0,
+                                value: 1.0,
+                            }],
+                        }
+                    ],
                 )
                 .process_data
             ),
@@ -2264,7 +2411,6 @@ fn set_state_sets_parameters() {
                 sample_offset: 10,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -2298,7 +2444,7 @@ fn get_state_sees_automation() {
                 &mut mock_no_audio_process_data(
                     vec![],
                     vec![ParameterValueQueueImpl {
-                        param_id: NUMERIC_ID,
+                        param_id: NUMERIC_ID.to_string(),
                         points: vec![ParameterValueQueuePoint {
                             sample_offset: 0,
                             value: 1.0,
@@ -2344,7 +2490,7 @@ fn get_state_sees_automation() {
                 &mut mock_no_audio_process_data(
                     vec![],
                     vec![ParameterValueQueueImpl {
-                        param_id: ENUM_ID,
+                        param_id: ENUM_ID.to_string(),
                         points: vec![ParameterValueQueuePoint {
                             sample_offset: 0,
                             value: 0.5,
@@ -2390,7 +2536,6 @@ fn get_state_sees_automation() {
                 sample_offset: 10,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -2615,7 +2760,7 @@ fn loading_too_new_parameters_loads_default_state() {
                 &mut mock_no_audio_process_data(
                     vec![],
                     vec![ParameterValueQueueImpl {
-                        param_id: NUMERIC_ID,
+                        param_id: NUMERIC_ID.to_string(),
                         points: vec![ParameterValueQueuePoint {
                             sample_offset: 0,
                             value: 1.0, // Set it to the old max of 10!
@@ -2631,7 +2776,7 @@ fn loading_too_new_parameters_loads_default_state() {
                 &mut mock_no_audio_process_data(
                     vec![],
                     vec![ParameterValueQueueImpl {
-                        param_id: NUMERIC_ID,
+                        param_id: NUMERIC_ID.to_string(),
                         points: vec![ParameterValueQueuePoint {
                             sample_offset: 0,
                             value: 1.0, // Set it to the new max of 20!
@@ -2679,7 +2824,6 @@ fn loading_too_new_parameters_loads_default_state() {
                 sample_offset: 10,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -2768,7 +2912,6 @@ fn supports_toggling_active_while_processing() {
                 sample_offset: 100,
                 data: Data::NoteOn {
                     data: NoteData {
-                        channel: 0,
                         id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
@@ -2782,5 +2925,90 @@ fn supports_toggling_active_while_processing() {
         assert!(audio.is_some());
         assert_eq!(audio.as_ref().unwrap()[0][0], 0.0);
         assert_eq!(audio.as_ref().unwrap()[1][100], 1.0);
+    }
+}
+
+#[test]
+fn supports_mpe_quirks() {
+    let proc = dummy_synth();
+    let host = ComWrapper::new(dummy_host::Host::default());
+
+    unsafe {
+        setup_proc(&proc, &host);
+
+        let audio = mock_process(
+            2,
+            vec![Event {
+                sample_offset: 10,
+                data: Data::NoteOn {
+                    data: NoteData {
+                        id: NoteID::from_channel_for_mpe_quirks(1),
+                        pitch: 64,
+                        velocity: 0.5,
+                        tuning: 0f32,
+                    },
+                },
+            }],
+            vec![ParameterValueQueueImpl {
+                param_id: aftertouch_param_id(1).to_string(),
+                points: vec![ParameterValueQueuePoint {
+                    sample_offset: 10,
+                    value: 1.0,
+                }],
+            }],
+            &proc,
+        );
+
+        assert_approx_eq!(audio.as_ref().unwrap()[0][10], 2.0);
+    }
+}
+
+#[test]
+fn supports_mpe_quirks_no_audio() {
+    let proc = dummy_synth();
+    let host = ComWrapper::new(dummy_host::Host::default());
+
+    unsafe {
+        setup_proc(&proc, &host);
+        assert_eq!(
+            proc.process(
+                &mut mock_no_audio_process_data(
+                    vec![Event {
+                        sample_offset: 0,
+                        data: Data::NoteOn {
+                            data: NoteData {
+                                id: NoteID::from_channel_for_mpe_quirks(1),
+                                pitch: 64,
+                                velocity: 0.5,
+                                tuning: 0f32,
+                            },
+                        },
+                    }],
+                    vec![],
+                )
+                .process_data
+            ),
+            vst3::Steinberg::kResultOk
+        );
+        assert_eq!(
+            proc.process(
+                &mut mock_no_audio_process_data(
+                    vec![],
+                    vec![ParameterValueQueueImpl {
+                        param_id: aftertouch_param_id(1).to_string(),
+                        points: vec![ParameterValueQueuePoint {
+                            sample_offset: 0,
+                            value: 1.0, // Set it to the old max of 10!
+                        }],
+                    },],
+                )
+                .process_data
+            ),
+            vst3::Steinberg::kResultOk
+        );
+
+        let audio = mock_process(2, vec![], vec![], &proc);
+
+        assert_approx_eq!(audio.as_ref().unwrap()[0][10], 2.0);
     }
 }

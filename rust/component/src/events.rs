@@ -7,6 +7,7 @@ mod tests;
 enum NoteIDInternals {
     NoteIDWithID(i32),
     NoteIDFromPitch(u8),
+    NoteIDFromChannelID(i16),
 }
 
 /// Represents an identifier for a note
@@ -45,6 +46,14 @@ impl NoteID {
             internals: NoteIDInternals::NoteIDFromPitch(pitch),
         }
     }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn from_channel_for_mpe_quirks(id: i16) -> Self {
+        Self {
+            internals: NoteIDInternals::NoteIDFromChannelID(id),
+        }
+    }
 }
 
 #[doc(hidden)]
@@ -52,16 +61,22 @@ impl NoteID {
 pub fn to_vst_note_id(note_id: NoteID) -> i32 {
     match note_id.internals {
         NoteIDInternals::NoteIDWithID(id) => id,
-        NoteIDInternals::NoteIDFromPitch(_) => -1,
+        NoteIDInternals::NoteIDFromPitch(_) | NoteIDInternals::NoteIDFromChannelID(_) => -1,
+    }
+}
+
+#[doc(hidden)]
+#[must_use]
+pub fn to_vst_note_channel_for_mpe_quirks(note_id: NoteID) -> i16 {
+    match note_id.internals {
+        NoteIDInternals::NoteIDFromChannelID(id) => id,
+        NoteIDInternals::NoteIDFromPitch(_) | NoteIDInternals::NoteIDWithID(_) => 0,
     }
 }
 
 /// Contains data common to both `NoteOn` and `NoteOff` events.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct NoteData {
-    /// The channel of the note.  IDs are only unique within a channel
-    pub channel: u8,
-
     /// Opaque ID of the note.
     pub id: NoteID,
 
@@ -73,6 +88,52 @@ pub struct NoteData {
 
     /// Microtuning of the note in cents.
     pub tuning: f32,
+}
+
+/// A specific type of note expression.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum NoteExpression {
+    /// Pitch bend note expression.
+    ///
+    /// This corresponds to the [`crate::synth::PITCH_BEND_PARAMETER`] controller and should
+    /// change the tuning of the note.
+    ///
+    /// This is expressed in semitones away from the root note of the note (which may itself
+    /// be affected by the global [`crate::synth::PITCH_BEND_PARAMETER`] controller).
+    PitchBend(f32),
+
+    /// Vertical movement note expression, meant to control some sort of timbre of the synth.
+    ///
+    /// This is called "slide" in some DAW UIs.
+    ///
+    /// This corresponds to the "timbre" controller ([`crate::synth::TIMBRE_PARAMETER`]), and
+    /// its effects must be combined with the global controller.
+    ///
+    /// This value varies from 0->1, 0 being the bottommost position,
+    /// and 1 being the topmost position.
+    Timbre(f32),
+
+    /// Depthwise note expression.
+    ///
+    /// This is called "Pressure" in some DAW UIs.
+    ///
+    /// This value varies from 0->1, 0 being neutral, and 1 being the maximum depth.
+    ///
+    /// This corresponds to the [`crate::synth::AFTERTOUCH_PARAMETER`] controller which
+    /// affects all notes. The total effect must be a combination of this per-note note
+    /// expression and the global controller.
+    Aftertouch(f32),
+}
+
+/// Contains data about note expression.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct NoteExpressionData {
+    /// Opaque ID of the note. This will always refer to a note that is
+    /// currently "on".
+    pub id: NoteID,
+
+    /// The expression that is being sent.
+    pub expression: NoteExpression,
 }
 
 /// The data associated with an event, independent of the time it occurred.
@@ -92,6 +153,14 @@ pub enum Data {
     NoteOff {
         /// Data associated with the note.
         data: NoteData,
+    },
+
+    /// A note expression was sent.
+    ///
+    /// This will never be sent while a note with the same ID is not playing.
+    NoteExpression {
+        /// Data associated with the note expression.
+        data: NoteExpressionData,
     },
 }
 
@@ -131,12 +200,12 @@ fn check_events_invariants<I: Iterator<Item = Event>>(iter: I, buffer_size: usiz
     true
 }
 
-impl<I: IntoIterator<Item = Event> + Clone> Events<I> {
+impl<I: Iterator<Item = Event> + Clone> Events<I> {
     /// Create an `Events` object from the given iterator of events.
     ///
     /// Note that if any of the invariants are missed, this will return `None`.
     pub fn new(events: I, buffer_size: usize) -> Option<Self> {
-        if check_events_invariants(events.clone().into_iter(), buffer_size) {
+        if check_events_invariants(events.clone(), buffer_size) {
             Some(Self { events })
         } else {
             None
@@ -144,11 +213,11 @@ impl<I: IntoIterator<Item = Event> + Clone> Events<I> {
     }
 }
 
-impl<I: IntoIterator<Item = Event>> IntoIterator for Events<I> {
+impl<I: Iterator<Item = Event>> IntoIterator for Events<I> {
     type Item = Event;
-    type IntoIter = I::IntoIter;
+    type IntoIter = I;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.events.into_iter()
+        self.events
     }
 }

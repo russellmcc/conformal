@@ -17,6 +17,7 @@
 #![doc = include_str!("../docs_boilerplate.md")]
 #![doc = include_str!("../README.md")]
 
+use conformal_component::parameters::UNIQUE_ID_INTERNAL_PREFIX;
 pub use conformal_ui::Size as UiSize;
 use core::slice;
 
@@ -72,16 +73,8 @@ pub struct ClassInfo<'a> {
 }
 
 #[doc(hidden)]
-#[derive(Debug, Clone, PartialEq)]
-pub enum ExtraParameters {
-    None,
-    SynthControlParameters,
-}
-
-#[doc(hidden)]
 pub struct ParameterModel {
     pub parameter_infos: Box<dyn Fn(&HostInfo) -> Vec<conformal_component::parameters::Info>>,
-    pub extra_parameters: ExtraParameters,
 }
 
 #[doc(hidden)]
@@ -94,7 +87,7 @@ pub trait ClassCategory {
 
     fn create_parameter_model(&self) -> ParameterModel;
 
-    fn get_bypass_id(&self) -> Option<&'static str>;
+    fn get_kind(&self) -> edit_controller::Kind;
 }
 
 /// Information about a synth component
@@ -106,10 +99,7 @@ pub struct SynthClass<CF> {
     pub info: ClassInfo<'static>,
 }
 
-fn create_parameter_model_internal<CF: ComponentFactory + 'static>(
-    factory: CF,
-    extra_parameters: ExtraParameters,
-) -> ParameterModel
+fn create_parameter_model_internal<CF: ComponentFactory + 'static>(factory: CF) -> ParameterModel
 where
     CF::Component: Component,
 {
@@ -118,7 +108,6 @@ where
             let component = factory.create(host_info);
             component.parameter_infos()
         }),
-        extra_parameters,
     }
 }
 
@@ -136,10 +125,7 @@ where
     }
 
     fn create_parameter_model(&self) -> ParameterModel {
-        create_parameter_model_internal(
-            self.factory.clone(),
-            ExtraParameters::SynthControlParameters,
-        )
+        create_parameter_model_internal(self.factory.clone())
     }
 
     fn category_str(&self) -> &'static str {
@@ -150,8 +136,8 @@ where
         &self.info
     }
 
-    fn get_bypass_id(&self) -> Option<&'static str> {
-        None
+    fn get_kind(&self) -> edit_controller::Kind {
+        edit_controller::Kind::Synth()
     }
 }
 
@@ -193,11 +179,13 @@ impl<CF: ComponentFactory<Component: Component<Processor: Effect> + 'static> + '
     }
 
     fn create_parameter_model(&self) -> ParameterModel {
-        create_parameter_model_internal(self.factory.clone(), ExtraParameters::None)
+        create_parameter_model_internal(self.factory.clone())
     }
 
-    fn get_bypass_id(&self) -> Option<&'static str> {
-        Some(self.bypass_id)
+    fn get_kind(&self) -> edit_controller::Kind {
+        edit_controller::Kind::Effect {
+            bypass_id: self.bypass_id,
+        }
     }
 }
 
@@ -230,6 +218,7 @@ mod edit_controller;
 mod factory;
 mod host_info;
 mod io;
+mod mpe_quirks;
 mod parameters;
 mod processor;
 mod view;
@@ -278,6 +267,13 @@ fn from_utf16_buffer(buffer: &[i16]) -> Option<String> {
     }
     let utf16_slice = unsafe { slice::from_raw_parts(buffer.as_ptr().cast(), len) };
     String::from_utf16(utf16_slice).ok()
+}
+
+fn should_include_parameter_in_snapshot(id: &str) -> bool {
+    !id.starts_with(UNIQUE_ID_INTERNAL_PREFIX)
+        && !conformal_component::synth::CONTROLLER_PARAMETERS
+            .iter()
+            .any(|p| id == p.unique_id)
 }
 
 /// Create a VST3-compatible plug-in entry point.

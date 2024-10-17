@@ -58,7 +58,11 @@ struct SnapshotMessage {
 /// This represents the "main" side of the store (see `create_stores`).
 pub struct MainStore {
     /// This lets us convert from hashes back to the original IDs
-    unhash: HashMap<cp::IdHash, String>,
+    ///
+    /// Note that this only includes parameters exposed by the component,
+    /// that is, controller parameters or parameters added to work around host quirks
+    /// are not included.
+    unhash_for_snapshot: HashMap<cp::IdHash, String>,
 
     data: Arc<HashMap<cp::IdHash, AtomicValue>>,
     cached_write_snapshot: Option<Arc<cc::Snapshot>>,
@@ -192,7 +196,11 @@ pub fn create_stores<
             .collect(),
     );
 
-    let unhash = make_unhash(iter.clone());
+    let unhash_for_snapshot = make_unhash(
+        iter.clone()
+            .into_iter()
+            .filter(|info| crate::should_include_parameter_in_snapshot(info.unique_id)),
+    );
     let metadata = Arc::new(Metadata::new(iter));
     let scratch = Scratch::new(&metadata);
     let (garbage_tx, garbage_rx) = mpsc::sync_channel(CHANNEL_BOUNDS);
@@ -200,7 +208,7 @@ pub fn create_stores<
     let read_generation = Arc::new(AtomicU64::new(0));
     (
         MainStore {
-            unhash,
+            unhash_for_snapshot,
 
             data: data.clone(),
             cached_write_snapshot: None,
@@ -378,13 +386,12 @@ impl MainStore {
             values: self
                 .data
                 .iter()
-                // During construction we ensure that `values` and `unhash` have the same keys,
-                // so this unwrap is safe.
-                .map(|(id, value)| {
-                    (
-                        self.unhash.get(id).unwrap().clone(),
+                .filter_map(|(id, value)| {
+                    let unhashed = self.unhash_for_snapshot.get(id)?;
+                    Some((
+                        unhashed.clone(),
                         from_internal(*id, atomic_get(value), &self.metadata),
-                    )
+                    ))
                 })
                 .collect(),
         }
@@ -398,11 +405,10 @@ impl MainStore {
                 .metadata
                 .data
                 .iter()
-                .map(|(id, metadatum)| {
-                    (
-                        // During construction we ensure that `metadata` and `unhash` have
-                        // the same keys,so this unwrap is safe.
-                        self.unhash.get(id).unwrap().clone(),
+                .filter_map(|(id, metadatum)| {
+                    let unhashed = self.unhash_for_snapshot.get(id)?;
+                    Some((
+                        unhashed.clone(),
                         match metadatum {
                             Metadatum::Numeric { datum } => cp::Value::Numeric(datum.default),
                             Metadatum::Enum { datum } => {
@@ -410,7 +416,7 @@ impl MainStore {
                             }
                             Metadatum::Switch { datum } => cp::Value::Switch(datum.default),
                         },
-                    )
+                    ))
                 })
                 .collect(),
         }
@@ -431,37 +437,39 @@ impl MainStore {
     ) -> Result<(), SnapshotError> {
         self.drop_garbage();
 
-        let decoded = Arc::new(match snapshot
-            .clone()
-            .into_snapshot(self.metadata.data.iter().map(|(id, metadatum)| {
-                (
-                    // During construction we ensure that `metadata` and `unhash` have the same keys,
-                    // so this unwrap is safe.
-                    self.unhash.get(id).unwrap().as_str(),
-                    match metadatum {
-                        Metadatum::Numeric { datum } => cc::serialization::ReadInfoRef::Numeric {
-                            default: datum.default,
-                            valid_range: datum.valid_range.clone(),
+        let decoded =
+            Arc::new(match snapshot
+                .clone()
+                .into_snapshot(self.metadata.data.iter().filter_map(|(id, metadatum)| {
+                    let unhashed = self.unhash_for_snapshot.get(id)?;
+                    Some((
+                        unhashed.as_str(),
+                        match metadatum {
+                            Metadatum::Numeric { datum } => {
+                                cc::serialization::ReadInfoRef::Numeric {
+                                    default: datum.default,
+                                    valid_range: datum.valid_range.clone(),
+                                }
+                            }
+                            Metadatum::Enum { datum } => cc::serialization::ReadInfoRef::Enum {
+                                default: datum.default,
+                                values: datum.values.iter().map(String::as_str),
+                            },
+                            Metadatum::Switch { datum } => cc::serialization::ReadInfoRef::Switch {
+                                default: datum.default,
+                            },
                         },
-                        Metadatum::Enum { datum } => cc::serialization::ReadInfoRef::Enum {
-                            default: datum.default,
-                            values: datum.values.iter().map(String::as_str),
-                        },
-                        Metadatum::Switch { datum } => cc::serialization::ReadInfoRef::Switch {
-                            default: datum.default,
-                        },
-                    },
-                )
-            })) {
-            Ok(decoded) => Ok(decoded),
-            Err(cc::serialization::DeserializationError::Corrupted(_)) => {
-                Err(SnapshotError::SnapshotCorrupted)
-            }
-            Err(cc::serialization::DeserializationError::VersionTooNew()) => {
-                // If the version was too new, we just use the default state
-                Ok(self.get_default_snapshot())
-            }
-        }?);
+                    ))
+                })) {
+                Ok(decoded) => Ok(decoded),
+                Err(cc::serialization::DeserializationError::Corrupted(_)) => {
+                    Err(SnapshotError::SnapshotCorrupted)
+                }
+                Err(cc::serialization::DeserializationError::VersionTooNew()) => {
+                    // If the version was too new, we just use the default state
+                    Ok(self.get_default_snapshot())
+                }
+            }?);
         self.cached_write_snapshot = Some(decoded.clone());
         self.write_generation = self.write_generation.wrapping_add(1);
         self.snapshot_tx
@@ -619,6 +627,7 @@ pub enum ChangesStatus {
 
 // This is a marker type that indicates the scratch data
 // has been initialized.
+#[derive(Clone)]
 struct InitializedScratch<'a> {
     metadata: &'a Metadata,
     data: &'a HashMap<cp::IdHash, Option<ValueOrQueue>>,
@@ -821,6 +830,7 @@ impl<'a> BufferStates for InitializedScratch<'a> {
     }
 }
 
+#[derive(Clone)]
 pub struct ExistingBufferStates<'a> {
     store: &'a ProcessingStoreCore,
 }
@@ -984,7 +994,7 @@ pub unsafe fn param_changes_from_vst3<'a>(
     com_changes: ComRef<'a, IParameterChanges>,
     store: &'a mut ProcessingStore,
     buffer_size: usize,
-) -> Option<impl BufferStates + 'a> {
+) -> Option<impl BufferStates + Clone + 'a> {
     let (_, states) = check_changes_and_update_scratch_and_store(
         com_changes,
         &mut store.scratch,
@@ -997,7 +1007,7 @@ pub unsafe fn param_changes_from_vst3<'a>(
 pub unsafe fn no_audio_param_changes_from_vst3<'a>(
     com_changes: ComRef<'a, IParameterChanges>,
     store: &'a mut ProcessingStore,
-) -> Option<(ChangesStatus, impl cp::States + 'a)> {
+) -> Option<(ChangesStatus, impl cp::States + Clone + 'a)> {
     let (status, scratch) = check_changes_and_update_scratch_and_store(
         com_changes,
         &mut store.scratch,
