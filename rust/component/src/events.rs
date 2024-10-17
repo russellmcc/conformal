@@ -205,7 +205,7 @@ impl<I: Iterator<Item = Event> + Clone> Events<I> {
     ///
     /// Note that if any of the invariants are missed, this will return `None`.
     pub fn new(events: I, buffer_size: usize) -> Option<Self> {
-        if check_events_invariants(events.clone().into_iter(), buffer_size) {
+        if check_events_invariants(events.clone(), buffer_size) {
             Some(Self { events })
         } else {
             None
