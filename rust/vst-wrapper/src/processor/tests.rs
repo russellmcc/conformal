@@ -147,7 +147,7 @@ impl<'a> Synth for FakeSynth<'a> {
         }
     }
 
-    fn process<E: IntoIterator<Item = Event>, P: BufferStates, O: BufferMut>(
+    fn process<E: Iterator<Item = Event>, P: BufferStates, O: BufferMut>(
         &mut self,
         events: Events<E>,
         parameters: P,
