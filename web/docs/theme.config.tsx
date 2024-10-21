@@ -1,5 +1,5 @@
 import { DocsThemeConfig, useConfig } from "nextra-theme-docs";
-
+import Head from "./src/head";
 const themeConfig: DocsThemeConfig = {
   project: {
     link: "https://github.com/russellmcc/conformal",
@@ -15,6 +15,7 @@ const themeConfig: DocsThemeConfig = {
       return `https://github.com/russellmcc/conformal/discussions/new?category=q-a&title=Feedback regarding ${title}`;
     },
   },
+  head: Head,
   footer: {
     component: <></>,
   },
