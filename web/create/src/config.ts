@@ -7,7 +7,6 @@ import {
   postBuild as plugPostBuild,
 } from "@conformal/create-plug";
 import { $ } from "bun";
-import { readdir } from "node:fs/promises";
 import path from "node:path";
 
 export type Config = {

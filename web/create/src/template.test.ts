@@ -11,7 +11,7 @@ const TEST_CONFIG: Config = {
   plug_slug: "test_plug",
   plug_name: "Test Plug",
   vendor_name: "Test Project",
-  plug_type: "Effect",
+  plug_type: "synth",
 };
 
 const MINUTE = 60_000;

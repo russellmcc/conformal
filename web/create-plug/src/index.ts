@@ -13,9 +13,11 @@ const workspaceCargoTomlSchema = z.object({
     .passthrough(),
 });
 
-// TODO - support synths
-export const toTemplate = (_config: Config) =>
-  path.join(path.dirname(import.meta.path), "..", "template-effect");
+export const toTemplate = (config: Config) => {
+  const template =
+    config.plug_type === "synth" ? "template-synth" : "template-effect";
+  return path.join(path.dirname(import.meta.path), "..", template);
+};
 
 export const postBuild = async (projectPath: string, config: Config) => {
   // Add the new crates to the workspace Cargo.toml

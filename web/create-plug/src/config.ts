@@ -41,8 +41,8 @@ export const toEnv = (
 export const metadatas: Record<keyof Config, ConfigMetadata> = {
   plug_type: {
     prompt: "Plug-in type",
-    description: "The type of plug-in to create ('Effect' or 'Synth')",
-    default: "Effect",
+    description: "The type of plug-in to create ('effect' or 'synth')",
+    default: "effect",
   },
   plug_slug: {
     prompt: "Plug-in slug (lower snake_case, e.g. `my_plugin`)",

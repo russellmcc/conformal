@@ -1,0 +1,13 @@
+[package]
+name = "{{plug_slug}}_vst"
+edition = "2021"
+rust-version = "1.79.0"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+conformal_vst_wrapper = {{{vst_crate_version}}}
+vst3 = "0.1.2"
+{{plug_slug}}_component = { path = "../component" }
