@@ -20,7 +20,7 @@
   },
   "type": "module",
   "dependencies": {
-    "@conformal/stamp": "0.0.0",
+    "@conformal/stamp": "workspace:*",
     "smol-toml": "^1.3.0",
     "zod": "^3.23.8"
   }

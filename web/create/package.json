@@ -14,7 +14,7 @@
   "bin": "./src/index.ts",
   "type": "module",
   "dependencies": {
-    "@conformal/stamp": "0.0.0",
-    "@conformal/create-plug": "0.0.0"
+    "@conformal/stamp": "workspace:*",
+    "@conformal/create-plug": "workspace:*"
   }
 }
