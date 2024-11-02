@@ -1,4 +1,3 @@
-import { ConfigMetadata } from "@conformal/stamp";
 export type PlugType = "Effect" | "Synth";
 import uuidHex from "./uuid";
 import path from "node:path";
@@ -17,28 +16,18 @@ const version: string =
   // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
   (await Bun.file(path.join(__dirname, "..", "package.json")).json()).version;
 
-export const toEnv = (
-  config: Config,
-  {
-    skipTodo,
-    component_crate_version,
-    vst_crate_version,
-  }: {
-    skipTodo?: boolean;
-    component_crate_version?: string;
-    vst_crate_version?: string;
-  },
-): Record<string, string> => ({
-  ...config,
-  class_id: uuidHex(),
-  edit_class_id: uuidHex(),
-  gitignore: ".gitignore",
-  component_crate_version: component_crate_version ?? version,
-  vst_crate_version: vst_crate_version ?? version,
-  task_marker: (skipTodo ?? false) ? "DONE" : "TOD" + "O",
-});
+export const toEnv = (config: Config): Promise<Record<string, string>> =>
+  Promise.resolve({
+    ...config,
+    class_id: uuidHex(),
+    edit_class_id: uuidHex(),
+    gitignore: ".gitignore",
+    component_crate_version: version,
+    vst_crate_version: version,
+    task_marker: "TOD" + "O",
+  });
 
-export const metadatas: Record<keyof Config, ConfigMetadata> = {
+export const metadatas = {
   plug_type: {
     prompt: "Plug-in type",
     description: "The type of plug-in to create ('effect' or 'synth')",

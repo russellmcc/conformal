@@ -13,10 +13,12 @@ const workspaceCargoTomlSchema = z.object({
     .passthrough(),
 });
 
-export const toTemplate = (config: Config) => {
+export const toTemplate = (config: Config): Promise<string> => {
   const template =
     config.plug_type === "synth" ? "template-synth" : "template-effect";
-  return path.join(path.dirname(import.meta.path), "..", template);
+  return Promise.resolve(
+    path.join(path.dirname(import.meta.path), "..", template),
+  );
 };
 
 export const postBuild = async (projectPath: string, config: Config) => {

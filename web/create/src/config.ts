@@ -23,17 +23,9 @@ export const metadatas: Record<keyof Config, ConfigMetadata> = {
   },
 };
 
-export const postBuild = async (
-  config: Config,
-  envArgs: {
-    skipTodo?: boolean;
-    component_crate_version?: string;
-    vst_crate_version?: string;
-  } = {},
-  root?: string,
-) => {
-  const env = toEnv(config, envArgs);
-  const template = toTemplate(config);
+export const postBuild = async (config: Config, root?: string) => {
+  const env = await toEnv(config);
+  const template = await toTemplate(config);
   const dest =
     root === undefined ? config.proj_slug : path.join(root, config.proj_slug);
 

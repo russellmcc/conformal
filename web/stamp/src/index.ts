@@ -20,6 +20,10 @@ const dirExists = async (dir: string) => {
   }
 };
 
+export type StampOptions = {
+  merge?: boolean;
+};
+
 /**
  * Stamps a template directory into a destination directory.
  *
@@ -34,9 +38,7 @@ export const stampTemplate = async (
   dest: string,
   templateDir: string,
   env: Record<string, string>,
-  options: {
-    merge?: boolean;
-  } = {},
+  options: StampOptions = {},
 ) => {
   if (!options.merge && (await dirExists(dest))) {
     throw new Error(`Directory already exists: ${dest}`);
@@ -86,20 +88,23 @@ const promptRemainder = async <K extends string>(
   return ret as { [k in K]: string };
 };
 
-export const stampCommand = <K extends string>({
+export const buildStampCommand = <K extends string>({
+  command,
   metadatas,
   toEnv,
   toDest,
   toTemplate,
   postBuild,
+  options,
 }: {
+  command: Command;
   metadatas: Record<K, ConfigMetadata>;
-  toEnv: (config: { [k in K]: string }) => Record<string, string>;
-  toDest: (config: { [k in K]: string }) => string;
-  toTemplate: (config: { [k in K]: string }) => string;
+  toEnv: (config: { [k in K]: string }) => Promise<Record<string, string>>;
+  toDest: (config: { [k in K]: string }) => Promise<string>;
+  toTemplate: (config: { [k in K]: string }) => Promise<string>;
   postBuild?: (config: { [k in K]: string }) => Promise<void>;
+  options?: StampOptions;
 }): Command => {
-  const command = new Command();
   const positionals: K[] = [];
   for (const key in metadatas) {
     const metadata = metadatas[key];
@@ -126,10 +131,10 @@ export const stampCommand = <K extends string>({
       }
     }
     const config = await promptRemainder(configPartial, metadatas);
-    const env = toEnv(config);
-    const dest = toDest(config);
-    const template = toTemplate(config);
-    await stampTemplate(dest, template, env);
+    const env = await toEnv(config);
+    const dest = await toDest(config);
+    const template = await toTemplate(config);
+    await stampTemplate(dest, template, env, options);
     if (postBuild) {
       await postBuild(config);
     }
