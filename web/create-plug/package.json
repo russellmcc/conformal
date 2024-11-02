@@ -1,7 +1,7 @@
 {
-  "name": "create-conformal",
+  "name": "@conformal/create-plug",
   "version": "0.0.0",
-  "description": "Project generator script for conformal projects",
+  "description": "Utility functions for adding a plugin to a conformal project",
   "homepage": "https://russellmcc.github.io/conformal",
   "bugs": "https://github.com/russellmcc/conformal/issues",
   "repository": "github:russellmcc/conformal",
@@ -11,10 +11,17 @@
     "check-format": "prettier -c .",
     "format": "prettier --write ."
   },
-  "bin": "./src/index.ts",
+  "bin": "./src/cli.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "bun": "./src/index.ts"
+    }
+  },
   "type": "module",
   "dependencies": {
     "@conformal/stamp": "0.0.0",
-    "@conformal/create-plug": "0.0.0"
+    "smol-toml": "^1.3.0",
+    "zod": "^3.23.8"
   }
 }

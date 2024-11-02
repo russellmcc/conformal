@@ -2,14 +2,16 @@ import { describe, test, expect } from "bun:test";
 import { withDir } from "tmp-promise";
 import path from "node:path";
 import { $ } from "bun";
-import { Config, toEnv } from "./config";
-import { stampTemplate } from "./stamp";
+import { Config, postBuild } from "./config";
+import { stampTemplate } from "@conformal/stamp";
+import { toEnv } from "@conformal/create-plug";
 
 const TEST_CONFIG: Config = {
   proj_slug: "test",
   plug_slug: "test_plug",
   plug_name: "Test Plug",
   vendor_name: "Test Project",
+  plug_type: "Effect",
 };
 
 const MINUTE = 60_000;
@@ -45,16 +47,17 @@ describe("create-conformal template", () => {
 
           // stamp the template
           const dest = path.join(tmpDir, TEST_CONFIG.proj_slug);
+          const envArgs = {
+            skipTodo: true,
+            component_crate_version: `{ path = "${path.join(workspacePath, "rust", "component")}" }`,
+            vst_crate_version: `{ path = "${path.join(workspacePath, "rust", "vst-wrapper")}" }`,
+          };
           await stampTemplate(
             dest,
             path.join(workspacePath, "web", "create", "template"),
-            toEnv(TEST_CONFIG, {
-              skipTodo: true,
-              component_crate_version: `{ path = "${path.join(workspacePath, "rust", "component")}" }`,
-              vst_crate_version: `{ path = "${path.join(workspacePath, "rust", "vst-wrapper")}" }`,
-            }),
+            toEnv(TEST_CONFIG, envArgs),
           );
-          await $`git init`.cwd(dest);
+          await postBuild(TEST_CONFIG, envArgs, tmpDir);
 
           // Note we use perl as a sed replacement because of https://github.com/oven-sh/bun/issues/13197,
           // which makes sed unusable on macOS.
