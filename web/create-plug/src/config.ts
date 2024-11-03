@@ -28,7 +28,7 @@ export const toEnv = (config: Config): Promise<Record<string, string>> =>
 
 export const metadatas = {
   plug_type: {
-    prompt: "Plug-in type",
+    prompt: "Plug-in type (`effect` or `synth`)",
     description: "The type of plug-in to create ('effect' or 'synth')",
     default: "effect",
   },

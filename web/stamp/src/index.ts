@@ -115,8 +115,10 @@ export const buildStampCommand = <K extends string>({
       command.option(`--${key} <${key}>`, metadata.description);
     }
   }
-  command.action(async (optsRaw, command) => {
-    const opts = optsRaw as Partial<Record<K, string | undefined>>;
+  command.action(async (...argsRaw) => {
+    const opts = argsRaw[argsRaw.length - 2] as Partial<
+      Record<K, string | undefined>
+    >;
     const configPartial: Partial<{ [k in K]: string }> = {};
     for (const key in opts) {
       const opt = opts[key];
@@ -124,12 +126,14 @@ export const buildStampCommand = <K extends string>({
         configPartial[key] = opt;
       }
     }
-    for (const [argIndex, arg] of command.args.entries()) {
+    const args = argsRaw.slice(0, -2) as string[];
+    args.forEach((arg, argIndex) => {
       const key = positionals[argIndex];
       if (key !== undefined) {
         configPartial[key] = arg;
       }
-    }
+    });
+    console.warn(configPartial);
     const config = await promptRemainder(configPartial, metadatas);
     const env = await toEnv(config);
     const dest = await toDest(config);
