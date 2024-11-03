@@ -2,6 +2,9 @@
     nonstandard_style,
     rust_2018_idioms,
     future_incompatible,
+    missing_docs,
+    rustdoc::private_doc_tests,
+    rustdoc::unescaped_backticks,
     clippy::pedantic,
     clippy::todo
 )]
@@ -11,6 +14,8 @@
     clippy::cast_possible_wrap,
     clippy::default_trait_access
 )]
+#![doc = include_str!("../docs_boilerplate.md")]
+#![doc = include_str!("../README.md")]
 
 use self::state::State;
 use conformal_component::{
@@ -31,36 +36,67 @@ fn mul_constant_in_place(x: f32, y: &mut [f32]) {
     }
 }
 
+/// The data associated with an event.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EventData {
-    NoteOn { data: NoteData },
-    NoteOff { data: NoteData },
+    /// This event is sent when a note is started.
+    NoteOn {
+        /// The data associated with the note.
+        data: NoteData,
+    },
+    /// This event is sent when a note is stopped.
+    NoteOff {
+        /// The data associated with the note.
+        data: NoteData,
+    },
 }
 
+/// An event sent to a voice at a particular time.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Event {
+    /// The offset relative to the start of the buffer in samples when the event occurred.
     pub sample_offset: usize,
+    /// The data associated with the event.
     pub data: EventData,
 }
 
+/// The current state of all note expression controllers for a voice.
+///
+/// See the documentation for [`conformal_component::events::NoteExpression`] for
+/// more information.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct NoteExpressionState {
+    /// The current value of the pitch bend for this voice in semitones away from the root note.
     pub pitch_bend: f32,
+
+    /// The current value of the "timbre" controller for this voice.
+    ///
+    /// On many controllers, this represents the vertical or "y" position.
+    /// This is referred to as "slide" in Ableton Live.
+    ///
+    /// This value varies from 0 to 1, with 0 being neutral.
     pub timbre: f32,
+
+    /// The current value of the aftertouch controller for this voice.
+    ///
+    /// This value varies from 0 to 1, with 0 being neutral.
     pub aftertouch: f32,
 }
 
+/// A single point in a note expression curve.
 #[derive(Debug, Clone, PartialEq)]
 pub struct NoteExpressionPoint {
-    /// The time, relative to the start of the buffer.
-    pub time: usize,
+    /// The time, expressed as samples relative to the start of the buffer.
+    pub sample_offset: usize,
 
-    // The current value of the expressions.
+    /// The current value of the expression controllers for a voice.
     pub state: NoteExpressionState,
 }
 
-/// A note expression is a series of points. Note that the following invariants
-/// hold:
+/// A note expression curve is a series of [`NoteExpressionPoint`]s over a buffer.
+///
+/// Note that the following invariants will hold:
+///
 ///   - The number of points is at least 1
 ///   - The points are sorted by time
 ///   - The time of the first point is 0
@@ -83,14 +119,14 @@ impl<I: Iterator<Item = NoteExpressionPoint>> IntoIterator for NoteExpressionCur
 }
 
 impl<I: Iterator<Item = NoteExpressionPoint> + Clone> NoteExpressionCurve<I> {
-    /// Create an iterator that yields the note expression state for each sample
+    /// Creates an iterator that yields the note expression state for each sample
     #[allow(clippy::missing_panics_doc)]
     pub fn iter_by_sample(self) -> impl Iterator<Item = NoteExpressionState> + Clone {
         let mut iter = self.points.peekable();
         let mut last_state = None;
         (0..).map(move |sample_index| {
             while let Some(point) = iter.peek() {
-                if point.time > sample_index {
+                if point.sample_offset > sample_index {
                     break;
                 }
                 last_state = Some(point.state);
@@ -108,13 +144,17 @@ impl<I: Iterator<Item = NoteExpressionPoint> + Clone> NoteExpressionCurve<I> {
 pub fn default_note_expression_curve(
 ) -> NoteExpressionCurve<impl Iterator<Item = NoteExpressionPoint> + Clone> {
     NoteExpressionCurve::new(std::iter::once(NoteExpressionPoint {
-        time: 0,
+        sample_offset: 0,
         state: Default::default(),
     }))
     .unwrap()
 }
 
 impl<I: Iterator<Item = NoteExpressionPoint> + Clone> NoteExpressionCurve<I> {
+    /// Creates a new note expression curve from an iterator of points.
+    ///
+    /// Returns `None` if the curve does not satisfy the invariants described
+    /// in the documentation for [`NoteExpressionCurve`].
     pub fn new(points: I) -> Option<Self> {
         let points_iter = points.clone().peekable();
         let mut contains_zero = false;
@@ -122,16 +162,16 @@ impl<I: Iterator<Item = NoteExpressionPoint> + Clone> NoteExpressionCurve<I> {
         // Check invariants
         for point in points_iter {
             if !contains_zero {
-                if point.time != 0 {
+                if point.sample_offset != 0 {
                     return None;
                 }
                 contains_zero = true;
             } else if let Some(last_time) = last_time {
-                if point.time < last_time {
+                if point.sample_offset < last_time {
                     return None;
                 }
             }
-            last_time = Some(point.time);
+            last_time = Some(point.sample_offset);
         }
         Some(Self { points })
     }
@@ -141,11 +181,25 @@ impl<I: Iterator<Item = NoteExpressionPoint> + Clone> NoteExpressionCurve<I> {
 // was filled. This will let us skip rendering until a voice is playing
 // and also skip mixing silence.
 
+/// A single voice in a polyphonic synth.
 pub trait Voice {
+    /// Data that is shared across all voices. This could include things like
+    /// low frequency oscillators that are used by multiple voices.
     type SharedData<'a>: Clone;
+
+    /// Creates a new voice.
     fn new(max_samples_per_process_call: usize, sampling_rate: f32) -> Self;
+
+    /// Handles a single event outside of audio processing.
+    ///
+    /// Note that events sent during a [`process`](`Voice::process`) call must be handled there.
     fn handle_event(&mut self, event: &EventData);
-    fn render_audio(
+
+    /// Renders audio for this voice.
+    ///
+    /// Audio for the voice will be written into the `output` buffer, which will
+    /// start out filled with silence.
+    fn process(
         &mut self,
         events: impl IntoIterator<Item = Event>,
         params: &impl parameters::BufferStates,
@@ -153,12 +207,32 @@ pub trait Voice {
         data: Self::SharedData<'_>,
         output: &mut [f32],
     );
+
+    /// Returns whether this voice is currently outputng audio.
+    ///
+    /// When this returns `true`, [`process`](`Voice::process`) will not be called for this
+    /// voice again until a new note is started. This can improve performance by
+    /// allowing voices to skip processing.
     #[must_use]
     fn quiescent(&self) -> bool;
-    fn skip_samples(&mut self, _num_samples: usize) {}
+
+    /// Called in lieu of [`process`](`Voice::process`) when the voice is quiescent.
+    ///
+    /// Voices can use this call to update internal state such as oscillator
+    /// phase, to simulate the effect we'd get if we had processed `num_samples`
+    /// of audio.
+    fn skip_samples(&mut self, num_samples: usize);
+
+    /// Resets the voice to its initial state.
     fn reset(&mut self);
 }
 
+/// A helper struct for implementing polyphonic synths.
+///
+/// This struct handles routing events to voices, updating note expression curves,
+/// and mixing the output of voices.
+///
+/// To use it, you must implement the [`Voice`] trait for your synth.
 pub struct Poly<V> {
     voices: Vec<V>,
     state: State,
@@ -177,6 +251,7 @@ impl<V: std::fmt::Debug> std::fmt::Debug for Poly<V> {
 mod state;
 
 impl<V: Voice> Poly<V> {
+    /// Creates a new [`Poly`] struct.
     #[must_use]
     pub fn new(environment: &ProcessingEnvironment, max_voices: usize) -> Self {
         let voices = std::iter::repeat_with(|| {
@@ -196,6 +271,9 @@ impl<V: Voice> Poly<V> {
         }
     }
 
+    /// Handles a set of events without rendering audio.
+    ///
+    /// This can be used to implement [`conformal_component::synth::Synth::handle_events`].
     pub fn handle_events(&mut self, events: impl IntoIterator<Item = Data> + Clone) {
         for (v, ev) in self
             .state
@@ -214,7 +292,11 @@ impl<V: Voice> Poly<V> {
         }));
     }
 
-    pub fn render_audio(
+    /// Renders the audio for the synth.
+    ///
+    /// This can be used to implement [`conformal_component::synth::Synth::process`].
+    /// For any voices with active notes, [`Voice::process`] will be called.
+    pub fn process(
         &mut self,
         events: impl Iterator<Item = CEvent> + Clone,
         params: &impl parameters::BufferStates,
@@ -237,7 +319,7 @@ impl<V: Voice> Poly<V> {
                 voice.skip_samples(buffer_size);
                 continue;
             }
-            voice.render_audio(
+            voice.process(
                 voice_events(),
                 params,
                 self.state
@@ -266,6 +348,9 @@ impl<V: Voice> Poly<V> {
         self.state.update(events);
     }
 
+    /// Resets the state of the polyphonic synth.
+    ///
+    /// This can be used to implement [`conformal_component::Processor::set_processing`].
     pub fn reset(&mut self) {
         for voice in &mut self.voices {
             voice.reset();

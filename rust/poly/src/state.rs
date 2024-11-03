@@ -201,16 +201,17 @@ impl State {
         events: impl Iterator<Item = events::Event> + Clone,
     ) -> NoteExpressionCurve<impl Iterator<Item = NoteExpressionPoint> + Clone> {
         let raw = std::iter::once(NoteExpressionPoint {
-            time: 0,
+            sample_offset: 0,
             state: self.voices[voice].expression,
         })
         .chain(events.filter_map(move |event| {
             let time = event.sample_offset;
             let dispatched = self.update_state_and_dispatch_for_event(&event);
             if dispatched.voice == voice {
-                dispatched
-                    .expression
-                    .map(|state| NoteExpressionPoint { time, state })
+                dispatched.expression.map(|state| NoteExpressionPoint {
+                    sample_offset: time,
+                    state,
+                })
             } else {
                 None
             }

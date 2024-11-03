@@ -58,7 +58,11 @@ pub struct Synth {
 const PITCH_BEND_WIDTH: f32 = 2.;
 
 impl Processor for Synth {
-    fn set_processing(&mut self, _processing: bool) {}
+    fn set_processing(&mut self, processing: bool) {
+        if !processing {
+            self.poly.reset();
+        }
+    }
 }
 
 impl SynthTrait for Synth {
@@ -77,7 +81,7 @@ impl SynthTrait for Synth {
         output: &mut O,
     ) {
         self.poly
-            .render_audio(events.into_iter(), &parameters, &Default::default(), output);
+            .process(events.into_iter(), &parameters, &Default::default(), output);
     }
 }
 
@@ -106,7 +110,7 @@ impl VoiceTrait for Voice {
         }
     }
 
-    fn render_audio(
+    fn process(
         &mut self,
         events: impl IntoIterator<Item = conformal_poly::Event>,
         params: &impl parameters::BufferStates,
