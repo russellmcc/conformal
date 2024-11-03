@@ -5,7 +5,7 @@ import { unlink, rm } from "node:fs/promises";
 import { $ } from "bun";
 import { Config, postBuild } from "./config";
 import { stampTemplate } from "@conformal/stamp";
-import { toEnv } from "@conformal/create-plug";
+import { toEnv } from "@conformal/create-plugin";
 
 const TEST_CONFIG: Config = {
   proj_slug: "test",
@@ -45,7 +45,7 @@ describe("create-conformal template", () => {
             "scripts",
             "plugin",
             "stamp",
-            "create-plug",
+            "create-plugin",
           ];
           for (const dep of localDependencies) {
             await $`npm pack --pack-destination=${tmpDir}`.cwd(
@@ -102,7 +102,7 @@ describe("create-conformal template", () => {
           await $`bun install`.cwd(dest);
 
           // Add a synth target
-          await $`bun x conformal-scripts create-plug --plug_type synth --plug_slug test_synth --vendor_name "Test Vendor" --plug_name "Test Synth"`.cwd(
+          await $`bun x conformal-scripts create-plugin --plug_type synth --plug_slug test_synth --vendor_name "Test Vendor" --plug_name "Test Synth"`.cwd(
             dest,
           );
 

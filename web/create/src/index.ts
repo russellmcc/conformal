@@ -2,7 +2,7 @@
 
 import { Command } from "@commander-js/extra-typings";
 import { Config, metadatas, postBuild } from "./config";
-import { toEnv } from "@conformal/create-plug";
+import { toEnv } from "@conformal/create-plugin";
 import { buildStampCommand } from "@conformal/stamp";
 import path from "node:path";
 

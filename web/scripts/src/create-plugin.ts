@@ -4,14 +4,14 @@ import {
   postBuild,
   toEnv,
   toTemplate,
-} from "@conformal/create-plug";
+} from "@conformal/create-plugin";
 import { buildStampCommand } from "@conformal/stamp";
 import { findWorkspaceRoot } from "./workspaceRoot";
 import { Command } from "@commander-js/extra-typings";
 
 export const addCreatePlugCommand = (command: Command) => {
   buildStampCommand<keyof Config>({
-    command: command.command("create-plug"),
+    command: command.command("create-plugin"),
     metadatas,
     toEnv: toEnv,
     toDest: () => findWorkspaceRoot(process.cwd()),

@@ -5,7 +5,7 @@ import {
   toEnv,
   toTemplate,
   postBuild as plugPostBuild,
-} from "@conformal/create-plug";
+} from "@conformal/create-plugin";
 import { $ } from "bun";
 import path from "node:path";
 

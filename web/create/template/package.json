@@ -10,6 +10,7 @@
     "check-lfs": "conformal-scripts check-lfs",
     "check-todo": "conformal-scripts check-todo",
     "check-format": "conformal-scripts check-format",
+    "create-plugin": "conformal-scripts create-plugin",
     "format": "conformal-scripts format",
     "web-dev": "conformal-scripts web-script -s dev",
     "web-build": "conformal-scripts web-script -s build",

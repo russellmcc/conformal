@@ -229,10 +229,11 @@ pub trait Voice {
 
 /// A helper struct for implementing polyphonic synths.
 ///
-/// This struct handles routing events to voices, updating note expression curves,
+/// This struct handles common tasks such as routing events to voices, updating note expression curves,
 /// and mixing the output of voices.
 ///
-/// To use it, you must implement the [`Voice`] trait for your synth.
+/// To use it, you must implement the [`Voice`] trait for your synth. Then, use the methods
+/// on this struct to implement the required [`conformal_component::synth::Synth`] trait methods.
 pub struct Poly<V> {
     voices: Vec<V>,
     state: State,

@@ -15,7 +15,7 @@
   "type": "module",
   "dependencies": {
     "@conformal/stamp": "workspace:*",
-    "@conformal/create-plug": "workspace:*",
+    "@conformal/create-plugin": "workspace:*",
     "@commander-js/extra-typings": "^12.1.0",
     "commander": "^12.1.0"
   }
