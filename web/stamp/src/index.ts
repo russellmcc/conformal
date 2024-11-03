@@ -133,7 +133,6 @@ export const buildStampCommand = <K extends string>({
         configPartial[key] = arg;
       }
     });
-    console.warn(configPartial);
     const config = await promptRemainder(configPartial, metadatas);
     const env = await toEnv(config);
     const dest = await toDest(config);

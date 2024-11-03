@@ -56,7 +56,6 @@ describe("create-conformal template", () => {
 
             // Extract the tarball to a sub-directory of tmpDir
             const extractDir = path.join(tmpDir, `package`);
-            console.warn(extractDir);
             await $`tar -xzf ${tgzPath}`.cwd(tmpDir);
             // Fix up all dependencies
             await rewireDeps(extractDir);
@@ -114,10 +113,10 @@ describe("create-conformal template", () => {
 
           // In CI, we will have a 0.0.0 version for the conformal crates.
           // Replace these with a link to the local crate
-          const createDependencies = ["component", "vst-wrapper", "poly"];
+          const createDependencies = ["component", "vst_wrapper", "poly"];
           for (const dep of createDependencies) {
-            const crateVersion = `{ path = "${path.join(workspacePath, "rust", dep)}" }`;
-            await $`find rust -type f -exec perl -pi -e 's!conformal_${dep} = 0.0.0!conformal_${dep} = ${crateVersion}!' {} +`.cwd(
+            const crateVersion = `{ path = "${path.join(workspacePath, "rust", dep.replace("_", "-"))}" }`;
+            await $`find rust -type f -exec perl -pi -e 's!conformal_${dep} = "0.0.0"!conformal_${dep} = ${crateVersion}!' {} +`.cwd(
               dest,
             );
           }
