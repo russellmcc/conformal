@@ -112,16 +112,16 @@ describe("create-conformal template", () => {
             dest,
           );
 
-          // In CI, we will have a 0.0.0 version for the `conformal_component` crate.
-          // Replace it with a link to the local crate
-          const componentCrateVersion = `{ path = "${path.join(workspacePath, "rust", "component")}" }`;
-          await $`find rust -type f -exec perl -pi -e 's!conformal_component = 0.0.0!conformal_component = ${componentCrateVersion}!' {} +`.cwd(
-            dest,
-          );
-          const vstCrateVersion = `{ path = "${path.join(workspacePath, "rust", "vst-wrapper")}" }`;
-          await $`find rust -type f -exec perl -pi -e 's!conformal_vst_wrapper = 0.0.0!conformal_vst_wrapper = ${vstCrateVersion}!' {} +`.cwd(
-            dest,
-          );
+          // In CI, we will have a 0.0.0 version for the conformal crates.
+          // Replace these with a link to the local crate
+          const createDependencies = ["component", "vst-wrapper", "poly"];
+          for (const dep of createDependencies) {
+            const crateVersion = `{ path = "${path.join(workspacePath, "rust", dep)}" }`;
+            await $`find rust -type f -exec perl -pi -e 's!conformal_${dep} = 0.0.0!conformal_${dep} = ${crateVersion}!' {} +`.cwd(
+              dest,
+            );
+          }
+
           // Make sure CI would pass.
           await $`bun run ci`.cwd(dest);
         },

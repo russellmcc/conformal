@@ -5,4 +5,4 @@ rust-version = "1.79.0"
 publish = false
 
 [dependencies]
-conformal_component = {{{component_crate_version}}}
+conformal_component = {{{crate_version}}}

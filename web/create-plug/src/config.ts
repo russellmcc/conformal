@@ -22,8 +22,7 @@ export const toEnv = (config: Config): Promise<Record<string, string>> =>
     class_id: uuidHex(),
     edit_class_id: uuidHex(),
     gitignore: ".gitignore",
-    component_crate_version: version,
-    vst_crate_version: version,
+    crate_version: `"${version}"`,
     task_marker: "TOD" + "O",
   });
 
