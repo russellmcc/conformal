@@ -221,7 +221,7 @@ pub trait Voice {
     /// Voices can use this call to update internal state such as oscillator
     /// phase, to simulate the effect we'd get if we had processed `num_samples`
     /// of audio.
-    fn skip_samples(&mut self, num_samples: usize);
+    fn skip_samples(&mut self, _num_samples: usize) {}
 
     /// Resets the voice to its initial state.
     fn reset(&mut self);

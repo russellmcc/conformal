@@ -27,7 +27,7 @@ Next up, we need to install [bun](https://bun.sh), which is the toolkit we use t
 To install `bun`, we can use `brew`:
 
 ```sh copy
-brew install bun
+brew install oven-sh/bun/bun
 ```
 
 Next, we'll install VST3 SDK. This can live anywhere that's convenient for you - if you're not sure where to put it, why not in `~/SDKs`?
@@ -169,7 +169,7 @@ impl Lfo {
 }
 ```
 
-To add this to the project, we'll need to add the following line somewhere in `lib.rs`
+To add this to the project, we'll need to add the following line somewhere in `lib.rs`. Note that it doesn't matter where in the file you put it, but many people put it right after the `use` statements.
 
 ```rust filename="tremolo/component/src/lib.rs" copy
 mod lfo;
@@ -185,6 +185,8 @@ Well, we _think_ have the LFO, but how do we know it actually works? We can add 
   If you're in a rush, you can skip this section to get on with building the
   rest of the plug-in.
 </Callout>
+
+Place this code at the bottom of the `lfo.rs` file:
 
 ```rust filename="tremolo/component/src/lfo.rs" copy
 #[cfg(test)]
@@ -243,8 +245,8 @@ Note that we put dependencies like that are only used for testing, in the `[dev-
 
 <Callout emoji="✏️">
   Exercise: Replace the `assert_eq!` macro with the `assert_approx_eq!` macro
-  and get the tests to pass. **Hint**: You'll need to import the macro at the
-  top of the `tests` module with `use assert_approx_eq::assert_approx_eq;`.
+  and get the tests to pass. **Hint**: You'll need to import the macro in the tests module
+  by adding `use assert_approx_eq::assert_approx_eq;` right after `mod tests {`.
 </Callout>
 
 ### Using the LFO
@@ -316,8 +318,8 @@ At this point, you can use `bun run package` again to test out the tremolo effec
 
 One flaw with the effect as it stands now is that we're using a fixed increment for the LFO, which means that the LFO will complete a cycle every 10,000 samples. However, what we hear is how often the LFO completes a cycle in _seconds_. The conversion rate between samples and seconds is controlled by the DAW, and in most DAWs the user can set it to whatever they want! So, as a plug-in, we need to work with whatever sampling rate we are provided with. We can accomplish this by adding a `sampling_rate` field to the `Effect` struct, and updating the LFO increment based on the sampling rate.
 
-```rust {3,38,53-58} filename="tremolo/component/src/lib.rs" copy
-#[derive(Clone, Debug)]
+```rust {3,15,38,53-58} filename="tremolo/component/src/lib.rs" copy
+#[derive(Clone, Debug, Default)]
 pub struct Effect {
     sampling_rate: f32,
     lfo: lfo::Lfo,
@@ -403,7 +405,7 @@ const PARAMETERS: [InfoRef<'static, &'static str>; 2] = [
         type_specific: TypeSpecificInfoRef::Numeric {
             default: 5.,
             valid_range: 0.01f32..=10.,
-            units: "Hz",
+            units: Some("Hz"),
         },
     },
 ];
