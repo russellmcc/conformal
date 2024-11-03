@@ -9,6 +9,7 @@ import { addValidateCommand } from "./validate";
 import { addCargoCommand } from "./cargo";
 import { addCICommand } from "./ci";
 import { addWebScriptCommand } from "./webScript";
+import { addCreatePlugCommand } from "./create-plugin";
 
 export const command = () => {
   const command = new Command("conformal-scripts").description(
@@ -25,5 +26,6 @@ export const command = () => {
   addCargoCommand(command);
   addCICommand(command);
   addWebScriptCommand(command);
+  addCreatePlugCommand(command);
   return command;
 };

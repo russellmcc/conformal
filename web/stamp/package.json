@@ -1,0 +1,27 @@
+{
+  "name": "@conformal/stamp",
+  "version": "0.0.0",
+  "description": "Utility functions for project generator scripts",
+  "homepage": "https://russellmcc.github.io/conformal",
+  "bugs": "https://github.com/russellmcc/conformal/issues",
+  "repository": "github:russellmcc/conformal",
+  "license": "ISC",
+  "scripts": {
+    "lint": "tsc && eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "check-format": "prettier -c .",
+    "format": "prettier --write ."
+  },
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "bun": "./src/index.ts"
+    }
+  },
+  "type": "module",
+  "dependencies": {
+    "handlebars": "^4.7.8",
+    "@commander-js/extra-typings": "^12.1.0",
+    "@inquirer/prompts": "^5.3.8",
+    "commander": "^12.1.0"
+  }
+}

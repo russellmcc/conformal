@@ -1,0 +1,50 @@
+import { Steps } from "nextra/components";
+
+# Quick Start
+
+This guide is a concise list of steps to get started building with Conformal. For a more detailed walkthrough on building a plug-in, see the [first plug-in tutorial](/docs/tutorials/first-plug-in).
+
+## Creating your first project
+
+<Steps>
+### Install `bun`
+
+[`bun`](https://bun.sh) is the TypeScript runtime we use for all build tooling in Conformal.
+
+```sh copy
+brew install oven-sh/bun/bun
+```
+
+### Install the VST3 SDK
+
+We require the VST3 SDK to build plug-ins.
+
+```sh copy
+mkdir -p ~/SDKs && git clone https://github.com/steinbergmedia/vst3sdk.git ~/SDKs/vst3sdk --branch v3.7.8_build_34 --recurse-submodules
+```
+
+### Create a new project
+
+```sh copy
+bun create conformal my_project
+```
+
+This will prompt you for a few questions to set up your project.
+
+### Setting up development environment
+
+We have a few steps that are required to set up your development environment. The following commands should be run from the project directory.
+
+```sh copy
+echo "VST3_SDK_DIR=$HOME/SDKs/vst3sdk" > .env
+bun install
+bun run bootstrap
+```
+
+### Building the project
+
+```sh copy
+bun run package
+```
+
+</Steps>

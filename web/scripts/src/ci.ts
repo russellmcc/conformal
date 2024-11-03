@@ -12,7 +12,7 @@ export const execute = async () => {
     "rust-lint",
     "web-test",
     "rust-test",
-    ["validate", "'*'", "--release"],
+    ["validate", "*", "--release"],
     "rust-miri",
   ];
 

@@ -1,0 +1,8 @@
+[package]
+name = "{{plug_slug}}_component"
+edition = "2021"
+rust-version = "1.79.0"
+publish = false
+
+[dependencies]
+conformal_component = {{{crate_version}}}

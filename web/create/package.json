@@ -14,9 +14,9 @@
   "bin": "./src/index.ts",
   "type": "module",
   "dependencies": {
+    "@conformal/stamp": "workspace:*",
+    "@conformal/create-plugin": "workspace:*",
     "@commander-js/extra-typings": "^12.1.0",
-    "@inquirer/prompts": "^5.3.8",
-    "commander": "^12.1.0",
-    "handlebars": "^4.7.8"
+    "commander": "^12.1.0"
   }
 }

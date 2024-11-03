@@ -1,0 +1,3 @@
+This crate provides helpful utilities for writing polyphonic synthesizers in the [Conformal Framework](https://russellmcc.github.io/conformal).
+
+The main entry point for this crate is the [`Poly`] struct, which can be used to implement the [`handle_events`](`conformal_component::synth::Synth::handle_events`), [`process`](`conformal_component::synth::Synth::process`), and [`set_processing`](`conformal_component::Processor::set_processing`) methods on [`Synth`](`conformal_component::synth::Synth`). To use [`Poly`], a component must implement the [`Voice`] trait, which defines how to render a single voice. Common tasks such as routing events and note expression changes to voices, and mixing the output of voices are handled by the [`Poly`] struct.

@@ -5,4 +5,6 @@ rust-version = "1.79.0"
 publish = false
 
 [dependencies]
-conformal_component = {{{component_crate_version}}}
+itertools = "0.13.0"
+conformal_component = {{{crate_version}}}
+conformal_poly = {{{crate_version}}}

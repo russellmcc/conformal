@@ -2,11 +2,12 @@ import { Callout, Steps } from "nextra/components";
 
 # What is Conformal?
 
-Conformal is a framework for building audio plug-ins using **TypeScript** and **Rust**. But what actually _is_ it? Really, Conformal is three things:
+Conformal is a framework for building audio plug-ins using **TypeScript** and **Rust**. But what actually _is_ it? Really, Conformal is four things:
 
 - **Abstractions** defining what needs to be implemented to create an audio plug-in. Plug-in authors will _implement_ these abstractions to create their plug-ins.
 - **Wrappers** that take these abstractions and turn them into various standard plug-in formats.
 - **Tools** that make it easy to build and distribute your wrapped plug-ins.
+- **Helper libraries** that make it easier to implement plug-ins.
 
 For a guided tour of the framework, please see the [build your first plug-in tutorial](/docs/tutorials/first-plug-in).
 
@@ -44,3 +45,7 @@ This defines some additional metadata conformal needs to know about your plug-in
 Once you have a wrapped plug-in crate and a `bundle.json` file that refers to it, you can use the `conformal-scripts package` command to create the plug-in.
 
 The included scripts can also help to create a macOS installer for your plug-in, see the [macOS installers guide](/docs/guides/macos-installers).
+
+## Helper libraries
+
+Conformal includes helper libraries for common tasks in audio plug-in development. For example, the [`conformal_poly`](/rust-doc/conformal_poly) crate includes helper functions for polyphonic synthesizers.
