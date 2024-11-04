@@ -11,4 +11,8 @@ export default {
     title: "Documentation",
     type: "page",
   },
+  app_notes: {
+    title: "App Notes",
+    type: "page",
+  },
 };
