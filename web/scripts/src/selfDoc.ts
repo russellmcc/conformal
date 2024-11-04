@@ -13,7 +13,7 @@ for (const c of program.commands) {
   console.log("");
   console.log(c.description());
   console.log("");
-  console.log(`Usage: \`${program.name()} ${help.commandUsage(c)}\``);
+  console.log(`Usage: \`bun x ${help.commandUsage(c)}\``);
   console.log("");
   for (const option of help.visibleOptions(c)) {
     if (option.name() === "help") continue;

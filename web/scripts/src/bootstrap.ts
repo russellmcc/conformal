@@ -11,7 +11,6 @@ type Tool = {
   install(): Promise<void>;
 };
 
-// Note that we work around some odd ld behavior by using `lld`
 const brew = (name: string): Tool => ({
   name,
   check: async () =>
