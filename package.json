@@ -52,6 +52,7 @@
     "rust-snapshot-update": "UPDATE_SNAPSHOTS=1 bun run rust-test",
     "package": "conformal-scripts web-script -s package",
     "validate": "conformal-scripts web-script -s validate",
-    "release": "conformal-internal-scripts release"
+    "release": "conformal-internal-scripts release",
+    "release-docs": "conformal-internal-scripts release-docs"
   }
 }
