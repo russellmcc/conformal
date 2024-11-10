@@ -1,0 +1,151 @@
+import StickBrigade from "./2/StickBrigade";
+import ControlsStore from "./2/ControlsStore";
+import NumBucketControl from "./2/NumBucketControl";
+import ClockRateControl from "./2/ClockRateControl";
+
+# App Note 2: Modeling LFOs for BBD Chorus
+
+Bucket-brigade device (BBD) chips are a key part of the sounds of analog chorus and delay effects from the 70s and 80s, appearing in classic designs such as the Roland Jazz Chorus and many guitar pedals and synthesizers.
+
+This brief application note will discuss digitally modeling a key component of these designs, the _clock rate LFO_. Other considerations for modeling are well-covered in ["Practical Modeling of Bucket-brigade Device Circuits" by Raffel and Smith](https://www.dafx.de/paper-archive/2010/DAFx10/RaffelSmith_DAFx10_P42.pdf), which is recommended.
+
+## What are bucket-brigade devices?
+
+While we generally consider BBD-based circuits _analog_ circuits, they are actually in an interesting liminal space between digital and analog. They are called "bucket-brigade" devices because they are designed as a series of hundreds to thousands of _buckets_, each one storing an analog voltage. When the chip receives a clock signal, each bucket passes its voltage on to the next bucket, with the first bucket receiving an input signal and the last bucket "dumping" its voltage into an output signal. This creates an interesting situation where each bucket stores a true analog voltage, but _time_ is discretized into distinct slices.
+
+We can visualize this by imagining a series of $N$ buckets, with a "brigade" passing the buckets on each clock signal. Generally, real devices will have hundreds or thousands of buckets, but for simplicity we will use a much smaller number of buckets in these visualizations.
+
+<ControlsStore>
+<StickBrigade>
+  Plotting the input signal against the output signal, we can see that output is
+  simply a delayed version of the input:
+</StickBrigade>
+
+For a BBD with $N$ stages, an input signal that is received will take $N$ clock signals to get to the output. If clock signals are sent at a constant rate of $f_c$ clocks per second, the total delay time will be $t_\text{delay} = \frac{N}{f_c}$. Generally, the number of stages of a device is fixed by the chip, so the only way to vary the delay time while it is running is to change the clock rate $f_c$.
+
+You can use these controls to play around with the visualization to get a feel for how the BBD works.
+
+<NumBucketControl />
+<ClockRateControl />
+
+</ControlsStore>
+
+In many applications, the clock rate is not constant, but rather is modulated by an low-frequency oscillator (LFO). For example, in a classic _vibrato_ effect, we apply a triangle wave LFO to the clock rate, which has the effect of changing the delay time over time, creating a pitch shift. A classic _chorus_ effect is similar, but in a chorus we mix the pitch-shifted signal with the original signal to simulate sound of multiple slightly detuned voices singing or playing together.
+
+## Digital modeling of BBDs with modulated clock rates
+
+Generally, modern digital audio systems operate at a fixed sampling rate, making direct modeling of BBD circuits with modulated clock rates difficult - the circuits effectively operate at a _varying_ sampling rate.
+
+A common approach for digital modeling is to use a fixed length digital delay buffer which is longer than the maximum delay of the BBD circuit, and then modulate the _tap_ position where the output is read from the delay buffer. This works very well for circuits that avoid time-aliasing, which includes most of the vintage designs - designers of the time were very careful to avoid these sort of artifacts, which makes our job much easier!
+
+To use the modulated taps approach, we must find a function $t_\text{delay}(t)$ that represents the instantaneous delay of the BBD circuit at time a given $t$, for a clock rate that varies over time $f_c(t)$. Once we have this $t_\text{delay}$ we can use it to determine where to read from the delay buffer at any given time.
+
+At first, $t_\text{delay} = \frac{N}{f_c(t)}$ might seem like a good choice, and indeed this would work if $f_c(t)$ was constant.
+
+However, some consideration reveals that this is not quite right when $f_c(t)$ is varying. This is because when a bucket is output from the BBD at time $t$, it will contain the signal that was input $N$ clock signals ago, but the clock rate may have varied over that time, and thus the delay time will include contributions from clock rates in the recent past. One way to put this is that we depend on the _average_ clock period over the delay time, not the _instantaneous_ clock rate at the end of the delay.
+
+### Approximation for LFO modulation
+
+There's a few subtleties involved in calculating this average precisely, but we can decently approximate this in cases where where the clock rate is modulated a small amount by a LFO, as in a chorus or vibrato effect. We set $f_c(t) = f_{\text{avg}} + f_{\text{lfo}}(t)$. In this case, we can consider first the _average_ delay time, which is equal to the constant delay when the LFO is turned off: $t_\text{avg} = \frac{N}{f_{\text{avg}}}$. Then, we can average the clock period over the _average_ delay time:
+
+$$
+t_\text{approx}(t) = N \frac{\int_{t - t_\text{avg}}^t \frac{1}{f_c(t)} dt}{t_\text{avg}}
+$$
+
+We can see this has the effect of _smoothing_ the clock rate modulation. Let's plot this:
+
+![Effect of smoothing delay time](/app-notes/2/smoothing.png)
+
+As we can see, rather than a sharp corner, we have a smoothed corner in the plot, which removes harsh discontinuities in the output. To hear this effect, let's listen to a vibrato effect applied to a simple tone with and without this smoothing.
+
+Unsmoothed:
+
+<audio src="/conformal/app-notes/2/unsmoothed.wav" controls />
+
+Smoothed:
+
+<audio src="/conformal/app-notes/2/smoothed.wav" controls />
+
+While the effect is certainly subtle, the reduction of harsh instantaneous pitch shifts contributes to the smooth quality of BBD-based choruses.
+
+### Further approximations for digital implementation
+
+We saw in the previous section that BBD circuits have the effect of smoothing out sharp corners in LFO wave with something like a moving average filter. However, the fact that the corners are smoothed matters much more than the exact kernel of the smoothing. For digital implementations, we can use a cheap recursive smoother to approximate this effect. In the following difference equation `y` represents the smoothed delay time, and `x` will represent the instantaneous delay time and $\alpha$ is a constant between 0 and 1 that controls the amount of smoothing:
+
+$$
+y[n] = \alpha x[n] + (1 - \alpha) y[n-1]
+$$
+
+We can get a pretty good fit by setting $\alpha = 1 - e^{-\frac{2}{t_{\text{avg}}}}$, where $t_{\text{avg}}$ is the average delay time expressed in samples:
+
+![recursive smoothing time](/app-notes/2/smoothing2.png)
+
+## Conclusion and example
+
+This app note has shown that to accurately model modulated BBD circuits with a digital delay buffer, you must make sure to smooth any LFO modulation so that you do not introduce pitch discontinuities. This was discovered when implementing [Chorus-R](https://www.russellmcc.com/bilinear-audio/docs/rchorus/) an open-source emulation a classic BBD chorus effect written in the Conformal framework. The [source code for this effect](https://github.com/russellmcc/bilinear-audio/tree/main/rust/rchorus) demonstrates the techniques described in this app note.
+
+## Appendix 1: Source code for plots
+
+```julia
+Pkg
+Pkg.activate(".")
+Pkg.add("Plots")
+Pkg.add("RollingFunctions")
+using Plots
+using Printf
+using RollingFunctions
+theme(:dracula)
+
+chart_sample_rate = 10000
+r = range(-1, 2, length=(chart_sample_rate * 3))
+N = 1024
+min_clock_rate = 1 / 0.00166 * N
+max_clock_rate = 1 / 0.00535 * N
+avg_clock_rate = (min_clock_rate + max_clock_rate) / 2
+avg_time = N / avg_clock_rate
+avg_time_samples = round(Int, avg_time * chart_sample_rate)
+lfo_rate = 6.0
+lfo = 2 .* (r * lfo_rate .- floor.(r * lfo_rate)) .- 1
+lfo[lfo .< 0] .= -lfo[lfo .< 0]
+clock_rate = min_clock_rate .+ lfo .* (max_clock_rate - min_clock_rate)
+
+inst_time = N ./ clock_rate
+smoothed_time = N .* runmean(1.0 ./ clock_rate, avg_time_samples)
+
+p = plot(xlimits=(-.01,.01), xlabel="Time (s)", ylabel="Delay time (s)")
+plot!(p, r, inst_time, label="Instantaneous delay time")
+plot!(p, r, smoothed_time, label="Smoothed delay time")
+
+savefig(p, "smoothing.png")
+```
+
+```julia
+alpha = 1. - exp(-2. / (avg_time_samples))
+print(alpha)
+smoothed_time_2 = copy(inst_time)
+for i in 2:length(smoothed_time_2)
+    smoothed_time_2[i] = (1 - alpha) * smoothed_time_2[i-1] + (alpha) * smoothed_time_2[i]
+end
+
+p = plot(xlimits=(-.01,.01), xlabel="Time (s)", ylabel="Delay time (s)")
+plot!(p, r, inst_time, label="Instantaneous delay time")
+plot!(p, r, smoothed_time_2, label="Smoothed delay time (recursive)")
+plot!(p, r, smoothed_time, label="Smoothed delay time (moving average)")
+savefig(p, "smoothing2.png")
+```
+
+## Appendix 2: Formal solution
+
+In this section we'll find the formal solution for $t_\text{delay}(t)$, which in practice isn't very helpful since it is so hard to calculate in the general case.
+
+First, we define a function $C(t) = \int_0^t f_c(t) dt$ which gives the total _fractional_ number of clocks that occurred between times $0$ and $t$.
+
+This function is clearly monotonic (since $f_c(t)$ is positive) and continuous, so we can invert it to find a function $t_\text{clock}(c) = C^{-1}$ that gives the time at which $c$ fractional clocks have occurred.
+
+Finally, we can define $t_\text{delay}(t)$:
+
+$$
+t_\text{delay}(t) = t - t_\text{clock}(C(t) - N)
+$$
+
+To check that this works the constant case, we can set $f_c(t) = f_k$ with $f_k$ constant. This yields $C(t) = t f_k$, so $t_\text{clock}(c) = \frac{c}{f_k}$. Thus $t_\text{delay}(t) = t - \frac{t f_k - N}{f_k} = t - t + \frac{N}{f_k} = \frac{N}{f_k}$ as expected.
