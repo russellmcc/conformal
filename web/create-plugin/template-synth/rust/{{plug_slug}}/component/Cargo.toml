@@ -4,6 +4,9 @@ edition = "2021"
 rust-version = "1.79.0"
 publish = false
 
+[lints]
+workspace = true
+
 [dependencies]
 itertools = "0.13.0"
 conformal_component = {{{crate_version}}}

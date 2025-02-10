@@ -4,6 +4,9 @@ edition = "2021"
 rust-version = "1.79.0"
 publish = false
 
+[lints]
+workspace = true
+
 [lib]
 crate-type = ["cdylib"]
 

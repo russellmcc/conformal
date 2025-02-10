@@ -7,6 +7,9 @@ publish = false
 [lib]
 crate-type = ["cdylib"]
 
+[lints]
+workspace = true
+
 [dependencies]
 conformal_vst_wrapper = {{{crate_version}}}
 vst3 = "0.1.2"
