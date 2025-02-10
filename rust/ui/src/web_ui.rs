@@ -188,7 +188,7 @@ impl<S: super::ParameterStore + 'static> Ui<S> {
                     get_rsrc_response(&rsrc_root, &request).map(Into::into)
                 })
                 .with_devtools(dev_mode_enabled)
-                .with_url(&app_url(&web_dev_server))
+                .with_url(app_url(&web_dev_server))
                 .with_accept_first_mouse(true)
                 .with_back_forward_navigation_gestures(false)
                 .with_drag_drop_handler(|_| true)

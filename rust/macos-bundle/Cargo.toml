@@ -2,11 +2,14 @@
 name = "conformal_macos_bundle"
 version = "0.0.0"
 edition = "2021"
-rust-version = "1.79.0"
+rust-version.workspace = true
 license = "ISC"
 description = "Utilities for macOS bundle directories used by the conformal audio plug-in framework."
 repository = "https://github.com/russellmcc/conformal"
 homepage = "https://russellmcc.github.io/conformal"
+
+[lints]
+workspace = true
 
 [dependencies]
 process_path = "0.1.4"

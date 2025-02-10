@@ -144,7 +144,7 @@ impl<B: Buffer, I: BufferIndex> Buffer for SlicedBuffer<'_, B, I> {
 pub fn slice_buffer<'a, B: Buffer, I: BufferIndex + 'a>(
     buffer: &'a B,
     index: I,
-) -> impl Buffer + '_ {
+) -> impl Buffer + 'a {
     let ret = SlicedBuffer { buffer, index };
     // Grab the first channel and throw it away - this will
     // cause us to panic early in the case of an invalid range
@@ -202,7 +202,7 @@ impl<B: BufferMut, I: BufferIndex> BufferMut for SlicedMutBuffer<'_, B, I> {
 pub fn slice_buffer_mut<'a, B: BufferMut, I: BufferIndex + 'a>(
     buffer: &'a mut B,
     index: I,
-) -> impl BufferMut + '_ {
+) -> impl BufferMut + 'a {
     let ret = SlicedMutBuffer { buffer, index };
     // Grab the first channel and throw it away - this will
     // cause us to panic early in the case of an invalid range

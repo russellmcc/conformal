@@ -2,11 +2,14 @@
 name = "conformal_ui"
 version = "0.0.0"
 edition = "2021"
-rust-version = "1.79.0"
+rust-version.workspace = true
 license = "ISC"
 description = "Implements a wry-based UI for audio processors. Part of the conformal audio plug-in framework."
 repository = "https://github.com/russellmcc/conformal"
 homepage = "https://russellmcc.github.io/conformal"
+
+[lints]
+workspace = true
 
 [dependencies]
 base64 = "0.22.1"
@@ -23,4 +26,6 @@ mime_guess = "2.0.4"
 conformal_macos_bundle = { version = "0.0.0", path = "../macos-bundle" }
 
 [dev-dependencies]
-conformal_preferences = { version = "0.0.0", path = "../preferences", features = ["test-utils"] }
+conformal_preferences = { version = "0.0.0", path = "../preferences", features = [
+    "test-utils"
+] }

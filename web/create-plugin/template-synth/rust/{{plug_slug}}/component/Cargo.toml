@@ -1,8 +1,11 @@
 [package]
 name = "{{plug_slug}}_component"
 edition = "2021"
-rust-version = "1.79.0"
+rust-version.workspace = true
 publish = false
+
+[lints]
+workspace = true
 
 [dependencies]
 itertools = "0.13.0"

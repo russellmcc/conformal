@@ -2,7 +2,8 @@ import { $ } from "bun";
 import { appendFile } from "node:fs/promises";
 import { Command } from "@commander-js/extra-typings";
 
-const RUST_VERSION = "1.79.0";
+const RUST_VERSION = "1.84.1";
+const CARGO_ABOUT_VERSION = "0.6.6";
 const VST3_VERSION = "v3.7.8_build_34";
 
 type Tool = {
@@ -22,33 +23,40 @@ const brew = (name: string): Tool => ({
 
 const rustup = () => brew("rustup");
 
-const rust = (): Tool => ({
-  name: "rust",
-  check: async () => {
-    try {
-      const cargoVersion = (await $`cargo --version`.text()).split(" ")[1];
-      if (cargoVersion !== RUST_VERSION) {
-        console.warn(
-          cargoVersion
-            ? `cargo installed, but wrong version ${cargoVersion}`
-            : "cargo installed, but could not get version",
-        );
+const rust = (options: {
+  rustVersion?: string;
+  cargoAboutVersion?: string;
+}): Tool => {
+  const version = options.rustVersion ?? RUST_VERSION;
+  const cargoAboutVersion = options.cargoAboutVersion ?? CARGO_ABOUT_VERSION;
+  return {
+    name: "rust",
+    check: async () => {
+      try {
+        const cargoVersion = (await $`cargo --version`.text()).split(" ")[1];
+        if (cargoVersion !== version) {
+          console.warn(
+            cargoVersion
+              ? `cargo installed, but wrong version ${cargoVersion}`
+              : "cargo installed, but could not get version",
+          );
+          return false;
+        }
+        return true;
+      } catch (e) {
         return false;
       }
-      return true;
-    } catch (e) {
-      return false;
-    }
-  },
-  install: async () => {
-    await $`rustup toolchain install ${RUST_VERSION}`;
-    await $`rustup default ${RUST_VERSION}`;
-    await $`rustup target add x86_64-apple-darwin`;
-    await $`rustup component add rustfmt`;
-    await $`rustup component add clippy`;
-    await $`cargo install --locked cargo-about`;
-  },
-});
+    },
+    install: async () => {
+      await $`rustup toolchain install ${version}`;
+      await $`rustup default ${version}`;
+      await $`rustup target add x86_64-apple-darwin`;
+      await $`rustup component add rustfmt`;
+      await $`rustup component add clippy`;
+      await $`cargo install --locked cargo-about --version ${cargoAboutVersion}`;
+    },
+  };
+};
 
 const rustNightly = (): Tool => ({
   name: "rust-nightly",
@@ -99,14 +107,24 @@ const vst3Validator = (): Tool => ({
 
 const cmake = () => brew("cmake");
 
-export const bootstrap = async (): Promise<void> => {
+export type BootstrapOptions = {
+  rustVersion?: string;
+  cargoAboutVersion?: string;
+};
+
+export const bootstrap = async (
+  options: BootstrapOptions = {},
+): Promise<void> => {
   const tools: Tool[] = [
     vst3(),
     cmake(),
     vst3Validator(),
     rustup(),
     rustNightly(),
-    rust(),
+    rust({
+      rustVersion: options.rustVersion,
+      cargoAboutVersion: options.cargoAboutVersion,
+    }),
   ];
   for (const tool of tools) {
     console.log(`Checking ${tool.name}...`);
@@ -127,6 +145,11 @@ export const addBootstrapCommand = (command: Command) =>
   command
     .command("bootstrap")
     .description("Make sure all build requirements are installed")
-    .action(async () => {
-      await bootstrap();
+    .option("--rust-version <version>", "The version of Rust to use")
+    .option(
+      "--cargo-about-version <version>",
+      "The version of cargo-about to use",
+    )
+    .action(async (options) => {
+      await bootstrap(options);
     });

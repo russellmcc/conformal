@@ -2,11 +2,14 @@
 name = "conformal_core"
 version = "0.0.0"
 edition = "2021"
-rust-version = "1.79.0"
+rust-version.workspace = true
 license = "ISC"
 description = "Code shared between wrappers in conformal framework."
 repository = "https://github.com/russellmcc/conformal"
 homepage = "https://russellmcc.github.io/conformal"
+
+[lints]
+workspace = true
 
 [dependencies]
 conformal_component = { version = "0.0.0", path = "../component" }
