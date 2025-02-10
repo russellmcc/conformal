@@ -8,6 +8,9 @@ description = "Utilities for macOS bundle directories used by the conformal audi
 repository = "https://github.com/russellmcc/conformal"
 homepage = "https://russellmcc.github.io/conformal"
 
+[lints]
+workspace = true
+
 [dependencies]
 process_path = "0.1.4"
 objc = "0.2.7"

@@ -9,6 +9,9 @@ repository = "https://github.com/russellmcc/conformal"
 documentation = "https://russellmcc.github.io/conformal/rust-doc/conformal_component"
 homepage = "https://russellmcc.github.io/conformal"
 
+[lints]
+workspace = true
+
 [dependencies]
 itertools = "0.13.0"
 fxhash = "0.2.1"

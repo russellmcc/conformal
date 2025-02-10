@@ -14,7 +14,7 @@ impl<'a> StreamWrite<'a> {
     }
 }
 
-impl<'a> std::io::Write for StreamWrite<'a> {
+impl std::io::Write for StreamWrite<'_> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         unsafe {
             let mut num_written = 0;
@@ -49,7 +49,7 @@ impl<'a> StreamRead<'a> {
     }
 }
 
-impl<'a> std::io::Read for StreamRead<'a> {
+impl std::io::Read for StreamRead<'_> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         unsafe {
             let mut num_read = 0;

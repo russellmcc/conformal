@@ -9,8 +9,11 @@ repository = "https://github.com/russellmcc/conformal"
 documentation = "https://russellmcc.github.io/conformal/rust-doc/conformal_vst_wrapper"
 homepage = "https://russellmcc.github.io/conformal"
 
+[lints]
+workspace = true
+
 [target.'cfg(target_os = "macos")'.dependencies]
-conformal_macos_bundle = { version = "0.0.0",  path = "../macos-bundle" }
+conformal_macos_bundle = { version = "0.0.0", path = "../macos-bundle" }
 
 [dependencies]
 vst3 = "0.1.2"

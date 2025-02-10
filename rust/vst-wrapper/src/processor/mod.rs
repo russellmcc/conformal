@@ -607,7 +607,7 @@ struct EffectProcessBuffer<'a, P> {
     output: UnsafeMutBufferFromRaw,
 }
 
-impl<'a, P: Effect> ProcessBuffer for EffectProcessBuffer<'a, P> {
+impl<P: Effect> ProcessBuffer for EffectProcessBuffer<'_, P> {
     fn process<E: IntoIterator<Item = Event> + Clone, Parameters: BufferStates>(
         &mut self,
         _e: Events<E>,
@@ -618,7 +618,10 @@ impl<'a, P: Effect> ProcessBuffer for EffectProcessBuffer<'a, P> {
 }
 
 impl<P: Effect> ActiveProcessorCategory<P> for ActiveEffectProcessorCategory {
-    type ProcessBuffer<'a> = EffectProcessBuffer<'a, P> where P: 'a;
+    type ProcessBuffer<'a>
+        = EffectProcessBuffer<'a, P>
+    where
+        P: 'a;
 
     unsafe fn make_process_buffer<'a>(
         &self,
@@ -1184,7 +1187,7 @@ trait ProcessBuffer {
     fn process<E: Iterator<Item = Event> + Clone, P: BufferStates>(&mut self, e: Events<E>, p: P);
 }
 
-impl<'a, P: Synth> ProcessBuffer for SynthProcessBuffer<'a, P> {
+impl<P: Synth> ProcessBuffer for SynthProcessBuffer<'_, P> {
     fn process<E: Iterator<Item = Event> + Clone, Parameters: BufferStates>(
         &mut self,
         e: Events<E>,
@@ -1307,7 +1310,10 @@ impl<
 }
 
 impl<P: Synth> ActiveProcessorCategory<P> for ActiveSynthProcessorCategory {
-    type ProcessBuffer<'a> = SynthProcessBuffer<'a, P> where P: 'a;
+    type ProcessBuffer<'a>
+        = SynthProcessBuffer<'a, P>
+    where
+        P: 'a;
 
     unsafe fn make_process_buffer<'a>(
         &self,

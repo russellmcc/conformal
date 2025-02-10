@@ -8,5 +8,8 @@ description = "Helper utilities for polyphonic synthesizers in the conformal fra
 repository = "https://github.com/russellmcc/conformal"
 homepage = "https://russellmcc.github.io/conformal"
 
+[lints]
+workspace = true
+
 [dependencies]
 conformal_component = { version = "0.0.0", path = "../component" }

@@ -119,13 +119,13 @@ fn atomic_get(param: &AtomicValue) -> cp::InternalValue {
     }
 }
 
-impl<'a> cp::States for &'a ProcessingStoreCore {
+impl cp::States for &ProcessingStoreCore {
     fn get_by_hash(&self, id: cp::IdHash) -> Option<cp::InternalValue> {
         self.data.get(&id).map(atomic_get)
     }
 }
 
-impl<'a> cp::States for &'a ProcessingStore {
+impl cp::States for &ProcessingStore {
     fn get_by_hash(&self, id: cp::IdHash) -> Option<cp::InternalValue> {
         (&self.core).get_by_hash(id)
     }
@@ -303,7 +303,7 @@ impl ProcessingStoreCore {
     fn set(&self, id: cp::IdHash, new_value: cp::InternalValue) -> bool {
         self.data
             .get(&id)
-            .map_or(false, |param| match (param, new_value) {
+            .is_some_and(|param| match (param, new_value) {
                 (AtomicValue::Numeric(n), cp::InternalValue::Numeric(m)) => {
                     n.store(m.to_bits(), std::sync::atomic::Ordering::Relaxed);
                     true
@@ -757,7 +757,7 @@ impl CurveIteratorMetadatum for SwitchParamMetadatum {
     }
 }
 
-impl<'a> BufferStates for InitializedScratch<'a> {
+impl BufferStates for InitializedScratch<'_> {
     fn get_by_hash(
         &self,
         param_id: cp::IdHash,
@@ -841,7 +841,7 @@ impl<'a> ExistingBufferStates<'a> {
     }
 }
 
-impl<'a> BufferStates for ExistingBufferStates<'a> {
+impl BufferStates for ExistingBufferStates<'_> {
     fn get_by_hash(
         &self,
         param_id: cp::IdHash,
@@ -910,7 +910,7 @@ unsafe fn check_changes_and_update_scratch_and_store<'a>(
     }
     if !(0..param_count).all(|idx| {
         let param_queue = changes.getParameterData(idx);
-        ComRef::from_raw(param_queue).map_or(false, |q| {
+        ComRef::from_raw(param_queue).is_some_and(|q| {
             let parameter_id = cp::id_hash_from_internal_hash(q.getParameterId());
             let point_count = q.getPointCount();
             if point_count < 0 {

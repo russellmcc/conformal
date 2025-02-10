@@ -1225,14 +1225,14 @@ fn ramp_numeric(
     end: f32,
     buffer_size: usize,
 ) -> impl Iterator<Item = PiecewiseLinearCurvePoint> + Clone {
-    return [0, 1].iter().map(move |i| {
+    [0, 1].iter().map(move |i| {
         let value = if *i == 0 { start } else { end };
         let sample_offset = if *i == 0 { 0 } else { buffer_size - 1 };
         PiecewiseLinearCurvePoint {
             sample_offset,
             value,
         }
-    });
+    })
 }
 
 fn ramp_enum(
@@ -1240,14 +1240,14 @@ fn ramp_enum(
     end: u32,
     buffer_size: usize,
 ) -> impl Iterator<Item = TimedValue<u32>> + Clone {
-    return [0, 1].iter().map(move |i| {
+    [0, 1].iter().map(move |i| {
         let value = if *i == 0 { start } else { end };
         let sample_offset = if *i == 0 { 0 } else { buffer_size / 2 };
         TimedValue {
             sample_offset,
             value,
         }
-    });
+    })
 }
 
 fn ramp_switch(
@@ -1255,14 +1255,14 @@ fn ramp_switch(
     end: bool,
     buffer_size: usize,
 ) -> impl Iterator<Item = TimedValue<bool>> + Clone {
-    return [0, 1].iter().map(move |i| {
+    [0, 1].iter().map(move |i| {
         let value = if *i == 0 { start } else { end };
         let sample_offset = if *i == 0 { 0 } else { buffer_size / 2 };
         TimedValue {
             sample_offset,
             value,
         }
-    });
+    })
 }
 
 impl BufferStates for RampedStatesMap {
