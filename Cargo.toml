@@ -10,6 +10,9 @@ members = [
     "rust/poly",
 ]
 
+[workspace.package]
+rust-version = "1.79.0"
+
 [workspace.lints.rust]
 nonstandard_style = "warn"
 rust_2018_idioms = "warn"

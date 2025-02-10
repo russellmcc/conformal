@@ -2,7 +2,7 @@
 name = "conformal_ui"
 version = "0.0.0"
 edition = "2021"
-rust-version = "1.79.0"
+rust-version.workspace = true
 license = "ISC"
 description = "Implements a wry-based UI for audio processors. Part of the conformal audio plug-in framework."
 repository = "https://github.com/russellmcc/conformal"
