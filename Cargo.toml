@@ -11,7 +11,7 @@ members = [
 ]
 
 [workspace.package]
-rust-version = "1.79.0"
+rust-version = "1.84.1"
 
 [workspace.lints.rust]
 nonstandard_style = "warn"
