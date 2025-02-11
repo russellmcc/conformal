@@ -52,11 +52,13 @@ pub struct Voice {
     expression: NoteExpressionState,
 }
 
+const MAX_VOICES: usize = 32;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct State {
-    voices: Vec<Voice>,
+    voices: arrayvec::ArrayVec<Voice, MAX_VOICES>,
 
-    voices_compress_order_scratch: Vec<(usize, usize)>,
+    voices_compress_order_scratch: arrayvec::ArrayVec<(usize, usize), MAX_VOICES>,
 }
 
 struct EventStreamStep {
@@ -172,7 +174,7 @@ impl State {
                     expression: NoteExpressionState::default(),
                 })
                 .collect(),
-            voices_compress_order_scratch: Vec::with_capacity(max_voices),
+            voices_compress_order_scratch: Default::default(),
         }
     }
 
