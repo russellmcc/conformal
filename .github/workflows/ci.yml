@@ -3,8 +3,8 @@ run-name: CI
 
 on:
   push:
-    branches:
-      - "*"
+    branches-ignore:
+      - "next-release"
 
 jobs:
   ci:
