@@ -20,7 +20,9 @@ const withKnope = async (f: () => Promise<void>) => {
     await f();
   } finally {
     // Restore paths
-    await $`mv ${changesetDir} ${knopeDir}`;
+    if (await fs.exists(changesetDir)) {
+      await $`mv ${changesetDir} ${knopeDir}`;
+    }
     await $`mv ${tsDir} ${changesetDir}`;
   }
 };
