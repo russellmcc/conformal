@@ -56,6 +56,7 @@
     "deploy-docs": "conformal-internal-scripts deploy-docs",
     "web-change": "changeset",
     "rust-change": "conformal-internal-scripts rust-change",
-    "web-change-version": "changeset version"
+    "rust-prepare-release": "conformal-internal-scripts rust-prepare-release",
+    "web-prepare-release": "changeset version"
   }
 }

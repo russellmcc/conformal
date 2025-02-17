@@ -3,7 +3,10 @@ import { addReleaseCommand } from "./release";
 import { addPostpackCommand } from "./postpack";
 import { addPrepackCommand } from "./prepack";
 import { addDeployDocsCommand } from "./deployDocs";
-import { addRustChangeCommand } from "./rustChange";
+import {
+  addRustChangeCommand,
+  addRustPrepareReleaseCommand,
+} from "./rustChange";
 
 export const command = () => {
   const command = new Command("conformal-internal-scripts").description(
@@ -15,6 +18,7 @@ export const command = () => {
   addPostpackCommand(command);
   addDeployDocsCommand(command);
   addRustChangeCommand(command);
+  addRustPrepareReleaseCommand(command);
 
   return command;
 };

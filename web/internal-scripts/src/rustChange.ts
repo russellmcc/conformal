@@ -2,7 +2,7 @@ import { Command } from "@commander-js/extra-typings";
 import { $ } from "bun";
 import * as fs from "node:fs/promises";
 
-export const withKnope = async (f: () => Promise<void>) => {
+const withKnope = async (f: () => Promise<void>) => {
   // UGH! both changesets and knope are hyper-opinionated and NEED their change
   // files in `.changeset` folder, but their sets are 100% incompatible :(.
   const changesetDir = ".changeset";
@@ -31,11 +31,26 @@ export const rustChange = async () => {
   });
 };
 
+export const rustPrepareRelease = async () => {
+  await withKnope(async () => {
+    await $`knope prepare-release`;
+  });
+};
+
 export const addRustChangeCommand = (command: Command) => {
   command
     .command("rust-change")
     .description("Document a rust changeset")
     .action(async () => {
       await rustChange();
+    });
+};
+
+export const addRustPrepareReleaseCommand = (command: Command) => {
+  command
+    .command("rust-prepare-release")
+    .description("Prepare a rust release")
+    .action(async () => {
+      await rustPrepareRelease();
     });
 };

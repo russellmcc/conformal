@@ -47,22 +47,11 @@ versioned_files = ["rust/poly/Cargo.toml", "Cargo.lock"]
 scopes = ["conformal_poly"]
 
 [[workflows]]
-name = "release"
+name = "prepare-release"
 
 [[workflows.steps]]
 type = "PrepareRelease"
 ignore_conventional_commits = true
-
-[[workflows.steps]]
-type = "Command"
-command = 'git commit -m "chore: prepare releases"'
-
-[[workflows.steps]]
-type = "Command"
-command = "git push"
-
-[[workflows.steps]]
-type = "Release"
 
 [[workflows]]
 name = "document-change"
