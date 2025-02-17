@@ -1,6 +1,10 @@
 name: Prepare Release
 run-name: Prepare Release
 
+permissions:
+  contents: write
+  id-token: write
+
 on:
   push:
     branches:
