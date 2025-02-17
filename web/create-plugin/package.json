@@ -9,7 +9,9 @@
   "scripts": {
     "lint": "tsc && eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "check-format": "prettier -c .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "prepack": "bun run scripts/gather_rust_versions.ts",
+    "postpack": "bun run scripts/cleanup.ts"
   },
   "bin": "./src/cli.ts",
   "exports": {

@@ -67,7 +67,6 @@ describe("create-conformal template", () => {
             if (tgzPath === undefined) {
               throw new Error(`No tarball found for ${dep}`);
             }
-            console.log("russell", tgzPath, tmpDir);
             expect(Bun.file(tgzPath).exists()).resolves.toBe(true);
 
             // Extract the tarball to a sub-directory of tmpDir
@@ -111,12 +110,13 @@ describe("create-conformal template", () => {
 
           // stamp the template
           const dest = path.join(tmpDir, TEST_CONFIG.proj_slug);
+          const env = await toEnv(TEST_CONFIG, { rustVersionMode: "mock" });
           await stampTemplate(
             dest,
             path.join(workspacePath, "web", "create", "template"),
-            await toEnv(TEST_CONFIG),
+            env,
           );
-          await postBuild(TEST_CONFIG, tmpDir);
+          await postBuild(TEST_CONFIG, env, tmpDir);
 
           await rewireDeps(dest);
 

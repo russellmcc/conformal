@@ -9,5 +9,5 @@ workspace = true
 
 [dependencies]
 itertools = "0.13.0"
-conformal_component = {{{crate_version}}}
-conformal_poly = {{{crate_version}}}
+conformal_component = "{{{conformal_component_version}}}"
+conformal_poly = "{{{conformal_poly_version}}}"

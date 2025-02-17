@@ -1,6 +1,10 @@
 export type PlugType = "Effect" | "Synth";
 import uuidHex from "./uuid";
 import path from "node:path";
+import { parse } from "smol-toml";
+import { z } from "zod";
+
+const rustVersionSchema = z.record(z.string(), z.string());
 
 export type Config = {
   plug_type: string;
@@ -9,22 +13,43 @@ export type Config = {
   vendor_name: string;
 };
 
-// Update the rust versions by grabbing our own package.json,
-// This is valid because we version all crates and packages together.
-// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-const version: string =
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-  (await Bun.file(path.join(__dirname, "..", "package.json")).json()).version;
+export type RustVersionMode = "real" | "mock" | "none";
 
-export const toEnv = (config: Config): Promise<Record<string, string>> =>
-  Promise.resolve({
+export const toEnv = async (
+  config: Config,
+  options: { rustVersionMode: RustVersionMode } = {
+    rustVersionMode: "real",
+  },
+): Promise<Record<string, string>> => {
+  // Parse the included rust_versions.toml file
+  const rustVersions: Record<string, string> =
+    options.rustVersionMode === "real"
+      ? rustVersionSchema.parse(
+          parse(
+            await Bun.file(
+              path.join(__dirname, "..", "rust_versions.toml"),
+            ).text(),
+          ),
+        )
+      : options.rustVersionMode === "mock"
+        ? {
+            conformal_component_version: "0.0.0",
+            conformal_vst_wrapper_version: "0.0.0",
+            conformal_poly_version: "0.0.0",
+          }
+        : {};
+
+  console.log(rustVersions);
+
+  return {
     ...config,
+    ...rustVersions,
     class_id: uuidHex(),
     edit_class_id: uuidHex(),
     gitignore: ".gitignore",
-    crate_version: `"${version}"`,
     task_marker: "TOD" + "O",
-  });
+  };
+};
 
 export const metadatas = {
   plug_type: {

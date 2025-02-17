@@ -11,6 +11,6 @@ workspace = true
 crate-type = ["cdylib"]
 
 [dependencies]
-conformal_vst_wrapper = {{{crate_version}}}
+conformal_vst_wrapper = "{{{conformal_vst_wrapper_version}}}"
 vst3 = "0.1.2"
 {{plug_slug}}_component = { path = "../component" }

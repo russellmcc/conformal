@@ -1,4 +1,4 @@
 {
   "extends": "tsconfig/tsconfig.json",
-  "include": ["src"]
+  "include": ["src", "scripts", "../scripts/src/workspaceRoot.ts"]
 }

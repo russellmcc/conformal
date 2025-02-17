@@ -8,4 +8,4 @@ publish = false
 workspace = true
 
 [dependencies]
-conformal_component = {{{crate_version}}}
+conformal_component = "{{{conformal_component_version}}}"
