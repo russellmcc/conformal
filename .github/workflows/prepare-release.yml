@@ -10,7 +10,7 @@ permissions:
 on:
   push:
     branches:
-      - version-management # TODO - update to main
+      - main
 
 jobs:
   prepare:
