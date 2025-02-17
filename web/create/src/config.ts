@@ -2,7 +2,6 @@ import { ConfigMetadata, stampTemplate } from "@conformal/stamp";
 import {
   Config as PlugConfig,
   metadatas as plugMetadatas,
-  toEnv,
   toTemplate,
   postBuild as plugPostBuild,
 } from "@conformal/create-plugin";
