@@ -14,8 +14,8 @@
   "bin": "./src/index.ts",
   "type": "module",
   "dependencies": {
-    "@conformal/stamp": "^0.3.5",
-    "@conformal/create-plugin": "^0.3.5",
+    "@conformal/stamp": "workspace:^0.3.5",
+    "@conformal/create-plugin": "workspace:^0.3.5",
     "@commander-js/extra-typings": "^12.1.0",
     "commander": "^12.1.0"
   }
