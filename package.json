@@ -53,8 +53,9 @@
     "package": "conformal-scripts web-script -s package",
     "validate": "conformal-scripts web-script -s validate",
     "release": "conformal-internal-scripts release",
-    "release-docs": "conformal-internal-scripts release-docs",
+    "deploy-docs": "conformal-internal-scripts deploy-docs",
     "web-change": "changeset",
+    "rust-change": "conformal-internal-scripts rust-change",
     "web-change-version": "changeset version"
   }
 }

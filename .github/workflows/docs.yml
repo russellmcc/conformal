@@ -17,7 +17,7 @@ jobs:
         with:
           lfs: "true"
       - uses: ./.github/actions/bootstrap
-      - run: bun run release-docs
+      - run: bun run deploy-docs
       - name: Upload pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
