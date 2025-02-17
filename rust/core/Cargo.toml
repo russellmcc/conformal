@@ -1,6 +1,6 @@
 [package]
 name = "conformal_core"
-version = "0.0.0"
+version = "0.3.5"
 edition = "2021"
 rust-version.workspace = true
 license = "ISC"
@@ -12,5 +12,5 @@ homepage = "https://russellmcc.github.io/conformal"
 workspace = true
 
 [dependencies]
-conformal_component = { version = "0.0.0", path = "../component" }
+conformal_component = { version = "0.3.5", path = "../component" }
 serde = { version = "1.0.193", features = ["derive"] }

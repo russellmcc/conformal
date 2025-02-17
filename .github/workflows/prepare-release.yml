@@ -1,0 +1,35 @@
+name: Prepare Release
+run-name: Prepare Release
+
+permissions:
+  contents: write
+  id-token: write
+  pull-requests: write
+  repository-projects: write
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  prepare:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: "true"
+      - run: brew install oven-sh/bun/bun
+        shell: bash
+      - run: bun install --frozen-lockfile
+        shell: bash
+      - run: brew install knope-dev/tap/knope
+        shell: bash
+      - run: bun run prepare-release
+        shell: bash
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: next-release
+          title: "Release recent changes"
+          body: "Merging this PR will create new releases for changed packages."

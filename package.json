@@ -5,7 +5,6 @@
     "web/*"
   ],
   "devDependencies": {
-    "@morlay/bunpublish": "^0.4.1",
     "@next/eslint-plugin-next": "^14.2.16",
     "@testing-library/react": "^15.0.7",
     "@testing-library/user-event": "^14.5.2",
@@ -29,7 +28,8 @@
     "prettier": "^3.3.3",
     "tmp-promise": "^3.0.3",
     "typedoc": "^0.26.11",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "@changesets/cli": "^2.28.0"
   },
   "scripts": {
     "bootstrap": "conformal-scripts bootstrap",
@@ -53,6 +53,11 @@
     "package": "conformal-scripts web-script -s package",
     "validate": "conformal-scripts web-script -s validate",
     "release": "conformal-internal-scripts release",
-    "release-docs": "conformal-internal-scripts release-docs"
+    "deploy-docs": "conformal-internal-scripts deploy-docs",
+    "web-change": "changeset",
+    "rust-change": "conformal-internal-scripts rust-change",
+    "rust-prepare-release": "conformal-internal-scripts rust-prepare-release",
+    "web-prepare-release": "changeset version",
+    "prepare-release": "bun run rust-prepare-release && bun run web-prepare-release"
   }
 }

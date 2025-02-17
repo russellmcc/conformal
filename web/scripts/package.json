@@ -1,6 +1,6 @@
 {
   "name": "@conformal/scripts",
-  "version": "0.0.0",
+  "version": "0.3.5",
   "description": "Build scripts for the conformal audio plug-in framework",
   "homepage": "https://russellmcc.github.io/conformal",
   "bugs": "https://github.com/russellmcc/conformal/issues",
@@ -17,8 +17,8 @@
   },
   "type": "module",
   "dependencies": {
-    "@conformal/create-plugin": "workspace:*",
-    "@conformal/stamp": "workspace:*",
+    "@conformal/create-plugin": "workspace:^0.3.5",
+    "@conformal/stamp": "workspace:^0.3.5",
     "@commander-js/extra-typings": "^12.1.0",
     "commander": "^12.1.0",
     "tmp-promise": "^3.0.3",

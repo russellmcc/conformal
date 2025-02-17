@@ -1,0 +1,71 @@
+[packages.conformal_vst_wrapper]
+versioned_files = ["rust/vst-wrapper/Cargo.toml", "Cargo.lock"]
+scopes = ["conformal_vst_wrapper"]
+changelog = "rust/vst-wrapper/CHANGELOG.md"
+
+[packages.conformal_macos_bundle]
+versioned_files = ["rust/macos-bundle/Cargo.toml", "Cargo.lock"]
+scopes = ["conformal_macos_bundle"]
+changelog = "rust/macos-bundle/CHANGELOG.md"
+
+[packages.conformal_preferences]
+versioned_files = [
+    "rust/preferences/Cargo.toml",
+    { path = "rust/ui/Cargo.toml", dependency = "conformal_preferences" },
+    "Cargo.lock"
+]
+scopes = ["conformal_preferences"]
+changelog = "rust/preferences/CHANGELOG.md"
+
+[packages.conformal_component]
+versioned_files = [
+    { path = "rust/vst-wrapper/Cargo.toml", dependency = "conformal_component" },
+    "rust/component/Cargo.toml",
+    { path = "rust/ui/Cargo.toml", dependency = "conformal_component" },
+    { path = "rust/core/Cargo.toml", dependency = "conformal_component" },
+    { path = "rust/poly/Cargo.toml", dependency = "conformal_component" },
+    "Cargo.lock"
+]
+scopes = ["conformal_component"]
+changelog = "rust/component/CHANGELOG.md"
+
+[packages.conformal_ui]
+versioned_files = [
+    { path = "rust/vst-wrapper/Cargo.toml", dependency = "conformal_ui" },
+    "rust/ui/Cargo.toml",
+    "Cargo.lock"
+]
+scopes = ["conformal_ui"]
+changelog = "rust/ui/CHANGELOG.md"
+
+[packages.conformal_core]
+versioned_files = [
+    { path = "rust/vst-wrapper/Cargo.toml", dependency = "conformal_core" },
+    { path = "rust/ui/Cargo.toml", dependency = "conformal_core" },
+    "rust/core/Cargo.toml",
+    "Cargo.lock"
+]
+scopes = ["conformal_core"]
+changelog = "rust/core/CHANGELOG.md"
+
+[packages.conformal_poly]
+versioned_files = ["rust/poly/Cargo.toml", "Cargo.lock"]
+scopes = ["conformal_poly"]
+changelog = "rust/poly/CHANGELOG.md"
+
+[[workflows]]
+name = "prepare-release"
+
+[[workflows.steps]]
+type = "PrepareRelease"
+ignore_conventional_commits = true
+
+[[workflows]]
+name = "document-change"
+
+[[workflows.steps]]
+type = "CreateChangeFile"
+
+[github]
+owner = "russellmcc"
+repo = "conformal"

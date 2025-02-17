@@ -3,11 +3,6 @@ run-name: Release Docs
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        type: string
-        description: The version to include in docs
-        required: true
 
 permissions:
   contents: read
@@ -22,7 +17,7 @@ jobs:
         with:
           lfs: "true"
       - uses: ./.github/actions/bootstrap
-      - run: bun run release-docs ${{ inputs.version }}
+      - run: bun run deploy-docs
       - name: Upload pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

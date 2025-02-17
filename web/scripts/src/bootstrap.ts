@@ -12,16 +12,18 @@ type Tool = {
   install(): Promise<void>;
 };
 
-const brew = (name: string): Tool => ({
+const brew = (name: string, command?: string): Tool => ({
   name,
   check: async () =>
-    (await $`command -v ${name}`.nothrow().quiet()).exitCode == 0,
+    (await $`command -v ${command ?? name}`.nothrow().quiet()).exitCode == 0,
   install: async () => {
     await $`brew install ${name}`;
   },
 });
 
 const rustup = () => brew("rustup");
+
+const knope = () => brew("knope-dev/tap/knope", "knope");
 
 const rust = (options: {
   rustVersion?: string;
@@ -117,6 +119,7 @@ export const bootstrap = async (
 ): Promise<void> => {
   const tools: Tool[] = [
     vst3(),
+    knope(),
     cmake(),
     vst3Validator(),
     rustup(),

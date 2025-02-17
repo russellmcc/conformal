@@ -34,8 +34,13 @@ describe("create-conformal template", () => {
           const rewireDeps = async (dest: string) => {
             // Note we use perl as a sed replacement because of https://github.com/oven-sh/bun/issues/13197,
             // which makes sed unusable on macOS.
-            const perl_command = `s!"\\@conformal/([^"]+)": "workspace:\\*"!"\\@conformal/$1": "file://${tmpDir}/conformal-$1-0.0.0.tgz"!`;
+            const perl_command = `s!"\\@conformal/([^"]+)": "[^"]+"!"\\@conformal/$1": "file://${tmpDir}/conformal-$1-0.0.0.tgz"!`;
             await $`perl -pi -e ${perl_command} package.json`.cwd(dest);
+
+            // Replace the version with 0.0.0
+            await $`perl -pi -e 's!"version": "[^"]+"!"version": "0.0.0"!' package.json`.cwd(
+              dest,
+            );
           };
 
           // Note that bun skips dependencies when installing packages from local paths :'(,
@@ -51,7 +56,17 @@ describe("create-conformal template", () => {
             await $`npm pack --pack-destination=${tmpDir}`.cwd(
               path.join(workspacePath, "web", dep),
             );
-            const tgzPath = path.join(tmpDir, `conformal-${dep}-0.0.0.tgz`);
+            const tgzGlob = new Bun.Glob(`conformal-${dep}-*.tgz`);
+            let tgzPath: string | undefined;
+            for await (const tgzPathCandidate of tgzGlob.scan(tmpDir)) {
+              if (tgzPath !== undefined) {
+                throw new Error(`Found multiple tarballs for ${dep}`);
+              }
+              tgzPath = path.join(tmpDir, tgzPathCandidate);
+            }
+            if (tgzPath === undefined) {
+              throw new Error(`No tarball found for ${dep}`);
+            }
             expect(Bun.file(tgzPath).exists()).resolves.toBe(true);
 
             // Extract the tarball to a sub-directory of tmpDir
@@ -83,19 +98,25 @@ describe("create-conformal template", () => {
             await unlink(tgzPath);
             // Re-pack the tarball
             await $`npm pack --pack-destination=${tmpDir}`.cwd(extractDir);
-            expect(Bun.file(tgzPath).exists()).resolves.toBe(true);
+
+            const rewiredTgzPath = path.join(
+              tmpDir,
+              `conformal-${dep}-0.0.0.tgz`,
+            );
+            expect(Bun.file(rewiredTgzPath).exists()).resolves.toBe(true);
 
             await rm(extractDir, { recursive: true });
           }
 
           // stamp the template
           const dest = path.join(tmpDir, TEST_CONFIG.proj_slug);
+          const env = await toEnv(TEST_CONFIG, { rustVersionMode: "mock" });
           await stampTemplate(
             dest,
             path.join(workspacePath, "web", "create", "template"),
-            await toEnv(TEST_CONFIG),
+            env,
           );
-          await postBuild(TEST_CONFIG, tmpDir);
+          await postBuild(TEST_CONFIG, env, tmpDir);
 
           await rewireDeps(dest);
 
@@ -116,7 +137,7 @@ describe("create-conformal template", () => {
           const createDependencies = ["component", "vst_wrapper", "poly"];
           for (const dep of createDependencies) {
             const crateVersion = `{ path = "${path.join(workspacePath, "rust", dep.replace("_", "-"))}" }`;
-            await $`find rust -type f -exec perl -pi -e 's!conformal_${dep} = "0.0.0"!conformal_${dep} = ${crateVersion}!' {} +`.cwd(
+            await $`find rust -type f -exec perl -pi -e 's!conformal_${dep} = "[^"]+"!conformal_${dep} = ${crateVersion}!' {} +`.cwd(
               dest,
             );
           }

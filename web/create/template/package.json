@@ -31,7 +31,7 @@
     "@vitejs/plugin-react-swc": "^3.6.0",
     "@types/react": "^18.2.79",
     "@types/react-dom": "^18.2.25",
-    "eslint": "^8.57.0",
+    "eslint": "^8.57.1",
     "eslint-plugin-prefer-arrow-functions": "^3.3.2",
     "eslint-plugin-react": "^7.34.1",
     "eslint-plugin-react-hooks": "^4.6.0",
@@ -41,8 +41,8 @@
     "react-dom": "^18.2.0",
     "typescript": "^5.4.5",
     "vite": "^5.2.9",
-    "@conformal/scripts": "workspace:*",
-    "@conformal/plugin": "workspace:*",
+    "@conformal/scripts": "^0.3.5",
+    "@conformal/plugin": "^0.3.5",
     "rollup-plugin-license": "^3.4.0"
   }
 }

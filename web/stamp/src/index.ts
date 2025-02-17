@@ -52,7 +52,7 @@ export const stampTemplate = async (
     const srcPath = path.join(file.path, file.name);
     const destPath = path.join(
       dest,
-      compile(path.relative(templateDir, srcPath))(env),
+      compile(path.relative(templateDir, srcPath), { strict: true })(env),
     );
 
     if (file.isDirectory()) {
@@ -65,7 +65,7 @@ export const stampTemplate = async (
 
     await fs.mkdir(path.dirname(destPath), { recursive: true });
     const srcContent = await Bun.file(srcPath).text();
-    await Bun.write(destPath, compile(srcContent)(env));
+    await Bun.write(destPath, compile(srcContent, { strict: true })(env));
   }
 };
 
@@ -102,7 +102,10 @@ export const buildStampCommand = <K extends string>({
   toEnv: (config: { [k in K]: string }) => Promise<Record<string, string>>;
   toDest: (config: { [k in K]: string }) => Promise<string>;
   toTemplate: (config: { [k in K]: string }) => Promise<string>;
-  postBuild?: (config: { [k in K]: string }) => Promise<void>;
+  postBuild?: (
+    config: { [k in K]: string },
+    env: Record<string, string>,
+  ) => Promise<void>;
   options?: StampOptions;
 }): Command => {
   const positionals: K[] = [];
@@ -139,7 +142,7 @@ export const buildStampCommand = <K extends string>({
     const template = await toTemplate(config);
     await stampTemplate(dest, template, env, options);
     if (postBuild) {
-      await postBuild(config);
+      await postBuild(config, env);
     }
   });
   return command;

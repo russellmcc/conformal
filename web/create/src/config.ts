@@ -2,7 +2,6 @@ import { ConfigMetadata, stampTemplate } from "@conformal/stamp";
 import {
   Config as PlugConfig,
   metadatas as plugMetadatas,
-  toEnv,
   toTemplate,
   postBuild as plugPostBuild,
 } from "@conformal/create-plugin";
@@ -23,8 +22,11 @@ export const metadatas: Record<keyof Config, ConfigMetadata> = {
   },
 };
 
-export const postBuild = async (config: Config, root?: string) => {
-  const env = await toEnv(config);
+export const postBuild = async (
+  config: Config,
+  env: Record<string, string>,
+  root?: string,
+) => {
   const template = await toTemplate(config);
   const dest =
     root === undefined ? config.proj_slug : path.join(root, config.proj_slug);

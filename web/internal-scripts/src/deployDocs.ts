@@ -1,5 +1,6 @@
 import path from "node:path";
 import { $ } from "bun";
+import { Command } from "@commander-js/extra-typings";
 
 export const deployDocs = async () => {
   const outDir = "_site";
@@ -25,3 +26,11 @@ export const deployDocs = async () => {
   await $`cp -r web/docs/out/* ${outDir}/`.cwd(workspacePath);
   await $`cp -r target/doc ${outDir}/rust-doc`.cwd(workspacePath);
 };
+
+export const addDeployDocsCommand = (command: Command) =>
+  command
+    .command("deploy-docs")
+    .description("Deploy the documentation to the website")
+    .action(async () => {
+      await deployDocs();
+    });
