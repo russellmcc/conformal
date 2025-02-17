@@ -33,3 +33,4 @@ jobs:
           branch: next-release
           title: "Release recent changes"
           body: "Merging this PR will create new releases for changed packages."
+          sign-commits: true
