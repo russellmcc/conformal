@@ -59,6 +59,7 @@ name = "prepare-release"
 [[workflows.steps]]
 type = "PrepareRelease"
 ignore_conventional_commits = true
+allow_empty = true
 
 [[workflows]]
 name = "document-change"
