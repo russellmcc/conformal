@@ -1,6 +1,6 @@
 {
   "name": "@conformal/scripts",
-  "version": "0.0.0",
+  "version": "0.3.5",
   "description": "Build scripts for the conformal audio plug-in framework",
   "homepage": "https://russellmcc.github.io/conformal",
   "bugs": "https://github.com/russellmcc/conformal/issues",
