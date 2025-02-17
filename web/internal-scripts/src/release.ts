@@ -1,6 +1,7 @@
 import { Command } from "@commander-js/extra-typings";
 import { $ } from "bun";
 import { deployDocs } from "./deployDocs";
+import { cleanWorkspaceProtocols } from "./cleanWorkspace";
 
 export const release = async ({ skipPublish }: { skipPublish?: boolean }) => {
   skipPublish ??= false;
@@ -17,8 +18,10 @@ export const release = async ({ skipPublish }: { skipPublish?: boolean }) => {
   await $`cargo install --locked cargo-workspaces`;
   await $`cargo workspaces publish -y --publish-as-is --allow-dirty --no-git-commit`;
 
+  await cleanWorkspaceProtocols();
+
   // Publish npm packages
-  await $`bun publish --access public`;
+  await $`bunx @morlay/bunpublish`;
 
   // Publish documentation
   await deployDocs();

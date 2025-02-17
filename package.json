@@ -5,6 +5,7 @@
     "web/*"
   ],
   "devDependencies": {
+    "@morlay/bunpublish": "^0.4.1",
     "@next/eslint-plugin-next": "^14.2.16",
     "@testing-library/react": "^15.0.7",
     "@testing-library/user-event": "^14.5.2",
