@@ -15,3 +15,9 @@ jobs:
           lfs: "true"
       - uses: ./.github/actions/bootstrap
       - run: bun run prepare-release
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: next-release
+          title: "Release recent changes"
+          body: "Merging this PR will create new releases for changed packages."
