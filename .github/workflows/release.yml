@@ -20,7 +20,7 @@ jobs:
           lfs: "true"
       - uses: ./.github/actions/bootstrap
       - run: bun run ci
-      - run: bun run release ${{ github.ref_name }}
+      - run: bun run release
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}

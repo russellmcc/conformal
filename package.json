@@ -54,7 +54,8 @@
     "validate": "conformal-scripts web-script -s validate",
     "release": "conformal-internal-scripts release",
     "release-docs": "conformal-internal-scripts release-docs",
-    "web-change": "changeset"
+    "web-change": "changeset",
+    "web-change-version": "changeset version"
   },
   "dependencies": {
     "@changesets/cli": "^2.28.0"

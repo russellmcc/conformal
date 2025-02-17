@@ -34,7 +34,7 @@ describe("create-conformal template", () => {
           const rewireDeps = async (dest: string) => {
             // Note we use perl as a sed replacement because of https://github.com/oven-sh/bun/issues/13197,
             // which makes sed unusable on macOS.
-            const perl_command = `s!"\\@conformal/([^"]+)": "workspace:\\*"!"\\@conformal/$1": "file://${tmpDir}/conformal-$1-0.0.0.tgz"!`;
+            const perl_command = `s!"\\@conformal/([^"]+)": "[^"]+"!"\\@conformal/$1": "file://${tmpDir}/conformal-$1-0.0.0.tgz"!`;
             await $`perl -pi -e ${perl_command} package.json`.cwd(dest);
 
             // Replace the version with 0.0.0

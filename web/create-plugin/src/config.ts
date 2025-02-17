@@ -39,8 +39,6 @@ export const toEnv = async (
           }
         : {};
 
-  console.log(rustVersions);
-
   return {
     ...config,
     ...rustVersions,
