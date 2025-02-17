@@ -17,8 +17,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           lfs: "true"
-      - uses: ./.github/actions/bootstrap
+      - run: brew install oven-sh/bun/bun
+        shell: bash
+      - run: bun install --frozen-lockfile
+        shell: bash
+      - run: brew install knope-dev/tap/knope
+        shell: bash
       - run: bun run prepare-release
+        shell: bash
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
         with:
