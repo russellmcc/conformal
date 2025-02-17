@@ -2,9 +2,9 @@ name: Release
 run-name: Release
 
 on:
-  push:
-    tags:
-      - "v*.*.*"
+  pull_request:
+    types: [closed]
+    branches: [main]
 
 permissions:
   contents: read
@@ -13,6 +13,7 @@ permissions:
 
 jobs:
   release:
+    if: github.head_ref == 'next-release' && github.event.pull_request.merged == true
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4

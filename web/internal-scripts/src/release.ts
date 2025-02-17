@@ -18,7 +18,7 @@ export const release = async ({ skipPublish }: { skipPublish?: boolean }) => {
   await $`cargo workspaces publish -y --publish-as-is --allow-dirty --no-git-commit`;
 
   // Publish npm packages
-  await $`bun publish`;
+  await $`bun publish --access public`;
 
   // Publish documentation
   await deployDocs();
