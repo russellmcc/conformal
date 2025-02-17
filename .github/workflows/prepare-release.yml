@@ -4,6 +4,8 @@ run-name: Prepare Release
 permissions:
   contents: write
   id-token: write
+  pull-requests: write
+  repository-projects: write
 
 on:
   push:
