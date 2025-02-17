@@ -57,7 +57,7 @@
     "web-change": "changeset",
     "rust-change": "conformal-internal-scripts rust-change",
     "rust-prepare-release": "conformal-internal-scripts rust-prepare-release",
-    "web-prepare-release": "changeset version",
+    "web-prepare-release": "changeset version && bun install",
     "prepare-release": "bun run rust-prepare-release && bun run web-prepare-release"
   }
 }
