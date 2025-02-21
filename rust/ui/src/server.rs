@@ -68,6 +68,12 @@ impl<S: super::ParameterStore, R: ResponseSender> Server<S, R> {
                         });
                         return;
                     }
+                } else if path == "ui-state" {
+                    self.subscriptions.insert(path.clone());
+                    self.response_sender.send(protocol::Response::Values {
+                        values: [(path.clone(), self.param_store.get_ui_state().into())].into(),
+                    });
+                    return;
                 }
                 self.response_sender
                     .send(protocol::Response::SubscribeValueError { path: path.clone() });
@@ -101,6 +107,10 @@ impl<S: super::ParameterStore, R: ResponseSender> Server<S, R> {
                             }
                         }
                     }
+                } else if path == "ui-state" {
+                    if let protocol::Value::Bytes(bytes) = value {
+                        self.param_store.set_ui_state(bytes);
+                    }
                 }
             }
         }
@@ -125,6 +135,15 @@ impl<S: super::ParameterStore, R: ResponseSender> Server<S, R> {
             });
         }
         self.response_sender.on_pref_update(unique_id, value);
+    }
+
+    pub fn update_ui_state(&mut self, state: &[u8]) {
+        let path = "ui-state";
+        if self.subscriptions.contains(path) {
+            self.response_sender.send(protocol::Response::Values {
+                values: [(path.to_owned(), state.to_owned().into())].into(),
+            });
+        }
     }
 }
 

@@ -211,4 +211,9 @@ impl<S: super::ParameterStore + 'static> Ui<S> {
     pub fn update_parameter(&mut self, unique_id: &str, value: &parameters::Value) {
         self.server.borrow_mut().update_parameter(unique_id, value);
     }
+
+    /// This must be called whenever the UI state changes.
+    pub fn update_ui_state(&mut self, state: &[u8]) {
+        self.server.borrow_mut().update_ui_state(state);
+    }
 }

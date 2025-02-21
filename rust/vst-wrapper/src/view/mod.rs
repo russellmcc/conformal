@@ -76,6 +76,14 @@ impl<S: store::Store> conformal_ui::ParameterStore for SharedStore<S> {
     fn get_info(&self, unique_id: &str) -> Option<parameters::Info> {
         self.0.borrow().get_info(unique_id)
     }
+
+    fn get_ui_state(&self) -> Vec<u8> {
+        todo!()
+    }
+
+    fn set_ui_state(&mut self, state: &[u8]) {
+        todo!()
+    }
 }
 
 pub fn create<S: store::Store + 'static>(

@@ -31,6 +31,10 @@ pub trait ParameterStore {
     /// - `SetError::NotFound` if there is no parameter with the given unique ID.
     fn set_grabbed(&mut self, unique_id: &str, grabbed: bool)
         -> Result<(), store::SetGrabbedError>;
+
+    fn get_ui_state(&self) -> Vec<u8>;
+
+    fn set_ui_state(&mut self, state: &[u8]);
 }
 
 pub use web_ui::Size;
