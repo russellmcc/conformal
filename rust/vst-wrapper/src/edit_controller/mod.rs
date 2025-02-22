@@ -367,6 +367,10 @@ impl store::Store for SharedStore {
             }
         }
     }
+
+    fn get_ui_state(&self) -> Vec<u8> {
+        self.store.borrow().ui_state.clone()
+    }
 }
 
 /// For testing only.

@@ -45,6 +45,8 @@ pub trait Store {
     ///  - Returns `InternalError` if the store is unable to set the value due to a bad internal state
     fn set_grabbed(&mut self, unique_id: &str, grabbed: bool) -> Result<(), SetGrabbedError>;
 
+    fn get_ui_state(&self) -> Vec<u8>;
+
     /// Set the UI state of the store.
     fn set_ui_state(&mut self, state: &[u8]);
 

@@ -2125,6 +2125,8 @@ fn ui_state_is_saved() {
         store.set_ui_state(&[1]);
         assert_eq!(listener.ui_state_changes.borrow().as_slice(), &[vec![1]]);
 
+        assert_eq!(store.get_ui_state(), vec![1]);
+
         let modified_stream = ComWrapper::new(Stream::new([]));
         assert_eq!(
             ec.getState(

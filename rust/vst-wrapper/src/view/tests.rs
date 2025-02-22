@@ -29,6 +29,10 @@ impl store::Store for DummyStore {
     }
 
     fn set_ui_state(&mut self, _state: &[u8]) {}
+
+    fn get_ui_state(&self) -> Vec<u8> {
+        vec![]
+    }
 }
 
 #[test]
