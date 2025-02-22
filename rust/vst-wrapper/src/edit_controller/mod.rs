@@ -24,11 +24,12 @@ use vst3::{
     Steinberg::{
         IPluginBase, IPluginBaseTrait,
         Vst::{
-            IComponentHandler, IComponentHandlerTrait, IConnectionPoint, IConnectionPointTrait,
-            IEditController, IEditControllerTrait, IHostApplication, IMidiMapping,
-            IMidiMappingTrait, INoteExpressionController, INoteExpressionControllerTrait,
-            INoteExpressionPhysicalUIMapping, INoteExpressionPhysicalUIMappingTrait,
-            NoteExpressionTypeID, NoteExpressionTypeInfo, NoteExpressionValue,
+            IComponentHandler, IComponentHandler2, IComponentHandler2Trait, IComponentHandlerTrait,
+            IConnectionPoint, IConnectionPointTrait, IEditController, IEditControllerTrait,
+            IHostApplication, IMidiMapping, IMidiMappingTrait, INoteExpressionController,
+            INoteExpressionControllerTrait, INoteExpressionPhysicalUIMapping,
+            INoteExpressionPhysicalUIMappingTrait, NoteExpressionTypeID, NoteExpressionTypeInfo,
+            NoteExpressionValue,
         },
     },
 };
@@ -356,14 +357,35 @@ impl store::Store for SharedStore {
     }
 
     fn set_ui_state(&mut self, state: &[u8]) {
+        // Early exit if the state is the same
+        if self.store.borrow().ui_state == state {
+            return;
+        }
+
         // Update the UI state
-        self.store.borrow_mut().ui_state.clear();
-        self.store.borrow_mut().ui_state.extend_from_slice(state);
+        {
+            let mut store = self.store.borrow_mut();
+            store.ui_state.clear();
+            store.ui_state.extend_from_slice(state);
+        }
 
         // Notify the listener
         if let Some(listener) = self.store.borrow_mut().listener.as_ref() {
             if let Some(listener) = listener.upgrade() {
                 listener.ui_state_changed(state);
+            }
+        }
+
+        // Tell the host
+        if let ParameterStore {
+            component_handler: Some(component_handler),
+            ..
+        } = &(*self.store.borrow())
+        {
+            if let Some(component_handler2) = component_handler.cast::<IComponentHandler2>() {
+                unsafe {
+                    component_handler2.setDirty(1);
+                }
             }
         }
     }
