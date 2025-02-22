@@ -14,13 +14,19 @@ const mockGeneric = (infos: Map<string, Info>): Family<Value> =>
       if (!info) {
         throw new Error(`Unknown param: ${param}`);
       }
-      return atom<Value>(info.type_specific.default);
+      if (info.type_specific.t === "switch") {
+        return atom<Value>({ bool: info.type_specific.default });
+      } else if (info.type_specific.t === "numeric") {
+        return atom<Value>({ numeric: info.type_specific.default });
+      } else {
+        return atom<Value>({ string: info.type_specific.default });
+      }
     }
 
     const prefsPath = path.match(/^prefs\/(.*)$/);
     if (prefsPath) {
       // All prefs are "false" in mock stores
-      return atom<Value>(false);
+      return atom<Value>({ bool: false });
     }
 
     // Using a regex, check if path is like `params-info/${param}`
@@ -34,11 +40,11 @@ const mockGeneric = (infos: Map<string, Info>): Family<Value> =>
         throw new Error(`Unknown param: ${param}`);
       }
 
-      return atom<Value>(encode(info));
+      return atom<Value>({ bytes: encode(info) });
     }
 
     if (path === "ui-state") {
-      return atom<Value>(new Uint8Array());
+      return atom<Value>({ bytes: new Uint8Array() });
     }
 
     throw new Error(`Unknown path: ${path}`);

@@ -2,10 +2,10 @@ import { z } from "zod";
 import { default as GenericTransport } from "../transport";
 
 export const Value = z.union([
-  z.number(),
-  z.string(),
-  z.boolean(),
-  z.instanceof(Uint8Array),
+  z.object({ numeric: z.number() }),
+  z.object({ string: z.string() }),
+  z.object({ bool: z.boolean() }),
+  z.object({ bytes: z.instanceof(Uint8Array) }),
 ]);
 export type Value = z.infer<typeof Value>;
 
