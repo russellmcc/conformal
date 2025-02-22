@@ -1,6 +1,7 @@
 use std::{
     cell::RefCell,
     collections::{hash_map, HashMap},
+    io::{Read, Write},
     rc,
 };
 
@@ -33,6 +34,7 @@ use vst3::{
 };
 
 use crate::{
+    io::StreamWrite,
     mpe_quirks::{self, aftertouch_param_id, pitch_param_id, timbre_param_id, Support},
     HostInfo, ParameterModel,
 };
@@ -86,6 +88,8 @@ struct ParameterStore {
     order: Vec<String>,
 
     component_handler: Option<ComPtr<IComponentHandler>>,
+
+    ui_state: Vec<u8>,
 
     // Note that unsized weak types can't dangle, so we use Option here to allow dangling.
     listener: Option<rc::Weak<dyn store::Listener>>,
@@ -350,6 +354,19 @@ impl store::Store for SharedStore {
             .get(unique_id)
             .cloned()
     }
+
+    fn set_ui_state(&mut self, state: &[u8]) {
+        // Update the UI state
+        self.store.borrow_mut().ui_state.clear();
+        self.store.borrow_mut().ui_state.extend_from_slice(state);
+
+        // Notify the listener
+        if let Some(listener) = self.store.borrow_mut().listener.as_ref() {
+            if let Some(listener) = listener.upgrade() {
+                listener.ui_state_changed(state);
+            }
+        }
+    }
 }
 
 /// For testing only.
@@ -452,6 +469,7 @@ impl IPluginBaseTrait for EditController {
                         .map(|info| info.unique_id.clone())
                         .collect(),
                         component_handler: Default::default(),
+                        ui_state: Default::default(),
                         listener: Default::default(),
                     }))},
                     parameter_model,
@@ -569,14 +587,48 @@ impl IEditControllerTrait for EditController {
         vst3::Steinberg::kInvalidArgument
     }
 
-    unsafe fn setState(&self, _state: *mut vst3::Steinberg::IBStream) -> vst3::Steinberg::tresult {
-        // Note that we don't support any state on the edit controller side at the moment
-        vst3::Steinberg::kResultOk
+    unsafe fn setState(&self, state: *mut vst3::Steinberg::IBStream) -> vst3::Steinberg::tresult {
+        if let State::Initialized(Initialized { store, .. }) = self.s.borrow_mut().as_mut().unwrap()
+        {
+            let ParameterStore {
+                ref mut ui_state,
+                ref mut listener,
+                ..
+            } = &mut *store.store.borrow_mut();
+            if let Some(com_stream) = ComRef::from_raw(state) {
+                let mut new_state = Vec::new();
+                if StreamRead::new(com_stream)
+                    .read_to_end(&mut new_state)
+                    .is_ok()
+                {
+                    *ui_state = new_state;
+                    if let Some(listener) = listener {
+                        if let Some(listener) = listener.upgrade() {
+                            listener.ui_state_changed(ui_state);
+                        }
+                    }
+                    return vst3::Steinberg::kResultOk;
+                }
+                return vst3::Steinberg::kInternalError;
+            }
+        }
+        vst3::Steinberg::kInvalidArgument
     }
 
-    unsafe fn getState(&self, _state: *mut vst3::Steinberg::IBStream) -> vst3::Steinberg::tresult {
-        // Note that we don't support any state on the edit controller side at the moment
-        vst3::Steinberg::kResultOk
+    unsafe fn getState(&self, state: *mut vst3::Steinberg::IBStream) -> vst3::Steinberg::tresult {
+        if let State::Initialized(Initialized { store, .. }) = self.s.borrow_mut().as_mut().unwrap()
+        {
+            let ParameterStore { ref ui_state, .. } = &*store.store.borrow();
+
+            if let Some(com_state) = ComRef::from_raw(state) {
+                let mut writer = StreamWrite::new(com_state);
+                if writer.write_all(ui_state).is_ok() {
+                    return vst3::Steinberg::kResultOk;
+                }
+                return vst3::Steinberg::kInternalError;
+            }
+        }
+        vst3::Steinberg::kInvalidArgument
     }
 
     unsafe fn getParameterCount(&self) -> vst3::Steinberg::int32 {

@@ -38,6 +38,10 @@ impl<S: store::Store + 'static> store::Listener for ViewCell<S> {
             ui.update_parameter(unique_id, value);
         }
     }
+
+    fn ui_state_changed(&self, state: &[u8]) {
+        todo!()
+    }
 }
 
 struct SharedView<S>(rc::Rc<ViewCell<S>>);
