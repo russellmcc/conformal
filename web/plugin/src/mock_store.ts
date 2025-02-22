@@ -27,16 +27,21 @@ const mockGeneric = (infos: Map<string, Info>): Family<Value> =>
     // and if so, return the info encoded as bytes.
     // also it's very important that my regex captures "param".
     const paramInfoPath = path.match(/^params-info\/(.*)$/);
-    if (!paramInfoPath) {
-      throw new Error(`Unknown path: ${path}`);
-    }
-    const param = paramInfoPath[1]!;
-    const info = infos.get(param);
-    if (!info) {
-      throw new Error(`Unknown param: ${param}`);
+    if (paramInfoPath) {
+      const param = paramInfoPath[1]!;
+      const info = infos.get(param);
+      if (!info) {
+        throw new Error(`Unknown param: ${param}`);
+      }
+
+      return atom<Value>(encode(info));
     }
 
-    return atom<Value>(encode(info));
+    if (path === "ui-state") {
+      return atom<Value>(new Uint8Array());
+    }
+
+    throw new Error(`Unknown path: ${path}`);
   });
 
 const mockGrabbed = () =>
