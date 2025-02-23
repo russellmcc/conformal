@@ -1,5 +1,12 @@
 # @conformal/create-plugin
 
+## 0.4.0
+
+### Minor Changes
+
+- 07e7800: Default to Rust 2024 edition
+- 07e7800: Use workspace to control edition
+
 ## 0.3.7
 
 ### Patch Changes
