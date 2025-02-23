@@ -1,7 +1,7 @@
 {
   "name": "@conformal/plugin",
   "version": "0.3.5",
-  "description": "Build scripts for the conformal audio plug-in framework",
+  "description": "APIs for communicating with conformal audio plug-ins",
   "homepage": "https://russellmcc.github.io/conformal",
   "bugs": "https://github.com/russellmcc/conformal/issues",
   "repository": "github:russellmcc/conformal",
