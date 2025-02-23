@@ -26,46 +26,46 @@ type TypedInfo<T> = {
 
 const numberInfo: TypedInfo<number> = {
   to: (x) => {
-    if (typeof x === "number") {
-      return x;
+    if ("numeric" in x) {
+      return x.numeric;
     } else {
       return undefined;
     }
   },
-  from: (x) => x,
+  from: (x) => ({ numeric: x }),
 };
 
 const stringInfo: TypedInfo<string> = {
   to: (x) => {
-    if (typeof x === "string") {
-      return x;
+    if ("string" in x) {
+      return x.string;
     } else {
       return undefined;
     }
   },
-  from: (x) => x,
+  from: (x) => ({ string: x }),
 };
 
 const booleanInfo: TypedInfo<boolean> = {
   to: (x) => {
-    if (typeof x === "boolean") {
-      return x;
+    if ("bool" in x) {
+      return x.bool;
     } else {
       return undefined;
     }
   },
-  from: (x) => x,
+  from: (x) => ({ bool: x }),
 };
 
 const bytesInfo: TypedInfo<Uint8Array> = {
   to: (x) => {
-    if (x instanceof Uint8Array) {
-      return x;
+    if ("bytes" in x) {
+      return x.bytes;
     } else {
       return undefined;
     }
   },
-  from: (x) => x,
+  from: (x) => ({ bytes: x }),
 };
 
 const derivedStore = <T>(
@@ -107,7 +107,7 @@ const grabbedStore = (
       transport.request({
         m: "set",
         path,
-        value: get(baseNumeric) > 0,
+        value: { bool: get(baseNumeric) > 0 },
       });
     });
   });

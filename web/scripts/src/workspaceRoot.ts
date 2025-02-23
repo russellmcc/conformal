@@ -16,7 +16,10 @@ export const findWorkspaceRoot = async (dir: string) => {
   let last = null;
   while (dir !== last) {
     last = dir;
-    if (await Bun.file(path.join(dir, "bun.lockb")).exists()) {
+    if (
+      (await Bun.file(path.join(dir, "bun.lockb")).exists()) ||
+      (await Bun.file(path.join(dir, "bun.lock")).exists())
+    ) {
       return dir;
     }
     dir = path.dirname(dir);

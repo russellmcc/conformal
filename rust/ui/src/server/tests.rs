@@ -9,7 +9,10 @@ use std::{
     rc::Rc,
 };
 
-use crate::protocol::{self, Request, Response};
+use crate::{
+    protocol::{self, Request, Response},
+    ParameterStore,
+};
 use conformal_component::parameters::Value;
 use conformal_core::parameters::store::{SetError, SetGrabbedError};
 
@@ -50,6 +53,7 @@ impl<I: IntoIterator<Item = (String, conformal_component::parameters::Value)>> F
 #[derive(Clone)]
 struct StubStore {
     values: Rc<RefCell<StubStoreData>>,
+    ui_state: Rc<RefCell<Vec<u8>>>,
 }
 
 impl crate::ParameterStore for StubStore {
@@ -94,6 +98,15 @@ impl crate::ParameterStore for StubStore {
             None
         }
     }
+
+    fn get_ui_state(&self) -> Vec<u8> {
+        self.ui_state.borrow().clone()
+    }
+
+    fn set_ui_state(&mut self, state: &[u8]) {
+        self.ui_state.borrow_mut().clear();
+        self.ui_state.borrow_mut().extend_from_slice(state);
+    }
 }
 
 #[test]
@@ -105,6 +118,7 @@ fn subscribing_to_parameter() {
     };
     let store = StubStore {
         values: Rc::new(RefCell::new([("a".to_string(), 1.0.into())].into())),
+        ui_state: Rc::new(RefCell::new(vec![])),
     };
     let mut server = Server::new(
         store.clone(),
@@ -154,6 +168,49 @@ fn subscribing_to_parameter() {
 }
 
 #[test]
+fn subscribing_to_ui_state() {
+    let sent = RefCell::new(Vec::new());
+    let sender = ResponseSenderSpy {
+        sent: &sent,
+        pref_updates: &RefCell::new(Default::default()),
+    };
+    let store = StubStore {
+        values: Rc::new(RefCell::new([("a".to_string(), 1.0.into())].into())),
+        ui_state: Rc::new(RefCell::new(vec![])),
+    };
+    let mut server = Server::new(
+        store.clone(),
+        Box::new(RefCell::new(
+            conformal_preferences::create_with_fake_os_store(Default::default()),
+        )),
+        sender,
+    );
+    server.handle_request(&Request::Subscribe {
+        path: "ui-state".to_string(),
+    });
+    println!("sent: {:?}", sent.borrow());
+    assert!(sent.borrow().iter().any(|m| {
+        match m {
+            Response::Values { values } => values
+                .iter()
+                .any(|(p, v)| p == "ui-state" && v == &protocol::Value::Bytes(vec![])),
+            _ => false,
+        }
+    }));
+    sent.borrow_mut().clear();
+    server.param_store.set_ui_state(&[1, 2, 3]);
+    server.update_ui_state(&[1, 2, 3]);
+    assert!(sent.borrow().iter().any(|m| {
+        match m {
+            Response::Values { values } => values
+                .iter()
+                .any(|(p, v)| p == "ui-state" && v == &protocol::Value::Bytes(vec![1, 2, 3])),
+            _ => false,
+        }
+    }));
+}
+
+#[test]
 fn defends_against_subscriptions_to_non_existing_paths() {
     let sent = RefCell::new(Vec::new());
     let sender = ResponseSenderSpy {
@@ -162,6 +219,7 @@ fn defends_against_subscriptions_to_non_existing_paths() {
     };
     let store = StubStore {
         values: Rc::new(RefCell::new([("a".to_string(), 1.0.into())].into())),
+        ui_state: Rc::new(RefCell::new(vec![])),
     };
     let mut server = Server::new(
         store.clone(),
@@ -191,6 +249,7 @@ fn defends_against_subscription_to_parameter_with_invalid_path() {
     };
     let store = StubStore {
         values: Rc::new(RefCell::new([("a".to_string(), 1.0.into())].into())),
+        ui_state: Rc::new(RefCell::new(vec![])),
     };
     let mut server = Server::new(
         store.clone(),
@@ -219,6 +278,7 @@ fn set_does_not_echo_value() {
     };
     let store = StubStore {
         values: Rc::new(RefCell::new([("a".to_string(), 1.0.into())].into())),
+        ui_state: Rc::new(RefCell::new(vec![])),
     };
     let mut server = Server::new(
         store.clone(),
@@ -247,6 +307,7 @@ fn set_changes_store() {
     };
     let store = StubStore {
         values: Rc::new(RefCell::new([("a".to_string(), 1.0.into())].into())),
+        ui_state: Rc::new(RefCell::new(vec![])),
     };
     let mut server = Server::new(
         store.clone(),
@@ -278,6 +339,7 @@ fn grab_basics() {
     };
     let store = StubStore {
         values: Rc::new(RefCell::new([("a".to_string(), 1.0.into())].into())),
+        ui_state: Rc::new(RefCell::new(vec![])),
     };
     let mut server = Server::new(
         store.clone(),
@@ -307,6 +369,7 @@ fn get_info() {
     };
     let store = StubStore {
         values: Rc::new(RefCell::new([("a".to_string(), 1.0.into())].into())),
+        ui_state: Rc::new(RefCell::new(vec![])),
     };
     let mut server = Server::new(
         store.clone(),
@@ -364,6 +427,7 @@ fn get_set_preferences() {
     };
     let store = StubStore {
         values: Rc::new(RefCell::new([("a".to_string(), 1.0.into())].into())),
+        ui_state: Rc::new(RefCell::new(vec![])),
     };
     let mut server = Server::new(
         store.clone(),

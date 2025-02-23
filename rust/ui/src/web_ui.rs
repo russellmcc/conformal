@@ -211,4 +211,14 @@ impl<S: super::ParameterStore + 'static> Ui<S> {
     pub fn update_parameter(&mut self, unique_id: &str, value: &parameters::Value) {
         self.server.borrow_mut().update_parameter(unique_id, value);
     }
+
+    /// This must be called whenever the UI state changes.
+    pub fn update_ui_state(&mut self, state: &[u8]) {
+        // NOTE - this will be called re-entrantly if a ui state change
+        // initiates from the web ui. In this case, we just drop the update,
+        // relying on the optimistic behavior of the web ui.
+        if let Ok(mut server) = self.server.try_borrow_mut() {
+            server.update_ui_state(state);
+        }
+    }
 }

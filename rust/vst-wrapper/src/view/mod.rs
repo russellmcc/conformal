@@ -38,6 +38,12 @@ impl<S: store::Store + 'static> store::Listener for ViewCell<S> {
             ui.update_parameter(unique_id, value);
         }
     }
+
+    fn ui_state_changed(&self, state: &[u8]) {
+        if let Some(ui) = self.0.borrow_mut().ui.as_mut() {
+            ui.update_ui_state(state);
+        }
+    }
 }
 
 struct SharedView<S>(rc::Rc<ViewCell<S>>);
@@ -75,6 +81,14 @@ impl<S: store::Store> conformal_ui::ParameterStore for SharedStore<S> {
 
     fn get_info(&self, unique_id: &str) -> Option<parameters::Info> {
         self.0.borrow().get_info(unique_id)
+    }
+
+    fn get_ui_state(&self) -> Vec<u8> {
+        self.0.borrow().get_ui_state()
+    }
+
+    fn set_ui_state(&mut self, state: &[u8]) {
+        self.0.borrow_mut().set_ui_state(state);
     }
 }
 

@@ -4,12 +4,15 @@ use base64::engine::general_purpose;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-#[serde(untagged)]
 pub enum Value {
+    #[serde(rename = "numeric")]
     Numeric(f32),
+    #[serde(rename = "string")]
     String(String),
+    #[serde(rename = "bytes")]
     #[serde(with = "serde_bytes")]
     Bytes(Vec<u8>),
+    #[serde(rename = "bool")]
     Bool(bool),
 }
 

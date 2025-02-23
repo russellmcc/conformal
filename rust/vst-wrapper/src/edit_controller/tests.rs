@@ -1147,8 +1147,10 @@ fn get_parameters_from_store() {
     assert_eq!(store.get("Invalid"), None);
 }
 
+#[derive(Default)]
 struct SpyListener {
     param_changes: RefCell<Vec<(String, parameters::Value)>>,
+    ui_state_changes: RefCell<Vec<Vec<u8>>>,
 }
 
 impl store::Listener for SpyListener {
@@ -1156,6 +1158,10 @@ impl store::Listener for SpyListener {
         self.param_changes
             .borrow_mut()
             .push((id.to_string(), value.clone()));
+    }
+
+    fn ui_state_changed(&self, state: &[u8]) {
+        self.ui_state_changes.borrow_mut().push(state.to_vec());
     }
 }
 
@@ -1171,9 +1177,7 @@ fn changing_parameters_in_store() {
         let store = ec.get_store();
         assert!(store.is_some());
         let mut store = store.unwrap();
-        let listener = rc::Rc::new(SpyListener {
-            param_changes: RefCell::new(vec![]),
-        });
+        let listener = rc::Rc::new(SpyListener::default());
         store.set_listener(rc::Rc::downgrade(
             &(listener.clone() as rc::Rc<dyn store::Listener>),
         ));
@@ -1210,9 +1214,7 @@ fn set_component_state_sets_params() {
         let store = ec.get_store();
         assert!(store.is_some());
         let mut store = store.unwrap();
-        let listener = rc::Rc::new(SpyListener {
-            param_changes: RefCell::new(vec![]),
-        });
+        let listener = rc::Rc::new(SpyListener::default());
         store.set_listener(rc::Rc::downgrade(
             &(listener.clone() as rc::Rc<dyn store::Listener>),
         ));
@@ -2088,6 +2090,86 @@ fn get_midi_controller_assignment_effect() {
                 &mut id
             ),
             vst3::Steinberg::kResultFalse
+        );
+    }
+}
+
+#[test]
+fn ui_state_is_saved() {
+    let ec = dummy_synth_edit_controller();
+    let host = ComWrapper::new(dummy_host::Host::default());
+
+    unsafe {
+        assert_eq!(
+            ec.initialize(host.as_com_ref().unwrap().as_ptr()),
+            vst3::Steinberg::kResultOk
+        );
+
+        let mut store = ec.get_store().unwrap();
+        let listener = rc::Rc::new(SpyListener::default());
+        store.set_listener(rc::Rc::downgrade(
+            &(listener.clone() as rc::Rc<dyn store::Listener>),
+        ));
+
+        let initial_stream = ComWrapper::new(Stream::new([]));
+        assert_eq!(
+            ec.getState(
+                initial_stream
+                    .as_com_ref::<vst3::Steinberg::IBStream>()
+                    .unwrap()
+                    .as_ptr()
+            ),
+            vst3::Steinberg::kResultOk
+        );
+
+        store.set_ui_state(&[1]);
+        assert_eq!(listener.ui_state_changes.borrow().as_slice(), &[vec![1]]);
+
+        assert_eq!(store.get_ui_state(), vec![1]);
+
+        let modified_stream = ComWrapper::new(Stream::new([]));
+        assert_eq!(
+            ec.getState(
+                modified_stream
+                    .as_com_ref::<vst3::Steinberg::IBStream>()
+                    .unwrap()
+                    .as_ptr()
+            ),
+            vst3::Steinberg::kResultOk
+        );
+
+        assert_eq!(
+            initial_stream.seek(
+                0,
+                vst3::Steinberg::IBStream_::IStreamSeekMode_::kIBSeekSet as i32,
+                std::ptr::null_mut(),
+            ),
+            vst3::Steinberg::kResultOk
+        );
+        assert_eq!(
+            ec.setState(initial_stream.as_com_ref().unwrap().as_ptr()),
+            vst3::Steinberg::kResultOk
+        );
+        assert_eq!(
+            listener.ui_state_changes.borrow().as_slice(),
+            &[vec![1], vec![]]
+        );
+
+        assert_eq!(
+            modified_stream.seek(
+                0,
+                vst3::Steinberg::IBStream_::IStreamSeekMode_::kIBSeekSet as i32,
+                std::ptr::null_mut(),
+            ),
+            vst3::Steinberg::kResultOk
+        );
+        assert_eq!(
+            ec.setState(modified_stream.as_com_ref().unwrap().as_ptr()),
+            vst3::Steinberg::kResultOk
+        );
+        assert_eq!(
+            listener.ui_state_changes.borrow().as_slice(),
+            &[vec![1], vec![], vec![1]]
         );
     }
 }

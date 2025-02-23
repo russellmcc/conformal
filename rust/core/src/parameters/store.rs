@@ -4,6 +4,8 @@ use conformal_component::parameters::{Info, Value};
 
 pub trait Listener {
     fn parameter_changed(&self, unique_id: &str, value: &Value);
+
+    fn ui_state_changed(&self, state: &[u8]);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -42,6 +44,11 @@ pub trait Store {
     ///  - Returns `NotFound` if the no parameter with the given `unique_id` is in the store.
     ///  - Returns `InternalError` if the store is unable to set the value due to a bad internal state
     fn set_grabbed(&mut self, unique_id: &str, grabbed: bool) -> Result<(), SetGrabbedError>;
+
+    fn get_ui_state(&self) -> Vec<u8>;
+
+    /// Set the UI state of the store.
+    fn set_ui_state(&mut self, state: &[u8]);
 
     /// Note that there can only be one listener at a time!
     fn set_listener(&mut self, listener: rc::Weak<dyn Listener>);
