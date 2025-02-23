@@ -25,9 +25,5 @@ pub fn convert_switch(value: f64) -> bool {
 }
 
 pub fn normalize_switch(value: bool) -> f64 {
-    if value {
-        1.0
-    } else {
-        0.0
-    }
+    if value { 1.0 } else { 0.0 }
 }

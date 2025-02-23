@@ -1,5 +1,5 @@
 use super::{
-    hash_id, IdHash, InternalValue, PiecewiseLinearCurve, PiecewiseLinearCurvePoint, States,
+    IdHash, InternalValue, PiecewiseLinearCurve, PiecewiseLinearCurvePoint, States, hash_id,
 };
 
 struct MyState {}
@@ -30,52 +30,56 @@ fn parameter_states_default_functions() {
 
 #[test]
 fn valid_curve() {
-    assert!(PiecewiseLinearCurve::new(
-        (&[
-            PiecewiseLinearCurvePoint {
-                sample_offset: 0,
-                value: 0.5
-            },
-            PiecewiseLinearCurvePoint {
-                sample_offset: 3,
-                value: 0.4
-            },
-            PiecewiseLinearCurvePoint {
-                sample_offset: 4,
-                value: 0.3
-            }
-        ])
-            .iter()
-            .cloned(),
-        10,
-        0.0..=1.0
+    assert!(
+        PiecewiseLinearCurve::new(
+            (&[
+                PiecewiseLinearCurvePoint {
+                    sample_offset: 0,
+                    value: 0.5
+                },
+                PiecewiseLinearCurvePoint {
+                    sample_offset: 3,
+                    value: 0.4
+                },
+                PiecewiseLinearCurvePoint {
+                    sample_offset: 4,
+                    value: 0.3
+                }
+            ])
+                .iter()
+                .cloned(),
+            10,
+            0.0..=1.0
+        )
+        .is_some()
     )
-    .is_some())
 }
 
 #[test]
 fn out_of_order_curve_points_rejected() {
-    assert!(PiecewiseLinearCurve::new(
-        (&[
-            PiecewiseLinearCurvePoint {
-                sample_offset: 0,
-                value: 0.5
-            },
-            PiecewiseLinearCurvePoint {
-                sample_offset: 4,
-                value: 0.4
-            },
-            PiecewiseLinearCurvePoint {
-                sample_offset: 3,
-                value: 0.3
-            }
-        ])
-            .iter()
-            .cloned(),
-        10,
-        0.0..=1.0
+    assert!(
+        PiecewiseLinearCurve::new(
+            (&[
+                PiecewiseLinearCurvePoint {
+                    sample_offset: 0,
+                    value: 0.5
+                },
+                PiecewiseLinearCurvePoint {
+                    sample_offset: 4,
+                    value: 0.4
+                },
+                PiecewiseLinearCurvePoint {
+                    sample_offset: 3,
+                    value: 0.3
+                }
+            ])
+                .iter()
+                .cloned(),
+            10,
+            0.0..=1.0
+        )
+        .is_none()
     )
-    .is_none())
 }
 
 #[test]
@@ -85,107 +89,117 @@ fn empty_curves_rejected() {
 
 #[test]
 fn zero_length_buffers_rejected() {
-    assert!(PiecewiseLinearCurve::new(
-        (&[PiecewiseLinearCurvePoint {
-            sample_offset: 0,
-            value: 0.2
-        }])
-            .iter()
-            .cloned(),
-        0,
-        0.0..=1.0
+    assert!(
+        PiecewiseLinearCurve::new(
+            (&[PiecewiseLinearCurvePoint {
+                sample_offset: 0,
+                value: 0.2
+            }])
+                .iter()
+                .cloned(),
+            0,
+            0.0..=1.0
+        )
+        .is_none()
     )
-    .is_none())
 }
 
 #[test]
 fn out_of_bounds_sample_counts_rejected() {
-    assert!(PiecewiseLinearCurve::new(
-        (&[
-            PiecewiseLinearCurvePoint {
-                sample_offset: 0,
-                value: 0.2
-            },
-            PiecewiseLinearCurvePoint {
-                sample_offset: 12,
-                value: 0.3
-            }
-        ])
-            .iter()
-            .cloned(),
-        10,
-        0.0..=1.0
+    assert!(
+        PiecewiseLinearCurve::new(
+            (&[
+                PiecewiseLinearCurvePoint {
+                    sample_offset: 0,
+                    value: 0.2
+                },
+                PiecewiseLinearCurvePoint {
+                    sample_offset: 12,
+                    value: 0.3
+                }
+            ])
+                .iter()
+                .cloned(),
+            10,
+            0.0..=1.0
+        )
+        .is_none()
     )
-    .is_none())
 }
 
 #[test]
 fn out_of_bounds_curve_values_rejected() {
-    assert!(PiecewiseLinearCurve::new(
-        (&[
-            PiecewiseLinearCurvePoint {
-                sample_offset: 0,
-                value: 0.2
-            },
-            PiecewiseLinearCurvePoint {
-                sample_offset: 3,
-                value: 1.3
-            }
-        ])
-            .iter()
-            .cloned(),
-        10,
-        0.0..=1.0
+    assert!(
+        PiecewiseLinearCurve::new(
+            (&[
+                PiecewiseLinearCurvePoint {
+                    sample_offset: 0,
+                    value: 0.2
+                },
+                PiecewiseLinearCurvePoint {
+                    sample_offset: 3,
+                    value: 1.3
+                }
+            ])
+                .iter()
+                .cloned(),
+            10,
+            0.0..=1.0
+        )
+        .is_none()
     )
-    .is_none())
 }
 
 #[test]
 fn curve_does_not_start_at_zero_rejected() {
-    assert!(PiecewiseLinearCurve::new(
-        (&[
-            PiecewiseLinearCurvePoint {
-                sample_offset: 3,
-                value: 0.5
-            },
-            PiecewiseLinearCurvePoint {
-                sample_offset: 6,
-                value: 0.4
-            },
-            PiecewiseLinearCurvePoint {
-                sample_offset: 7,
-                value: 0.3
-            }
-        ])
-            .iter()
-            .cloned(),
-        10,
-        0.0..=1.0
+    assert!(
+        PiecewiseLinearCurve::new(
+            (&[
+                PiecewiseLinearCurvePoint {
+                    sample_offset: 3,
+                    value: 0.5
+                },
+                PiecewiseLinearCurvePoint {
+                    sample_offset: 6,
+                    value: 0.4
+                },
+                PiecewiseLinearCurvePoint {
+                    sample_offset: 7,
+                    value: 0.3
+                }
+            ])
+                .iter()
+                .cloned(),
+            10,
+            0.0..=1.0
+        )
+        .is_none()
     )
-    .is_none())
 }
 
 #[test]
 fn curve_multiple_points_same_sample_rejected() {
-    assert!(PiecewiseLinearCurve::new(
-        (&[
-            PiecewiseLinearCurvePoint {
-                sample_offset: 0,
-                value: 0.5
-            },
-            PiecewiseLinearCurvePoint {
-                sample_offset: 6,
-                value: 0.4
-            },
-            PiecewiseLinearCurvePoint {
-                sample_offset: 6,
-                value: 0.3
-            }
-        ])
-            .iter()
-            .cloned(),
-        10,
-        0.0..=1.0
+    assert!(
+        PiecewiseLinearCurve::new(
+            (&[
+                PiecewiseLinearCurvePoint {
+                    sample_offset: 0,
+                    value: 0.5
+                },
+                PiecewiseLinearCurvePoint {
+                    sample_offset: 6,
+                    value: 0.4
+                },
+                PiecewiseLinearCurvePoint {
+                    sample_offset: 6,
+                    value: 0.3
+                }
+            ])
+                .iter()
+                .cloned(),
+            10,
+            0.0..=1.0
+        )
+        .is_none()
     )
-    .is_none())
 }

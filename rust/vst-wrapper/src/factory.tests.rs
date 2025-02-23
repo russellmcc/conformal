@@ -218,11 +218,12 @@ fn basic_class_info_test() {
         (NAME.to_string() + "EC").as_str()
     );
 
-    assert!(info
-        .cid
-        .iter()
-        .zip(EDIT_CONTROLLER_CID.iter())
-        .all(|(a, b)| *a == *b as i8));
+    assert!(
+        info.cid
+            .iter()
+            .zip(EDIT_CONTROLLER_CID.iter())
+            .all(|(a, b)| *a == *b as i8)
+    );
 }
 
 #[test]
@@ -311,10 +312,12 @@ fn get_edit_controller_class_id() {
         unsafe { result.getControllerClassId(&mut result_edit_controller_cid) },
         vst3::Steinberg::kResultOk
     );
-    assert!(EDIT_CONTROLLER_CID
-        .iter()
-        .zip(result_edit_controller_cid.iter())
-        .all(|(a, b)| *a == *b as u8));
+    assert!(
+        EDIT_CONTROLLER_CID
+            .iter()
+            .zip(result_edit_controller_cid.iter())
+            .all(|(a, b)| *a == *b as u8)
+    );
 }
 
 #[test]
@@ -417,11 +420,12 @@ fn basic_class_info_2_test() {
             vst3::Steinberg::kResultOk
         );
     }
-    assert!(info
-        .cid
-        .iter()
-        .zip(EDIT_CONTROLLER_CID.iter())
-        .all(|(a, b)| *a == *b as i8));
+    assert!(
+        info.cid
+            .iter()
+            .zip(EDIT_CONTROLLER_CID.iter())
+            .all(|(a, b)| *a == *b as i8)
+    );
     assert_eq!(
         from_cstr(&info.category).as_str(),
         "Component Controller Class"

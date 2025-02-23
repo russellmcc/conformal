@@ -2,8 +2,9 @@ use std::{
     collections::HashMap,
     ops::RangeInclusive,
     sync::{
+        Arc,
         atomic::{AtomicBool, AtomicU32, AtomicU64},
-        mpsc, Arc,
+        mpsc,
     },
 };
 
@@ -148,7 +149,9 @@ fn make_unhash<'a, S: AsRef<str> + 'a, Iter: IntoIterator<Item = cp::InfoRef<'a,
     for info in iter {
         match unhash.entry(cp::hash_id(info.unique_id)) {
             std::collections::hash_map::Entry::Occupied(_) => {
-                panic!("Duplicate parameter ID hash! This could be caused by duplicate parameter IDs or a hash collision.");
+                panic!(
+                    "Duplicate parameter ID hash! This could be caused by duplicate parameter IDs or a hash collision."
+                );
             }
             std::collections::hash_map::Entry::Vacant(v) => {
                 v.insert(info.unique_id.to_owned());
@@ -642,7 +645,7 @@ struct RawQueuePoint {
 
 fn raw_iterator_from_queue(
     queue: ComRef<'_, IParamValueQueue>,
-) -> impl Iterator<Item = RawQueuePoint> + Clone + '_ {
+) -> impl Iterator<Item = RawQueuePoint> + Clone + use<'_> {
     unsafe {
         let point_count = queue.getPointCount().max(0);
         (0..point_count).filter_map(move |idx| {
@@ -695,7 +698,7 @@ fn curve_iterator_from_queue<'a, M: CurveIteratorMetadatum>(
     initial_value: M::Value,
     queue: ComRef<'a, IParamValueQueue>,
     metadatum: &'a M,
-) -> impl Iterator<Item = M::CurvePoint> + Clone + 'a {
+) -> impl Iterator<Item = M::CurvePoint> + Clone + use<'a, M> {
     let mut queue_points = raw_iterator_from_queue(queue).peekable();
     let queue_starts_at_zero = matches!(
         queue_points.peek(),
@@ -899,125 +902,131 @@ unsafe fn check_changes_and_update_scratch_and_store<'a>(
     store: &'a ProcessingStoreCore,
     buffer_size: usize,
 ) -> Option<(ChangesStatus, InitializedScratch<'a>)> {
-    let param_count = changes.getParameterCount();
-    let mut change_status = ChangesStatus::NoChanges;
-    if param_count < 0 {
-        return None;
-    }
-    // Clear all the checker flags
-    for v in scratch.data.values_mut() {
-        *v = None;
-    }
-    if !(0..param_count).all(|idx| {
-        let param_queue = changes.getParameterData(idx);
-        ComRef::from_raw(param_queue).is_some_and(|q| {
-            let parameter_id = cp::id_hash_from_internal_hash(q.getParameterId());
-            let point_count = q.getPointCount();
-            if point_count < 0 {
-                return false;
-            }
-            match (
-                scratch.data.get_mut(&parameter_id),
-                store.metadata.data.get(&parameter_id),
-                store.get_by_hash(parameter_id),
-            ) {
-                (Some(scratch_v), Some(metadatum), Some(old_value)) => {
-                    if scratch_v.is_some() {
-                        return false;
-                    }
-                    match check_queue(q, metadatum, old_value) {
-                        QueueResult::Invalid => {
+    unsafe {
+        let param_count = changes.getParameterCount();
+        let mut change_status = ChangesStatus::NoChanges;
+        if param_count < 0 {
+            return None;
+        }
+        // Clear all the checker flags
+        for v in scratch.data.values_mut() {
+            *v = None;
+        }
+        if !(0..param_count).all(|idx| {
+            let param_queue = changes.getParameterData(idx);
+            ComRef::from_raw(param_queue).is_some_and(|q| {
+                let parameter_id = cp::id_hash_from_internal_hash(q.getParameterId());
+                let point_count = q.getPointCount();
+                if point_count < 0 {
+                    return false;
+                }
+                match (
+                    scratch.data.get_mut(&parameter_id),
+                    store.metadata.data.get(&parameter_id),
+                    store.get_by_hash(parameter_id),
+                ) {
+                    (Some(scratch_v), Some(metadatum), Some(old_value)) => {
+                        if scratch_v.is_some() {
                             return false;
                         }
-                        QueueResult::Ok {
-                            initial_value,
-                            last_value,
-                        } => {
-                            // Check downstream invariants for this queue.
-                            if !check_downstream_invariants(
+                        match check_queue(q, metadatum, old_value) {
+                            QueueResult::Invalid => {
+                                return false;
+                            }
+                            QueueResult::Ok {
                                 initial_value,
-                                metadatum,
-                                q,
-                                buffer_size,
-                            ) {
-                                return false;
-                            }
+                                last_value,
+                            } => {
+                                // Check downstream invariants for this queue.
+                                if !check_downstream_invariants(
+                                    initial_value,
+                                    metadatum,
+                                    q,
+                                    buffer_size,
+                                ) {
+                                    return false;
+                                }
 
-                            if !store.set(parameter_id, last_value) {
-                                return false;
-                            }
+                                if !store.set(parameter_id, last_value) {
+                                    return false;
+                                }
 
-                            *scratch_v = Some(ValueOrQueue::Queue(QueueImpl {
-                                initial_value,
-                                com_ptr: param_queue,
-                            }));
-                            change_status = ChangesStatus::Changes;
-                        }
-                        QueueResult::Unchanged { value } => {
-                            *scratch_v = Some(ValueOrQueue::Value(value));
-                        }
-                        QueueResult::Constant { value } => {
-                            if !store.set(parameter_id, value) {
-                                return false;
+                                *scratch_v = Some(ValueOrQueue::Queue(QueueImpl {
+                                    initial_value,
+                                    com_ptr: param_queue,
+                                }));
+                                change_status = ChangesStatus::Changes;
                             }
+                            QueueResult::Unchanged { value } => {
+                                *scratch_v = Some(ValueOrQueue::Value(value));
+                            }
+                            QueueResult::Constant { value } => {
+                                if !store.set(parameter_id, value) {
+                                    return false;
+                                }
 
-                            *scratch_v = Some(ValueOrQueue::Value(value));
-                            change_status = ChangesStatus::Changes;
+                                *scratch_v = Some(ValueOrQueue::Value(value));
+                                change_status = ChangesStatus::Changes;
+                            }
                         }
+                        true
                     }
-                    true
+                    _ => false,
                 }
-                _ => false,
-            }
-        })
-    }) {
-        return None;
-    }
-
-    for (k, v) in &mut scratch.data {
-        if v.is_none() {
-            // Initialize any unchanged parameters to their current store value.
-            *v = Some(ValueOrQueue::Value(store.get_by_hash(*k)?));
+            })
+        }) {
+            return None;
         }
+
+        for (k, v) in &mut scratch.data {
+            if v.is_none() {
+                // Initialize any unchanged parameters to their current store value.
+                *v = Some(ValueOrQueue::Value(store.get_by_hash(*k)?));
+            }
+        }
+        Some((
+            change_status,
+            InitializedScratch {
+                data: &scratch.data,
+                metadata: &store.metadata,
+                buffer_size,
+            },
+        ))
     }
-    Some((
-        change_status,
-        InitializedScratch {
-            data: &scratch.data,
-            metadata: &store.metadata,
-            buffer_size,
-        },
-    ))
 }
 
 pub unsafe fn param_changes_from_vst3<'a>(
     com_changes: ComRef<'a, IParameterChanges>,
     store: &'a mut ProcessingStore,
     buffer_size: usize,
-) -> Option<impl BufferStates + Clone + 'a> {
-    let (_, states) = check_changes_and_update_scratch_and_store(
-        com_changes,
-        &mut store.scratch,
-        &store.core,
-        buffer_size,
-    )?;
-    Some(states)
+) -> Option<impl BufferStates + Clone + use<'a>> {
+    unsafe {
+        let (_, states) = check_changes_and_update_scratch_and_store(
+            com_changes,
+            &mut store.scratch,
+            &store.core,
+            buffer_size,
+        )?;
+        Some(states)
+    }
 }
 
 pub unsafe fn no_audio_param_changes_from_vst3<'a>(
     com_changes: ComRef<'a, IParameterChanges>,
     store: &'a mut ProcessingStore,
-) -> Option<(ChangesStatus, impl cp::States + Clone + 'a)> {
-    let (status, scratch) = check_changes_and_update_scratch_and_store(
-        com_changes,
-        &mut store.scratch,
-        &store.core,
-        0,
-    )?;
-    for scratch_value in scratch.data.values().flatten() {
-        if let ValueOrQueue::Queue(_) = scratch_value {
-            return None;
+) -> Option<(ChangesStatus, impl cp::States + Clone + use<'a>)> {
+    unsafe {
+        let (status, scratch) = check_changes_and_update_scratch_and_store(
+            com_changes,
+            &mut store.scratch,
+            &store.core,
+            0,
+        )?;
+        for scratch_value in scratch.data.values().flatten() {
+            if let ValueOrQueue::Queue(_) = scratch_value {
+                return None;
+            }
         }
+        Some((status, &store.core))
     }
-    Some((status, &store.core))
 }

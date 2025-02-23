@@ -1,10 +1,10 @@
 //! Abstractions for processors that generate audio.
 
 use crate::{
+    Processor,
     audio::BufferMut,
     events::{self, Event, Events},
     parameters::{self, BufferStates, Flags, InfoRef, TypeSpecificInfoRef},
-    Processor,
 };
 
 /// The parameter ID of the pitch bend parameter. See [`CONTROLLER_PARAMETERS`] for more.

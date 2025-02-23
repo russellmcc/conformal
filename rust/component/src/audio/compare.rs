@@ -1,6 +1,6 @@
 //! Utilities for comparing audio samples, slices, and buffers
 
-use super::{channels, Buffer};
+use super::{Buffer, channels};
 use itertools::{EitherOrBoth, Itertools};
 
 /// Checks if two `f32` values `a` and `b` are within `e` of each other.

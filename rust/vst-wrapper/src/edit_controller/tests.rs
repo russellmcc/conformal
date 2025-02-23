@@ -11,21 +11,21 @@ use vst3::Steinberg::{IBStreamTrait, IPluginBaseTrait};
 use vst3::{ComWrapper, Steinberg::Vst::IEditControllerTrait};
 
 use super::GetStore;
+use crate::HostInfo;
 use crate::fake_ibstream::Stream;
 use crate::processor::test_utils::{
-    mock_no_audio_process_data, setup_proc, ParameterValueQueueImpl, ParameterValueQueuePoint,
+    ParameterValueQueueImpl, ParameterValueQueuePoint, mock_no_audio_process_data, setup_proc,
 };
-use crate::HostInfo;
+use crate::{ParameterModel, processor};
 use crate::{dummy_host, from_utf16_buffer, to_utf16};
-use crate::{processor, ParameterModel};
 use assert_approx_eq::assert_approx_eq;
 use conformal_component::audio::BufferMut;
 use conformal_component::events::{Data, Event, Events};
-use conformal_component::parameters::{self, hash_id, BufferStates, Flags, States, StaticInfoRef};
+use conformal_component::parameters::{self, BufferStates, Flags, States, StaticInfoRef, hash_id};
 use conformal_component::{
+    Component, ProcessingEnvironment, Processor,
     parameters::{InfoRef, TypeSpecificInfoRef},
     synth::Synth,
-    Component, ProcessingEnvironment, Processor,
 };
 use conformal_core::parameters::store;
 use conformal_core::parameters::store::Store;
@@ -1589,11 +1589,11 @@ fn bypass_parameter_exposed() {
 }
 
 fn dummy_synth_edit_controller() -> impl IPluginBaseTrait
-       + IEditControllerTrait
-       + IMidiMappingTrait
-       + INoteExpressionControllerTrait
-       + INoteExpressionPhysicalUIMappingTrait
-       + GetStore {
++ IEditControllerTrait
++ IMidiMappingTrait
++ INoteExpressionControllerTrait
++ INoteExpressionPhysicalUIMappingTrait
++ GetStore {
     super::create_internal(
         create_parameter_model(|_: &HostInfo| parameters::to_infos(&[])),
         "dummy_domain".to_string(),

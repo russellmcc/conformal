@@ -72,11 +72,12 @@ fn timed_enum_per_sample_basics() {
         .unwrap(),
     )
     .collect::<Vec<_>>();
-    assert!(vals
-        .iter()
-        .copied()
-        .zip(([0, 0, 0, 0, 0, 0, 0, 2, 3, 3]).iter().copied())
-        .all(|(a, b)| a == b));
+    assert!(
+        vals.iter()
+            .copied()
+            .zip(([0, 0, 0, 0, 0, 0, 0, 2, 3, 3]).iter().copied())
+            .all(|(a, b)| a == b)
+    );
 }
 
 #[test]
@@ -104,13 +105,16 @@ fn timed_switch_per_sample_basics() {
         .unwrap(),
     )
     .collect::<Vec<_>>();
-    assert!(vals
-        .iter()
-        .copied()
-        .zip(
-            ([false, false, false, false, false, false, false, true, false, false])
+    assert!(
+        vals.iter()
+            .copied()
+            .zip(
+                ([
+                    false, false, false, false, false, false, false, true, false, false
+                ])
                 .iter()
                 .copied()
-        )
-        .all(|(a, b)| a == b));
+            )
+            .all(|(a, b)| a == b)
+    );
 }

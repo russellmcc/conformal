@@ -3,9 +3,10 @@
 
 use self::state::State;
 use conformal_component::{
-    audio::{channels_mut, BufferMut},
+    ProcessingEnvironment,
+    audio::{BufferMut, channels_mut},
     events::{Data, Event as CEvent, NoteData},
-    parameters, ProcessingEnvironment,
+    parameters,
 };
 
 fn add_in_place(x: &[f32], y: &mut [f32]) {
@@ -125,8 +126,8 @@ impl<I: Iterator<Item = NoteExpressionPoint> + Clone> NoteExpressionCurve<I> {
 /// Return a note expression curve that is constant, with all expressions set to zero.
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
-pub fn default_note_expression_curve(
-) -> NoteExpressionCurve<impl Iterator<Item = NoteExpressionPoint> + Clone> {
+pub fn default_note_expression_curve()
+-> NoteExpressionCurve<impl Iterator<Item = NoteExpressionPoint> + Clone> {
     NoteExpressionCurve::new(std::iter::once(NoteExpressionPoint {
         sample_offset: 0,
         state: Default::default(),

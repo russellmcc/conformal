@@ -3,7 +3,8 @@ resolver = "2"
 members = []
 
 [workspace.package]
-rust-version = "1.84.1"
+rust-version = "1.85.0"
+edition = "2024"
 
 [workspace.lints.rust]
 nonstandard_style = "warn"

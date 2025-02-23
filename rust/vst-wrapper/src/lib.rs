@@ -191,9 +191,9 @@ pub struct Info<'a> {
     pub version: &'a str,
 }
 
+use conformal_component::Component;
 use conformal_component::effect::Effect;
 use conformal_component::synth::Synth;
-use conformal_component::Component;
 
 use vst3::Steinberg::{IPluginBase, IPluginFactory2, IPluginFactory2Trait};
 use vst3::{Class, Steinberg::IPluginFactory};
@@ -391,7 +391,7 @@ fn should_include_parameter_in_snapshot(id: &str) -> bool {
 #[macro_export]
 macro_rules! wrap_factory {
     ($CLASSES:expr, $INFO:expr) => {
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         #[allow(non_snake_case, clippy::missing_safety_doc, clippy::missing_panics_doc)]
         pub unsafe extern "system" fn GetPluginFactory() -> *mut core::ffi::c_void {
             let factory = conformal_vst_wrapper::_wrap_factory($CLASSES, $INFO);
@@ -404,7 +404,7 @@ macro_rules! wrap_factory {
 
         /// This is required by the API [see here](https://steinbergmedia.github.io/vst3_dev_portal/pages/Technical+Documentation/VST+Module+Architecture/Index.html?highlight=GetPluginFactory#module-factory)
         #[cfg(target_os = "macos")]
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         #[allow(non_snake_case)]
         pub extern "system" fn bundleEntry(_: *mut core::ffi::c_void) -> bool {
             true
@@ -412,7 +412,7 @@ macro_rules! wrap_factory {
 
         /// This is required by the API [see here](https://steinbergmedia.github.io/vst3_dev_portal/pages/Technical+Documentation/VST+Module+Architecture/Index.html?highlight=GetPluginFactory#module-factory)
         #[cfg(target_os = "macos")]
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         #[allow(non_snake_case)]
         pub extern "system" fn bundleExit() -> bool {
             true

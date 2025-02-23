@@ -30,7 +30,7 @@ pub trait ParameterStore {
     ///
     /// - `SetError::NotFound` if there is no parameter with the given unique ID.
     fn set_grabbed(&mut self, unique_id: &str, grabbed: bool)
-        -> Result<(), store::SetGrabbedError>;
+    -> Result<(), store::SetGrabbedError>;
 
     fn get_ui_state(&self) -> Vec<u8>;
 

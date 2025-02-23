@@ -1,6 +1,6 @@
 [package]
 name = "{{plug_slug}}_vst"
-edition = "2021"
+edition.workspace = true
 rust-version.workspace = true
 publish = false
 

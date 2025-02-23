@@ -6,7 +6,7 @@ use std::{
 };
 
 use wry::{
-    http::{header::CONTENT_TYPE, Method, Request, Response, StatusCode},
+    http::{Method, Request, Response, StatusCode, header::CONTENT_TYPE},
     raw_window_handle,
 };
 

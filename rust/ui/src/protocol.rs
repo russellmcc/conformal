@@ -1,7 +1,7 @@
 use std::{collections::HashMap, io::Write};
 
 use base64::engine::general_purpose;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub enum Value {
@@ -169,10 +169,10 @@ pub mod parameter_info {
     }
 }
 
-pub fn make_serializer(
-    write: &mut impl Write,
+pub fn make_serializer<Writer: Write>(
+    write: &mut Writer,
 ) -> rmp_serde::Serializer<
-    &mut impl Write,
+    &mut Writer,
     rmp_serde::config::StructMapConfig<rmp_serde::config::DefaultConfig>,
 > {
     rmp_serde::Serializer::new(write).with_struct_map()
