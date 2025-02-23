@@ -169,10 +169,10 @@ pub mod parameter_info {
     }
 }
 
-pub fn make_serializer(
-    write: &mut impl Write,
+pub fn make_serializer<Writer: Write>(
+    write: &mut Writer,
 ) -> rmp_serde::Serializer<
-    &mut impl Write,
+    &mut Writer,
     rmp_serde::config::StructMapConfig<rmp_serde::config::DefaultConfig>,
 > {
     rmp_serde::Serializer::new(write).with_struct_map()
