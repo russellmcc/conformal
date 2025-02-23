@@ -1106,7 +1106,7 @@ impl<CF: ComponentFactory<Component: Component<Processor: ProcessorT>>, PC: Proc
             ..
         })) = self.s.borrow_mut().as_mut()
         {
-            if let Some(com_state) = ComRef::from_raw(state) {
+            if let Some(com_state) = unsafe { ComRef::from_raw(state) } {
                 let read = StreamRead::new(com_state);
                 if let Ok(state) = rmp_serde::from_read::<_, state::State>(read) {
                     return match main_context_store.apply_snapshot(&state.params) {
