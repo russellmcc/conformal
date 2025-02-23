@@ -130,7 +130,7 @@ unsafe fn convert_event(
 pub unsafe fn event_iterator(
     event_list: ComRef<'_, IEventList>,
     support_mpe_quirks: Support,
-) -> impl Iterator<Item = Event> + Clone + use<'_> {
+) -> impl Iterator<Item = Event> + Clone {
     unsafe {
         (0..event_list.getEventCount()).filter_map(move |i| -> Option<Event> {
             get_event(event_list, i)
@@ -143,7 +143,7 @@ pub unsafe fn event_iterator(
 pub unsafe fn all_zero_event_iterator(
     event_list: ComRef<'_, IEventList>,
     support_mpe_quirks: Support,
-) -> Option<impl Iterator<Item = Data> + Clone + use<'_>> {
+) -> Option<impl Iterator<Item = Data> + Clone> {
     unsafe {
         let i = (0..event_list.getEventCount()).filter_map(move |i| -> Option<Event> {
             get_event(event_list, i)

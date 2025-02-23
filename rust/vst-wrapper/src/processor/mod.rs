@@ -810,8 +810,7 @@ pub fn create_synth<'a, CF: ComponentFactory<Component: Component<Processor: Syn
 > + IComponentTrait
 + IAudioProcessorTrait
 + IProcessContextRequirementsTrait
-+ IConnectionPointTrait
-+ use<'a, CF> {
++ IConnectionPointTrait {
     Processor {
         controller_cid,
         s: Some(State::ReadyForInitialization(factory)).into(),
@@ -835,8 +834,7 @@ pub fn create_effect<'a, CF: ComponentFactory<Component: Component<Processor: Ef
 > + IComponentTrait
 + IAudioProcessorTrait
 + IProcessContextRequirementsTrait
-+ IConnectionPointTrait
-+ use<'a, CF> {
++ IConnectionPointTrait {
     Processor {
         controller_cid,
         s: Some(State::ReadyForInitialization(factory)).into(),

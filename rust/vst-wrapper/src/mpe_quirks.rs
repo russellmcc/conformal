@@ -147,14 +147,10 @@ impl<A: Iterator<Item = Event> + Clone, B: Iterator<Item = Event> + Clone> Itera
     }
 }
 
-fn interleave_events<
-    'a,
-    A: Iterator<Item = Event> + Clone + 'a,
-    B: Iterator<Item = Event> + Clone + 'a,
->(
-    a: A,
-    b: B,
-) -> impl Iterator<Item = Event> + Clone + use<'a, A, B> {
+fn interleave_events<'a>(
+    a: impl Iterator<Item = Event> + Clone + 'a,
+    b: impl Iterator<Item = Event> + Clone + 'a,
+) -> impl Iterator<Item = Event> + Clone {
     InterleavedEventIter {
         a: a.peekable(),
         b: b.peekable(),
@@ -351,15 +347,11 @@ fn all_param_event_iters_audio<
     )
 }
 
-pub fn add_mpe_quirk_events_no_audio<
-    'a,
-    I: Iterator<Item = events::Data> + Clone + 'a,
-    S: States + Clone,
->(
-    events: I,
+pub fn add_mpe_quirk_events_no_audio<'a>(
+    events: impl Iterator<Item = events::Data> + Clone + 'a,
     quirks_state: State,
-    buffer_states: &'a S,
-) -> impl Iterator<Item = events::Data> + Clone + use<'a, I, S> {
+    buffer_states: &'a (impl States + Clone),
+) -> impl Iterator<Item = events::Data> + Clone {
     with_mpe_events(
         all_param_event_iters_no_audio(events, &quirks_state.hashes, buffer_states),
         quirks_state,
@@ -378,16 +370,12 @@ pub fn update_mpe_quirk_events_no_audio(
     );
 }
 
-pub fn add_mpe_quirk_events_buffer<
-    'a,
-    E: Iterator<Item = events::Event> + Clone + 'a,
-    S: BufferStates + Clone,
->(
-    events: E,
+pub fn add_mpe_quirk_events_buffer<'a>(
+    events: impl Iterator<Item = events::Event> + Clone + 'a,
     quirks_state: State,
-    buffer_states: &'a S,
+    buffer_states: &'a (impl BufferStates + Clone),
     buffer_size: usize,
-) -> Events<impl Iterator<Item = events::Event> + Clone + use<'a, E, S>> {
+) -> Events<impl Iterator<Item = events::Event> + Clone> {
     events::Events::new(
         with_mpe_events(
             all_param_event_iters_audio(events.into_iter(), &quirks_state.hashes, buffer_states),

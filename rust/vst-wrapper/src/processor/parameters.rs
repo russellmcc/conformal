@@ -645,7 +645,7 @@ struct RawQueuePoint {
 
 fn raw_iterator_from_queue(
     queue: ComRef<'_, IParamValueQueue>,
-) -> impl Iterator<Item = RawQueuePoint> + Clone + use<'_> {
+) -> impl Iterator<Item = RawQueuePoint> + Clone {
     unsafe {
         let point_count = queue.getPointCount().max(0);
         (0..point_count).filter_map(move |idx| {
@@ -698,7 +698,7 @@ fn curve_iterator_from_queue<'a, M: CurveIteratorMetadatum>(
     initial_value: M::Value,
     queue: ComRef<'a, IParamValueQueue>,
     metadatum: &'a M,
-) -> impl Iterator<Item = M::CurvePoint> + Clone + use<'a, M> {
+) -> impl Iterator<Item = M::CurvePoint> + Clone {
     let mut queue_points = raw_iterator_from_queue(queue).peekable();
     let queue_starts_at_zero = matches!(
         queue_points.peek(),
@@ -999,7 +999,7 @@ pub unsafe fn param_changes_from_vst3<'a>(
     com_changes: ComRef<'a, IParameterChanges>,
     store: &'a mut ProcessingStore,
     buffer_size: usize,
-) -> Option<impl BufferStates + Clone + use<'a>> {
+) -> Option<impl BufferStates + Clone> {
     unsafe {
         let (_, states) = check_changes_and_update_scratch_and_store(
             com_changes,
@@ -1014,7 +1014,7 @@ pub unsafe fn param_changes_from_vst3<'a>(
 pub unsafe fn no_audio_param_changes_from_vst3<'a>(
     com_changes: ComRef<'a, IParameterChanges>,
     store: &'a mut ProcessingStore,
-) -> Option<(ChangesStatus, impl cp::States + Clone + use<'a>)> {
+) -> Option<(ChangesStatus, impl cp::States + Clone)> {
     unsafe {
         let (status, scratch) = check_changes_and_update_scratch_and_store(
             com_changes,
