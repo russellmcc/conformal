@@ -141,10 +141,7 @@ impl<B: Buffer, I: BufferIndex> Buffer for SlicedBuffer<'_, B, I> {
 /// let buffer = BufferData::new_mono(vec![1.0, 2.0, 3.0]);
 /// slice_buffer(&buffer, 4..);
 /// ```
-pub fn slice_buffer<'a, B: Buffer, I: BufferIndex + 'a>(
-    buffer: &'a B,
-    index: I,
-) -> impl Buffer + use<'a, B, I> {
+pub fn slice_buffer<'a, B: Buffer, I: BufferIndex + 'a>(buffer: &'a B, index: I) -> impl Buffer {
     let ret = SlicedBuffer { buffer, index };
     // Grab the first channel and throw it away - this will
     // cause us to panic early in the case of an invalid range
@@ -199,10 +196,10 @@ impl<B: BufferMut, I: BufferIndex> BufferMut for SlicedMutBuffer<'_, B, I> {
 /// let mut buffer = BufferData::new_mono(vec![1.0, 2.0, 3.0]);
 /// slice_buffer_mut(&mut buffer, 4..);
 /// ```
-pub fn slice_buffer_mut<'a, B: BufferMut, I: BufferIndex + 'a>(
-    buffer: &'a mut B,
-    index: I,
-) -> impl BufferMut + use<'a, B, I> {
+pub fn slice_buffer_mut<'a>(
+    buffer: &'a mut impl BufferMut,
+    index: impl BufferIndex + 'a,
+) -> impl BufferMut {
     let ret = SlicedMutBuffer { buffer, index };
     // Grab the first channel and throw it away - this will
     // cause us to panic early in the case of an invalid range
