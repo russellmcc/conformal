@@ -49,7 +49,7 @@ export const stampTemplate = async (
     withFileTypes: true,
   });
   for (const file of files) {
-    const srcPath = path.join(file.path, file.name);
+    const srcPath = path.join(file.parentPath, file.name);
     const destPath = path.join(
       dest,
       compile(path.relative(templateDir, srcPath), { strict: true })(env),
@@ -73,10 +73,10 @@ const doPrompt = async (metadata: ConfigMetadata): Promise<string> =>
   input({ message: metadata.prompt, default: metadata.default });
 
 const promptRemainder = async <K extends string>(
-  config: Partial<{ [k in K]: string }>,
+  config: Partial<Record<K, string>>,
   metadatas: Record<K, ConfigMetadata>,
-): Promise<{ [k in K]: string }> => {
-  const ret: Partial<{ [k in K]: string }> = { ...config };
+): Promise<Record<K, string>> => {
+  const ret: Partial<Record<K, string>> = { ...config };
   for (const key in metadatas) {
     if (key in ret) {
       continue;
@@ -85,7 +85,7 @@ const promptRemainder = async <K extends string>(
   }
   // Note that we've filled in all of config here, since metadatas must contain all configs!
   // It would be cool to check this in ts but I don't know how
-  return ret as { [k in K]: string };
+  return ret as Record<K, string>;
 };
 
 export const buildStampCommand = <K extends string>({
@@ -99,11 +99,11 @@ export const buildStampCommand = <K extends string>({
 }: {
   command: Command;
   metadatas: Record<K, ConfigMetadata>;
-  toEnv: (config: { [k in K]: string }) => Promise<Record<string, string>>;
-  toDest: (config: { [k in K]: string }) => Promise<string>;
-  toTemplate: (config: { [k in K]: string }) => Promise<string>;
+  toEnv: (config: Record<K, string>) => Promise<Record<string, string>>;
+  toDest: (config: Record<K, string>) => Promise<string>;
+  toTemplate: (config: Record<K, string>) => Promise<string>;
   postBuild?: (
-    config: { [k in K]: string },
+    config: Record<K, string>,
     env: Record<string, string>,
   ) => Promise<void>;
   options?: StampOptions;
@@ -122,7 +122,7 @@ export const buildStampCommand = <K extends string>({
     const opts = argsRaw[argsRaw.length - 2] as Partial<
       Record<K, string | undefined>
     >;
-    const configPartial: Partial<{ [k in K]: string }> = {};
+    const configPartial: Partial<Record<K, string>> = {};
     for (const key in opts) {
       const opt = opts[key];
       if (opt !== undefined) {

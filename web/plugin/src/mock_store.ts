@@ -7,7 +7,7 @@ import { Value } from "./protocol";
 
 const mockGeneric = (infos: Map<string, Info>): Family<Value> =>
   atomFamily((path) => {
-    const paramPath = path.match(/^params\/(.*)$/);
+    const paramPath = /^params\/(.*)$/.exec(path);
     if (paramPath) {
       const param = paramPath[1]!;
       const info = infos.get(param);
@@ -23,7 +23,7 @@ const mockGeneric = (infos: Map<string, Info>): Family<Value> =>
       }
     }
 
-    const prefsPath = path.match(/^prefs\/(.*)$/);
+    const prefsPath = /^prefs\/(.*)$/.exec(path);
     if (prefsPath) {
       // All prefs are "false" in mock stores
       return atom<Value>({ bool: false });
@@ -32,7 +32,7 @@ const mockGeneric = (infos: Map<string, Info>): Family<Value> =>
     // Using a regex, check if path is like `params-info/${param}`
     // and if so, return the info encoded as bytes.
     // also it's very important that my regex captures "param".
-    const paramInfoPath = path.match(/^params-info\/(.*)$/);
+    const paramInfoPath = /^params-info\/(.*)$/.exec(path);
     if (paramInfoPath) {
       const param = paramInfoPath[1]!;
       const info = infos.get(param);
@@ -52,7 +52,7 @@ const mockGeneric = (infos: Map<string, Info>): Family<Value> =>
 
 const mockGrabbed = () =>
   atomFamily((path: string) => {
-    const grabbedPath = path.match(/^params-grabbed\/(.*)$/);
+    const grabbedPath = /^params-grabbed\/(.*)$/.exec(path);
     if (!grabbedPath) {
       throw new Error(`Unknown path: ${path}`);
     }

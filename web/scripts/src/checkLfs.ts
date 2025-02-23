@@ -55,7 +55,7 @@ export const checkLfs = async (): Promise<boolean> => {
 
   if (missingLfsFiles.size > 0) {
     console.error(
-      `Missing lfs files: ${new Array(missingLfsFiles.values()).join(", ")}`,
+      `Missing lfs files: ${Array.from(missingLfsFiles.values()).join(", ")}`,
     );
   }
   return !(unexpectedLfsFiles.size > 0 || missingLfsFiles.size > 0);

@@ -32,7 +32,7 @@ const setOnResponse = (recv: (m: Uint8Array) => void) => {
     try {
       // Note that `atob` will give a 'string' that is actually a binary array encoded as codepoints, so this unwrap is safe.
       recv(Uint8Array.from(window.atob(m), (m) => m.codePointAt(0)!));
-    } catch (exn) {
+    } catch {
       return;
     }
   });
