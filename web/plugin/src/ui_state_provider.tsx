@@ -1,8 +1,14 @@
 import { Codec, context, UiStateData } from "./ui_state";
-import { atom, WritableAtom } from "jotai";
+import { atom } from "jotai";
 import { useStores } from "./stores_react";
-import { atomFamily } from "jotai/utils";
 
+/**
+ * Provides the ui state to the component tree.
+ *
+ * Use the `useUiStateAtom` hook to get the atom for the ui state.
+ *
+ * Note that this requires a `Provider` to be present to use the store.
+ */
 export const UiStateProvider = <T,>({
   codec,
   children,
@@ -11,7 +17,7 @@ export const UiStateProvider = <T,>({
   children: React.ReactNode;
 }) => {
   const rawState = useStores().bytes("ui-state");
-  const fullAtom = atom(
+  const stateAtom = atom(
     (get) => {
       const raw = get(rawState);
       if (raw instanceof Promise) {
@@ -28,28 +34,6 @@ export const UiStateProvider = <T,>({
       set(rawState, raw);
     },
   );
-  const family = atomFamily((key: keyof T) =>
-    atom(
-      (get) => {
-        const full = get(fullAtom);
-        return full?.[key];
-      },
-      (get, set, update: T[keyof T]) => {
-        const full = get(fullAtom);
-        if (full) {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
-          full[key] = update as unknown as any;
-          set(fullAtom, full);
-        } else {
-          const d = codec.default();
-          d[key] = update;
-          set(fullAtom, d);
-        }
-      },
-    ),
-  ) as <K extends keyof T>(
-    key: K,
-  ) => WritableAtom<T[K] | undefined, [update: T[K]], void>;
-  const state: UiStateData<T> = { fullAtom, family };
+  const state: UiStateData<T> = { atom: stateAtom };
   return <context.Provider value={state}>{children}</context.Provider>;
 };

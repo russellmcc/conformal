@@ -7,11 +7,11 @@
   "devDependencies": {
     "@morlay/bunpublish": "^0.4.1",
     "@next/eslint-plugin-next": "^14.2.16",
-    "@testing-library/react": "^15.0.7",
-    "@testing-library/user-event": "^14.5.2",
+    "@testing-library/react": "^16.2.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/bun": "1.1.9",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
     "@vitejs/plugin-react-swc": "^3.7.1",
@@ -30,7 +30,8 @@
     "tmp-promise": "^3.0.3",
     "typedoc": "^0.26.11",
     "typescript": "^5.6.3",
-    "@changesets/cli": "^2.28.0"
+    "@changesets/cli": "^2.28.0",
+    "@happy-dom/global-registrator": "^17.1.4"
   },
   "scripts": {
     "bootstrap": "conformal-scripts bootstrap",
