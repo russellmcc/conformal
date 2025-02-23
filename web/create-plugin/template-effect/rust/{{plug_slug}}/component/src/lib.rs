@@ -1,4 +1,4 @@
-use conformal_component::audio::{channels, channels_mut, Buffer, BufferMut};
+use conformal_component::audio::{Buffer, BufferMut, channels, channels_mut};
 use conformal_component::effect::Effect as EffectTrait;
 use conformal_component::parameters::{self, BufferStates, Flags, InfoRef, TypeSpecificInfoRef};
 use conformal_component::pzip;

@@ -2,7 +2,7 @@ use conformal_component::audio::BufferMut;
 use conformal_component::events::{self, Event, Events, NoteData};
 use conformal_component::parameters::{self, BufferStates, Flags, InfoRef, TypeSpecificInfoRef};
 use conformal_component::synth::Synth as SynthTrait;
-use conformal_component::{pzip, Component as ComponentTrait, ProcessingEnvironment, Processor};
+use conformal_component::{Component as ComponentTrait, ProcessingEnvironment, Processor, pzip};
 use conformal_poly::{self, EventData, Poly, Voice as VoiceTrait};
 use itertools::izip;
 
