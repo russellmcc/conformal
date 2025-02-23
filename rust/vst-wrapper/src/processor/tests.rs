@@ -258,9 +258,7 @@ fn dummy_synth_with_host_info(
     )
 }
 
-fn dummy_synth_with_processing<'a>(
-    env: &'a RefCell<bool>,
-) -> impl IAudioProcessorTrait + IComponentTrait + 'a {
+fn dummy_synth_with_processing(env: &RefCell<bool>) -> impl IAudioProcessorTrait + IComponentTrait {
     create_synth(
         |_: &HostInfo| FakeSynthComponent {
             last_process_env: None,
