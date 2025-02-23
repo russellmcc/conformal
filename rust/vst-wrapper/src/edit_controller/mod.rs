@@ -419,64 +419,65 @@ impl IPluginBaseTrait for EditController {
         &self,
         context: *mut vst3::Steinberg::FUnknown,
     ) -> vst3::Steinberg::tresult {
-        if self.host.borrow().is_some() {
-            return vst3::Steinberg::kInvalidArgument;
-        }
+        unsafe {
+            if self.host.borrow().is_some() {
+                return vst3::Steinberg::kInvalidArgument;
+            }
 
-        match ComRef::from_raw(context).and_then(|context| context.cast()) {
-            Some(host) => self.host.replace(Some(host)),
-            None => return vst3::Steinberg::kNoInterface,
-        };
+            match ComRef::from_raw(context).and_then(|context| context.cast()) {
+                Some(host) => self.host.replace(Some(host)),
+                None => return vst3::Steinberg::kNoInterface,
+            };
 
-        let (s, res) = match (
-            self.s.replace(None).unwrap(),
-            host_info::get(&self.host.borrow().clone().unwrap()),
-        ) {
-            (State::ReadyForInitialization(parameter_model, pref_domain), Some(host_info)) => {
-                let parameter_infos = {
-                    let mut infos = (parameter_model.parameter_infos)(&host_info);
-                    if Kind::Synth() == self.kind {
-                        infos.extend(CONTROLLER_PARAMETERS.iter().map(parameters::Info::from));
-                        if mpe_quirks::should_support(&host_info) == Support::SupportQuirks {
-                            infos.extend(mpe_quirks::parameters());
+            let (s, res) = match (
+                self.s.replace(None).unwrap(),
+                host_info::get(&self.host.borrow().clone().unwrap()),
+            ) {
+                (State::ReadyForInitialization(parameter_model, pref_domain), Some(host_info)) => {
+                    let parameter_infos = {
+                        let mut infos = (parameter_model.parameter_infos)(&host_info);
+                        if Kind::Synth() == self.kind {
+                            infos.extend(CONTROLLER_PARAMETERS.iter().map(parameters::Info::from));
+                            if mpe_quirks::should_support(&host_info) == Support::SupportQuirks {
+                                infos.extend(mpe_quirks::parameters());
+                            }
+                        }
+                        infos
+                    };
+                    let parameters: HashMap<String, parameters::Info> = parameter_infos
+                        .iter()
+                        .map(|info| {
+                            (
+                                info.unique_id.clone(),
+                                (&Into::<InfoRef<'_, _>>::into(info)).into(),
+                            )
+                        })
+                        .collect();
+
+                    // If the client provided a bypass ID, this must exist and be a switch parameter
+                    // with default off.
+                    if let Kind::Effect { bypass_id } = self.kind {
+                        assert!(parameters.contains_key(bypass_id));
+                        if let Some(parameters::Info {
+                            type_specific: TypeSpecificInfo::Switch { default },
+                            ..
+                        }) = parameters.get(bypass_id)
+                        {
+                            assert!(!*default);
+                        } else {
+                            panic!("Bypass ID must be a switch parameter with default off.");
                         }
                     }
-                    infos
-                };
-                let parameters: HashMap<String, parameters::Info> = parameter_infos
-                    .iter()
-                    .map(|info| {
-                        (
-                            info.unique_id.clone(),
-                            (&Into::<InfoRef<'_, _>>::into(info)).into(),
-                        )
-                    })
-                    .collect();
 
-                // If the client provided a bypass ID, this must exist and be a switch parameter
-                // with default off.
-                if let Kind::Effect { bypass_id } = self.kind {
-                    assert!(parameters.contains_key(bypass_id));
-                    if let Some(parameters::Info {
-                        type_specific: TypeSpecificInfo::Switch { default },
-                        ..
-                    }) = parameters.get(bypass_id)
-                    {
-                        assert!(!*default);
-                    } else {
-                        panic!("Bypass ID must be a switch parameter with default off.");
-                    }
-                }
-
-                // All parameters must have unique ids.
-                assert_eq!(parameter_infos.len(), parameters.len());
-                assert!(parameter_infos.len() < i32::MAX as usize);
-                let component_parameters = parameters
-                    .iter()
-                    .filter(|(id, _)| crate::should_include_parameter_in_snapshot(id))
-                    .map(|(id, info)| (id.clone(), info.clone()))
-                    .collect();
-                let s = State::Initialized(Initialized {
+                    // All parameters must have unique ids.
+                    assert_eq!(parameter_infos.len(), parameters.len());
+                    assert!(parameter_infos.len() < i32::MAX as usize);
+                    let component_parameters = parameters
+                        .iter()
+                        .filter(|(id, _)| crate::should_include_parameter_in_snapshot(id))
+                        .map(|(id, info)| (id.clone(), info.clone()))
+                        .collect();
+                    let s = State::Initialized(Initialized {
                     host_info,
                     store: SharedStore {store: rc::Rc::new(RefCell::new(ParameterStore {
                         unhash: hash_parameter_ids(parameter_infos.iter().map(Into::into)).expect("Duplicate parameter ID hash! This could be caused by duplicate parameter IDs or a hash collision."),
@@ -501,12 +502,13 @@ impl IPluginBaseTrait for EditController {
                     parameter_model,
                     pref_domain,
                 });
-                (s, vst3::Steinberg::kResultOk)
-            }
-            (s, _) => (s, vst3::Steinberg::kInvalidArgument),
-        };
-        self.s.replace(Some(s));
-        res
+                    (s, vst3::Steinberg::kResultOk)
+                }
+                (s, _) => (s, vst3::Steinberg::kInvalidArgument),
+            };
+            self.s.replace(Some(s));
+            res
+        }
     }
 
     unsafe fn terminate(&self) -> vst3::Steinberg::tresult {
@@ -559,102 +561,108 @@ impl IEditControllerTrait for EditController {
         &self,
         stream: *mut vst3::Steinberg::IBStream,
     ) -> vst3::Steinberg::tresult {
-        if let State::Initialized(Initialized { store, .. }) = self.s.borrow_mut().as_mut().unwrap()
-        {
-            let ParameterStore {
-                component_parameter_infos: ref infos,
-                ref mut values,
-                ref listener,
-                ..
-            } = &mut *store.store.borrow_mut();
-            if let Some(com_stream) = ComRef::from_raw(stream) {
-                let read = StreamRead::new(com_stream);
-                if let Ok(state) = rmp_serde::from_read::<_, state::State>(read) {
-                    return match state.params.into_snapshot(
-                        infos
-                            .iter()
-                            .map(|(id, info)| (id.as_str(), as_deserialization(info))),
-                    ) {
-                        Ok(snapshot) => {
-                            apply_values(
-                                snapshot
-                                    .values
-                                    .iter()
-                                    .map(|(k, v)| (k.as_str(), to_internal(k.as_str(), v, infos))),
-                                values,
-                            );
+        unsafe {
+            if let State::Initialized(Initialized { store, .. }) =
+                self.s.borrow_mut().as_mut().unwrap()
+            {
+                let &mut ParameterStore {
+                    component_parameter_infos: ref infos,
+                    ref mut values,
+                    ref listener,
+                    ..
+                } = &mut *store.store.borrow_mut();
+                if let Some(com_stream) = ComRef::from_raw(stream) {
+                    let read = StreamRead::new(com_stream);
+                    if let Ok(state) = rmp_serde::from_read::<_, state::State>(read) {
+                        return match state.params.into_snapshot(
+                            infos
+                                .iter()
+                                .map(|(id, info)| (id.as_str(), as_deserialization(info))),
+                        ) {
+                            Ok(snapshot) => {
+                                apply_values(
+                                    snapshot.values.iter().map(|(k, v)| {
+                                        (k.as_str(), to_internal(k.as_str(), v, infos))
+                                    }),
+                                    values,
+                                );
 
-                            for (id, value) in &snapshot.values {
-                                if let Some(listener) = listener {
-                                    if let Some(listener) = listener.upgrade() {
-                                        listener.parameter_changed(id.as_str(), value);
+                                for (id, value) in &snapshot.values {
+                                    if let Some(listener) = listener {
+                                        if let Some(listener) = listener.upgrade() {
+                                            listener.parameter_changed(id.as_str(), value);
+                                        }
                                     }
                                 }
+                                vst3::Steinberg::kResultOk
                             }
-                            vst3::Steinberg::kResultOk
-                        }
-                        Err(DeserializationError::Corrupted(_)) => {
-                            vst3::Steinberg::kInvalidArgument
-                        }
-                        Err(DeserializationError::VersionTooNew()) => {
-                            apply_values(
-                                infos.iter().map(|(id, info)| {
-                                    (id.as_str(), get_default(&info.type_specific))
-                                }),
-                                values,
-                            );
+                            Err(DeserializationError::Corrupted(_)) => {
+                                vst3::Steinberg::kInvalidArgument
+                            }
+                            Err(DeserializationError::VersionTooNew()) => {
+                                apply_values(
+                                    infos.iter().map(|(id, info)| {
+                                        (id.as_str(), get_default(&info.type_specific))
+                                    }),
+                                    values,
+                                );
 
-                            vst3::Steinberg::kResultOk
-                        }
-                    };
+                                vst3::Steinberg::kResultOk
+                            }
+                        };
+                    }
                 }
             }
+            vst3::Steinberg::kInvalidArgument
         }
-        vst3::Steinberg::kInvalidArgument
     }
 
     unsafe fn setState(&self, state: *mut vst3::Steinberg::IBStream) -> vst3::Steinberg::tresult {
-        if let State::Initialized(Initialized { store, .. }) = self.s.borrow_mut().as_mut().unwrap()
-        {
-            let ParameterStore {
-                ref mut ui_state,
-                ref mut listener,
-                ..
-            } = &mut *store.store.borrow_mut();
-            if let Some(com_stream) = ComRef::from_raw(state) {
-                let mut new_state = Vec::new();
-                if StreamRead::new(com_stream)
-                    .read_to_end(&mut new_state)
-                    .is_ok()
-                {
-                    *ui_state = new_state;
-                    if let Some(listener) = listener {
-                        if let Some(listener) = listener.upgrade() {
-                            listener.ui_state_changed(ui_state);
+        unsafe {
+            if let State::Initialized(Initialized { store, .. }) =
+                self.s.borrow_mut().as_mut().unwrap()
+            {
+                let ParameterStore {
+                    ui_state, listener, ..
+                } = &mut *store.store.borrow_mut();
+                if let Some(com_stream) = ComRef::from_raw(state) {
+                    let mut new_state = Vec::new();
+                    if StreamRead::new(com_stream)
+                        .read_to_end(&mut new_state)
+                        .is_ok()
+                    {
+                        *ui_state = new_state;
+                        if let Some(listener) = listener {
+                            if let Some(listener) = listener.upgrade() {
+                                listener.ui_state_changed(ui_state);
+                            }
                         }
+                        return vst3::Steinberg::kResultOk;
                     }
-                    return vst3::Steinberg::kResultOk;
+                    return vst3::Steinberg::kInternalError;
                 }
-                return vst3::Steinberg::kInternalError;
             }
+            vst3::Steinberg::kInvalidArgument
         }
-        vst3::Steinberg::kInvalidArgument
     }
 
     unsafe fn getState(&self, state: *mut vst3::Steinberg::IBStream) -> vst3::Steinberg::tresult {
-        if let State::Initialized(Initialized { store, .. }) = self.s.borrow_mut().as_mut().unwrap()
-        {
-            let ParameterStore { ref ui_state, .. } = &*store.store.borrow();
+        unsafe {
+            if let State::Initialized(Initialized { store, .. }) =
+                self.s.borrow_mut().as_mut().unwrap()
+            {
+                let ParameterStore { ui_state, .. } = &*store.store.borrow();
 
-            if let Some(com_state) = ComRef::from_raw(state) {
-                let mut writer = StreamWrite::new(com_state);
-                if writer.write_all(ui_state).is_ok() {
-                    return vst3::Steinberg::kResultOk;
+                if let Some(com_state) = ComRef::from_raw(state) {
+                    let mut writer = StreamWrite::new(com_state);
+                    if writer.write_all(ui_state).is_ok() {
+                        return vst3::Steinberg::kResultOk;
+                    }
+                    return vst3::Steinberg::kInternalError;
                 }
-                return vst3::Steinberg::kInternalError;
             }
+            vst3::Steinberg::kInvalidArgument
         }
-        vst3::Steinberg::kInvalidArgument
     }
 
     unsafe fn getParameterCount(&self) -> vst3::Steinberg::int32 {
@@ -674,81 +682,82 @@ impl IEditControllerTrait for EditController {
         param_index: vst3::Steinberg::int32,
         info_out: *mut vst3::Steinberg::Vst::ParameterInfo,
     ) -> vst3::Steinberg::tresult {
-        if let State::Initialized(Initialized { store, .. }) = self.s.borrow().as_ref().unwrap() {
-            let ParameterStore {
-                host_parameter_infos: infos,
-                order,
-                ..
-            } = &*store.store.borrow();
-            if param_index < 0 || param_index as usize >= order.len() {
-                return vst3::Steinberg::kInvalidArgument;
-            }
-            let param_id = order[param_index as usize].clone();
-            let param_hash = parameters::hash_id(&param_id);
-            let info = infos.get(&param_id).unwrap();
+        unsafe {
+            if let State::Initialized(Initialized { store, .. }) = self.s.borrow().as_ref().unwrap()
+            {
+                let ParameterStore {
+                    host_parameter_infos: infos,
+                    order,
+                    ..
+                } = &*store.store.borrow();
+                if param_index < 0 || param_index as usize >= order.len() {
+                    return vst3::Steinberg::kInvalidArgument;
+                }
+                let param_id = order[param_index as usize].clone();
+                let param_hash = parameters::hash_id(&param_id);
+                let info = infos.get(&param_id).unwrap();
 
-            let info_out = &mut *info_out;
-            info_out.id = param_hash.internal_hash();
-            info_out.unitId = 0;
-            to_utf16(&info.title, &mut info_out.title);
-            to_utf16(&info.short_title, &mut info_out.shortTitle);
-            info_out.flags = if info.flags.automatable {
-                vst3::Steinberg::Vst::ParameterInfo_::ParameterFlags_::kCanAutomate as i32
-            } else {
-                0
-            } | if let Kind::Effect { bypass_id } = self.kind {
-                if param_id == bypass_id {
-                    vst3::Steinberg::Vst::ParameterInfo_::ParameterFlags_::kIsBypass as i32
+                let info_out = &mut *info_out;
+                info_out.id = param_hash.internal_hash();
+                info_out.unitId = 0;
+                to_utf16(&info.title, &mut info_out.title);
+                to_utf16(&info.short_title, &mut info_out.shortTitle);
+                info_out.flags = if info.flags.automatable {
+                    vst3::Steinberg::Vst::ParameterInfo_::ParameterFlags_::kCanAutomate as i32
                 } else {
                     0
-                }
-            } else {
-                0
-            };
+                } | if let Kind::Effect { bypass_id } = self.kind {
+                    if param_id == bypass_id {
+                        vst3::Steinberg::Vst::ParameterInfo_::ParameterFlags_::kIsBypass as i32
+                    } else {
+                        0
+                    }
+                } else {
+                    0
+                };
 
-            match &info.type_specific {
-                TypeSpecificInfo::Enum {
-                    default,
-                    ref values,
-                } => {
-                    info_out.flags |=
-                        vst3::Steinberg::Vst::ParameterInfo_::ParameterFlags_::kIsList as i32;
+                match &info.type_specific {
+                    TypeSpecificInfo::Enum { default, values } => {
+                        info_out.flags |=
+                            vst3::Steinberg::Vst::ParameterInfo_::ParameterFlags_::kIsList as i32;
 
-                    assert!(
-                        values.len() >= 2,
-                        "Enum parameters must contain at least 2 values."
-                    );
-                    info_out.stepCount = i32::try_from(values.len()).unwrap() - 1;
-                    info_out.defaultNormalizedValue =
+                        assert!(
+                            values.len() >= 2,
+                            "Enum parameters must contain at least 2 values."
+                        );
+                        info_out.stepCount = i32::try_from(values.len()).unwrap() - 1;
+                        info_out.defaultNormalizedValue =
                         // Note we checked that the number of values fit in an i32 on construction.
                         f64::from(*default) / f64::from(i32::try_from(values.len()).unwrap() - 1);
-                    info_out.units[0] = 0;
+                        info_out.units[0] = 0;
+                    }
+                    TypeSpecificInfo::Numeric {
+                        default,
+                        valid_range,
+                        units,
+                        ..
+                    } => {
+                        info_out.stepCount = 0;
+                        info_out.defaultNormalizedValue = f64::from(
+                            (default - valid_range.start())
+                                / (valid_range.end() - valid_range.start()),
+                        );
+                        to_utf16(
+                            units.as_ref().map_or("", |x| x.as_str()),
+                            &mut info_out.units,
+                        );
+                    }
+                    TypeSpecificInfo::Switch { default } => {
+                        info_out.stepCount = 1;
+                        info_out.defaultNormalizedValue = if *default { 1.0 } else { 0.0 };
+                        info_out.units[0] = 0;
+                    }
                 }
-                TypeSpecificInfo::Numeric {
-                    default,
-                    valid_range,
-                    ref units,
-                    ..
-                } => {
-                    info_out.stepCount = 0;
-                    info_out.defaultNormalizedValue = f64::from(
-                        (default - valid_range.start()) / (valid_range.end() - valid_range.start()),
-                    );
-                    to_utf16(
-                        units.as_ref().map_or("", |x| x.as_str()),
-                        &mut info_out.units,
-                    );
-                }
-                TypeSpecificInfo::Switch { default } => {
-                    info_out.stepCount = 1;
-                    info_out.defaultNormalizedValue = if *default { 1.0 } else { 0.0 };
-                    info_out.units[0] = 0;
-                }
-            }
 
-            vst3::Steinberg::kResultOk
-        } else {
-            vst3::Steinberg::kInvalidArgument
+                vst3::Steinberg::kResultOk
+            } else {
+                vst3::Steinberg::kInvalidArgument
+            }
         }
     }
 
@@ -758,48 +767,52 @@ impl IEditControllerTrait for EditController {
         value_normalized: vst3::Steinberg::Vst::ParamValue,
         string: *mut vst3::Steinberg::Vst::String128,
     ) -> vst3::Steinberg::tresult {
-        if let State::Initialized(Initialized { store, .. }) = self.s.borrow().as_ref().unwrap() {
-            let ParameterStore {
-                unhash,
-                host_parameter_infos: infos,
-                ..
-            } = &*store.store.borrow();
-            match lookup_by_hash(parameters::id_hash_from_internal_hash(id), unhash, infos) {
-                Some(parameters::Info {
-                    type_specific: TypeSpecificInfo::Numeric { valid_range, .. },
+        unsafe {
+            if let State::Initialized(Initialized { store, .. }) = self.s.borrow().as_ref().unwrap()
+            {
+                let ParameterStore {
+                    unhash,
+                    host_parameter_infos: infos,
                     ..
-                }) => {
-                    let value = value_normalized
-                        * f64::from(valid_range.end() - valid_range.start())
-                        + f64::from(*valid_range.start());
-                    let serialized = format!("{value:.2}");
-                    to_utf16(serialized.as_str(), &mut *string);
-                    vst3::Steinberg::kResultOk
-                }
-                Some(parameters::Info {
-                    type_specific: TypeSpecificInfo::Enum { values, .. },
-                    ..
-                }) => {
-                    #[allow(clippy::cast_possible_truncation)]
-                    let index = (value_normalized * f64::from(u32::try_from(values.len()).unwrap()))
+                } = &*store.store.borrow();
+                match lookup_by_hash(parameters::id_hash_from_internal_hash(id), unhash, infos) {
+                    Some(parameters::Info {
+                        type_specific: TypeSpecificInfo::Numeric { valid_range, .. },
+                        ..
+                    }) => {
+                        let value = value_normalized
+                            * f64::from(valid_range.end() - valid_range.start())
+                            + f64::from(*valid_range.start());
+                        let serialized = format!("{value:.2}");
+                        to_utf16(serialized.as_str(), &mut *string);
+                        vst3::Steinberg::kResultOk
+                    }
+                    Some(parameters::Info {
+                        type_specific: TypeSpecificInfo::Enum { values, .. },
+                        ..
+                    }) => {
+                        #[allow(clippy::cast_possible_truncation)]
+                        let index = (value_normalized
+                            * f64::from(u32::try_from(values.len()).unwrap()))
                         .min(f64::from(u32::try_from(values.len()).unwrap()) - 1.0)
                         .floor() as i32 as usize;
-                    to_utf16(&values[index], &mut *string);
-                    vst3::Steinberg::kResultOk
-                }
-                Some(parameters::Info {
-                    type_specific: TypeSpecificInfo::Switch { .. },
-                    ..
-                }) => {
-                    let serialized = if value_normalized > 0.5 { "On" } else { "Off" };
+                        to_utf16(&values[index], &mut *string);
+                        vst3::Steinberg::kResultOk
+                    }
+                    Some(parameters::Info {
+                        type_specific: TypeSpecificInfo::Switch { .. },
+                        ..
+                    }) => {
+                        let serialized = if value_normalized > 0.5 { "On" } else { "Off" };
 
-                    to_utf16(serialized, &mut *string);
-                    vst3::Steinberg::kResultOk
+                        to_utf16(serialized, &mut *string);
+                        vst3::Steinberg::kResultOk
+                    }
+                    _ => vst3::Steinberg::kInvalidArgument,
                 }
-                _ => vst3::Steinberg::kInvalidArgument,
+            } else {
+                vst3::Steinberg::kInvalidArgument
             }
-        } else {
-            vst3::Steinberg::kInvalidArgument
         }
     }
 
@@ -809,64 +822,68 @@ impl IEditControllerTrait for EditController {
         string: *mut vst3::Steinberg::Vst::TChar,
         value_normalized: *mut vst3::Steinberg::Vst::ParamValue,
     ) -> vst3::Steinberg::tresult {
-        // Note that VST3 doesn't put a limit on string sizes here,
-        // so we make a reasonable size up.
-        const MAX_STRING_SIZE: usize = 2049;
+        unsafe {
+            // Note that VST3 doesn't put a limit on string sizes here,
+            // so we make a reasonable size up.
+            const MAX_STRING_SIZE: usize = 2049;
 
-        if let State::Initialized(Initialized { store, .. }) = self.s.borrow().as_ref().unwrap() {
-            let ParameterStore {
-                unhash,
-                host_parameter_infos: infos,
-                ..
-            } = &*store.store.borrow();
-            if let Some(string) = from_utf16_ptr(string, MAX_STRING_SIZE) {
-                match lookup_by_hash(parameters::id_hash_from_internal_hash(id), unhash, infos) {
-                    Some(parameters::Info {
-                        type_specific: TypeSpecificInfo::Numeric { valid_range, .. },
-                        ..
-                    }) => {
-                        let value = string.parse::<f64>();
-                        if let Ok(value) = value {
-                            *value_normalized = (value - f64::from(*valid_range.start()))
-                                / f64::from(valid_range.end() - valid_range.start());
-                            vst3::Steinberg::kResultOk
-                        } else {
-                            vst3::Steinberg::kInvalidArgument
+            if let State::Initialized(Initialized { store, .. }) = self.s.borrow().as_ref().unwrap()
+            {
+                let ParameterStore {
+                    unhash,
+                    host_parameter_infos: infos,
+                    ..
+                } = &*store.store.borrow();
+                if let Some(string) = from_utf16_ptr(string, MAX_STRING_SIZE) {
+                    match lookup_by_hash(parameters::id_hash_from_internal_hash(id), unhash, infos)
+                    {
+                        Some(parameters::Info {
+                            type_specific: TypeSpecificInfo::Numeric { valid_range, .. },
+                            ..
+                        }) => {
+                            let value = string.parse::<f64>();
+                            if let Ok(value) = value {
+                                *value_normalized = (value - f64::from(*valid_range.start()))
+                                    / f64::from(valid_range.end() - valid_range.start());
+                                vst3::Steinberg::kResultOk
+                            } else {
+                                vst3::Steinberg::kInvalidArgument
+                            }
                         }
-                    }
-                    Some(parameters::Info {
-                        type_specific: TypeSpecificInfo::Enum { values, .. },
-                        ..
-                    }) => {
-                        if let Some(index) = values.iter().position(|v| v == &string) {
-                            *value_normalized = f64::from(i32::try_from(index).unwrap())
-                                / f64::from(i32::try_from(values.len()).unwrap() - 1);
-                            vst3::Steinberg::kResultOk
-                        } else {
-                            vst3::Steinberg::kInvalidArgument
+                        Some(parameters::Info {
+                            type_specific: TypeSpecificInfo::Enum { values, .. },
+                            ..
+                        }) => {
+                            if let Some(index) = values.iter().position(|v| v == &string) {
+                                *value_normalized = f64::from(i32::try_from(index).unwrap())
+                                    / f64::from(i32::try_from(values.len()).unwrap() - 1);
+                                vst3::Steinberg::kResultOk
+                            } else {
+                                vst3::Steinberg::kInvalidArgument
+                            }
                         }
-                    }
-                    Some(parameters::Info {
-                        type_specific: TypeSpecificInfo::Switch { .. },
-                        ..
-                    }) => {
-                        if string == "On" {
-                            *value_normalized = 1.0;
-                            vst3::Steinberg::kResultOk
-                        } else if string == "Off" {
-                            *value_normalized = 0.0;
-                            vst3::Steinberg::kResultOk
-                        } else {
-                            vst3::Steinberg::kInvalidArgument
+                        Some(parameters::Info {
+                            type_specific: TypeSpecificInfo::Switch { .. },
+                            ..
+                        }) => {
+                            if string == "On" {
+                                *value_normalized = 1.0;
+                                vst3::Steinberg::kResultOk
+                            } else if string == "Off" {
+                                *value_normalized = 0.0;
+                                vst3::Steinberg::kResultOk
+                            } else {
+                                vst3::Steinberg::kInvalidArgument
+                            }
                         }
+                        _ => vst3::Steinberg::kInvalidArgument,
                     }
-                    _ => vst3::Steinberg::kInvalidArgument,
+                } else {
+                    vst3::Steinberg::kInvalidArgument
                 }
             } else {
                 vst3::Steinberg::kInvalidArgument
             }
-        } else {
-            vst3::Steinberg::kInvalidArgument
         }
     }
 
@@ -998,35 +1015,41 @@ impl IEditControllerTrait for EditController {
         &self,
         handler: *mut vst3::Steinberg::Vst::IComponentHandler,
     ) -> vst3::Steinberg::tresult {
-        if let Some(handler) = ComRef::from_raw(handler).map(|handler| handler.to_com_ptr()) {
-            if let State::Initialized(Initialized { store, .. }) = self.s.borrow().as_ref().unwrap()
-            {
-                store.store.borrow_mut().component_handler = Some(handler);
-                return vst3::Steinberg::kResultOk;
+        unsafe {
+            if let Some(handler) = ComRef::from_raw(handler).map(|handler| handler.to_com_ptr()) {
+                if let State::Initialized(Initialized { store, .. }) =
+                    self.s.borrow().as_ref().unwrap()
+                {
+                    store.store.borrow_mut().component_handler = Some(handler);
+                    return vst3::Steinberg::kResultOk;
+                }
             }
+            vst3::Steinberg::kInvalidArgument
         }
-        vst3::Steinberg::kInvalidArgument
     }
 
     unsafe fn createView(
         &self,
         name: vst3::Steinberg::FIDString,
     ) -> *mut vst3::Steinberg::IPlugView {
-        if std::ffi::CStr::from_ptr(name).to_str() == Ok("editor") {
-            if let State::Initialized(Initialized { store, .. }) = self.s.borrow().as_ref().unwrap()
-            {
-                return view::create(
-                    store.clone(),
-                    get_current_bundle_info()
-                        .expect("Could not find bundle info")
-                        .identifier
-                        .clone(),
-                    self.ui_initial_size,
-                )
-                .into_raw();
+        unsafe {
+            if std::ffi::CStr::from_ptr(name).to_str() == Ok("editor") {
+                if let State::Initialized(Initialized { store, .. }) =
+                    self.s.borrow().as_ref().unwrap()
+                {
+                    return view::create(
+                        store.clone(),
+                        get_current_bundle_info()
+                            .expect("Could not find bundle info")
+                            .identifier
+                            .clone(),
+                        self.ui_initial_size,
+                    )
+                    .into_raw();
+                }
             }
+            std::ptr::null_mut()
         }
-        std::ptr::null_mut()
     }
 }
 
@@ -1038,65 +1061,71 @@ impl IMidiMappingTrait for EditController {
         midi_controller_number: vst3::Steinberg::Vst::CtrlNumber,
         id: *mut vst3::Steinberg::Vst::ParamID,
     ) -> vst3::Steinberg::tresult {
-        if let State::Initialized(Initialized { host_info, .. }) = self.s.borrow().as_ref().unwrap()
-        {
-            // Effects don't have midi mappings
-            if let Kind::Effect { .. } = self.kind {
-                return vst3::Steinberg::kResultFalse;
-            }
-            if bus_index != 0 {
-                return vst3::Steinberg::kResultFalse;
-            }
-            if channel_index != 0 {
-                if mpe_quirks::should_support(host_info) == Support::SupportQuirks {
+        unsafe {
+            if let State::Initialized(Initialized { host_info, .. }) =
+                self.s.borrow().as_ref().unwrap()
+            {
+                // Effects don't have midi mappings
+                if let Kind::Effect { .. } = self.kind {
+                    return vst3::Steinberg::kResultFalse;
+                }
+                if bus_index != 0 {
+                    return vst3::Steinberg::kResultFalse;
+                }
+                if channel_index != 0 {
+                    if mpe_quirks::should_support(host_info) == Support::SupportQuirks {
+                        (match midi_controller_number.try_into() {
+                            Ok(vst3::Steinberg::Vst::ControllerNumbers_::kPitchBend) => {
+                                Some(pitch_param_id(channel_index))
+                            }
+                            Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlFilterResonance) => {
+                                Some(timbre_param_id(channel_index))
+                            }
+                            Ok(vst3::Steinberg::Vst::ControllerNumbers_::kAfterTouch) => {
+                                Some(aftertouch_param_id(channel_index))
+                            }
+                            _ => None,
+                        })
+                        .map_or(
+                            vst3::Steinberg::kResultFalse,
+                            |param_id| {
+                                *id = parameters::hash_id(&param_id).internal_hash();
+                                vst3::Steinberg::kResultOk
+                            },
+                        )
+                    } else {
+                        vst3::Steinberg::kResultFalse
+                    }
+                } else {
                     (match midi_controller_number.try_into() {
                         Ok(vst3::Steinberg::Vst::ControllerNumbers_::kPitchBend) => {
-                            Some(pitch_param_id(channel_index))
+                            Some(PITCH_BEND_PARAMETER)
                         }
-                        Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlFilterResonance) => {
-                            Some(timbre_param_id(channel_index))
+                        Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlModWheel) => {
+                            Some(MOD_WHEEL_PARAMETER)
+                        }
+                        Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlExpression) => {
+                            Some(EXPRESSION_PARAMETER)
+                        }
+                        Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlSustainOnOff) => {
+                            Some(SUSTAIN_PARAMETER)
                         }
                         Ok(vst3::Steinberg::Vst::ControllerNumbers_::kAfterTouch) => {
-                            Some(aftertouch_param_id(channel_index))
+                            Some(AFTERTOUCH_PARAMETER)
+                        }
+                        Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlFilterResonance) => {
+                            Some(TIMBRE_PARAMETER)
                         }
                         _ => None,
                     })
                     .map_or(vst3::Steinberg::kResultFalse, |param_id| {
-                        *id = parameters::hash_id(&param_id).internal_hash();
+                        *id = parameters::hash_id(param_id).internal_hash();
                         vst3::Steinberg::kResultOk
                     })
-                } else {
-                    vst3::Steinberg::kResultFalse
                 }
             } else {
-                (match midi_controller_number.try_into() {
-                    Ok(vst3::Steinberg::Vst::ControllerNumbers_::kPitchBend) => {
-                        Some(PITCH_BEND_PARAMETER)
-                    }
-                    Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlModWheel) => {
-                        Some(MOD_WHEEL_PARAMETER)
-                    }
-                    Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlExpression) => {
-                        Some(EXPRESSION_PARAMETER)
-                    }
-                    Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlSustainOnOff) => {
-                        Some(SUSTAIN_PARAMETER)
-                    }
-                    Ok(vst3::Steinberg::Vst::ControllerNumbers_::kAfterTouch) => {
-                        Some(AFTERTOUCH_PARAMETER)
-                    }
-                    Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlFilterResonance) => {
-                        Some(TIMBRE_PARAMETER)
-                    }
-                    _ => None,
-                })
-                .map_or(vst3::Steinberg::kResultFalse, |param_id| {
-                    *id = parameters::hash_id(param_id).internal_hash();
-                    vst3::Steinberg::kResultOk
-                })
+                vst3::Steinberg::kInvalidArgument
             }
-        } else {
-            vst3::Steinberg::kInvalidArgument
         }
     }
 }
@@ -1138,67 +1167,69 @@ impl INoteExpressionControllerTrait for EditController {
         note_expression_index: i32,
         info_out: *mut NoteExpressionTypeInfo,
     ) -> vst3::Steinberg::tresult {
-        if !matches!(self.s.borrow().as_ref().unwrap(), State::Initialized(_)) {
-            return vst3::Steinberg::kInvalidArgument;
-        }
-        if bus_index != 0 {
-            return vst3::Steinberg::kInvalidArgument;
-        }
-        if channel != 0 {
-            return vst3::Steinberg::kInvalidArgument;
-        }
-        let info_out = &mut *info_out;
-
-        match note_expression_index {
-            0 => {
-                info_out.typeId = vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID;
-                to_utf16("Pitch Bend", &mut info_out.title);
-                to_utf16("Pitch", &mut info_out.shortTitle);
-                to_utf16("semitones", &mut info_out.units);
-                info_out.unitId = 0;
-                // It's not clear from docs if this is necessary for a pre-defined tuning type.
-                info_out.valueDesc = vst3::Steinberg::Vst::NoteExpressionValueDescription {
-                    defaultValue: 0.5,
-                    minimum: 0.0,
-                    maximum: 1.0,
-                    stepCount: 0, // Continuous
-                };
-                info_out.flags = vst3::Steinberg::Vst::NoteExpressionTypeInfo_::NoteExpressionTypeFlags_::kIsBipolar as i32;
-                vst3::Steinberg::kResultOk
+        unsafe {
+            if !matches!(self.s.borrow().as_ref().unwrap(), State::Initialized(_)) {
+                return vst3::Steinberg::kInvalidArgument;
             }
-            1 => {
-                info_out.typeId = crate::processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID;
-                to_utf16("Timbre", &mut info_out.title);
-                to_utf16("Timbre", &mut info_out.shortTitle);
-                to_utf16("", &mut info_out.units);
-                info_out.unitId = 0;
-                info_out.valueDesc = vst3::Steinberg::Vst::NoteExpressionValueDescription {
-                    defaultValue: 0.0,
-                    minimum: 0.0,
-                    maximum: 1.0,
-                    stepCount: 0, // Continuous
-                };
-                info_out.flags = 0;
-
-                vst3::Steinberg::kResultOk
+            if bus_index != 0 {
+                return vst3::Steinberg::kInvalidArgument;
             }
-            2 => {
-                info_out.typeId = crate::processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID;
-                to_utf16("Aftertouch", &mut info_out.title);
-                to_utf16("Aftertouch", &mut info_out.shortTitle);
-                to_utf16("", &mut info_out.units);
-                info_out.unitId = 0;
-                info_out.valueDesc = vst3::Steinberg::Vst::NoteExpressionValueDescription {
-                    defaultValue: 0.0,
-                    minimum: 0.0,
-                    maximum: 1.0,
-                    stepCount: 0, // Continuous
-                };
-                info_out.flags = 0;
-
-                vst3::Steinberg::kResultOk
+            if channel != 0 {
+                return vst3::Steinberg::kInvalidArgument;
             }
-            _ => vst3::Steinberg::kInvalidArgument,
+            let info_out = &mut *info_out;
+
+            match note_expression_index {
+                0 => {
+                    info_out.typeId = vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID;
+                    to_utf16("Pitch Bend", &mut info_out.title);
+                    to_utf16("Pitch", &mut info_out.shortTitle);
+                    to_utf16("semitones", &mut info_out.units);
+                    info_out.unitId = 0;
+                    // It's not clear from docs if this is necessary for a pre-defined tuning type.
+                    info_out.valueDesc = vst3::Steinberg::Vst::NoteExpressionValueDescription {
+                        defaultValue: 0.5,
+                        minimum: 0.0,
+                        maximum: 1.0,
+                        stepCount: 0, // Continuous
+                    };
+                    info_out.flags = vst3::Steinberg::Vst::NoteExpressionTypeInfo_::NoteExpressionTypeFlags_::kIsBipolar as i32;
+                    vst3::Steinberg::kResultOk
+                }
+                1 => {
+                    info_out.typeId = crate::processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID;
+                    to_utf16("Timbre", &mut info_out.title);
+                    to_utf16("Timbre", &mut info_out.shortTitle);
+                    to_utf16("", &mut info_out.units);
+                    info_out.unitId = 0;
+                    info_out.valueDesc = vst3::Steinberg::Vst::NoteExpressionValueDescription {
+                        defaultValue: 0.0,
+                        minimum: 0.0,
+                        maximum: 1.0,
+                        stepCount: 0, // Continuous
+                    };
+                    info_out.flags = 0;
+
+                    vst3::Steinberg::kResultOk
+                }
+                2 => {
+                    info_out.typeId = crate::processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID;
+                    to_utf16("Aftertouch", &mut info_out.title);
+                    to_utf16("Aftertouch", &mut info_out.shortTitle);
+                    to_utf16("", &mut info_out.units);
+                    info_out.unitId = 0;
+                    info_out.valueDesc = vst3::Steinberg::Vst::NoteExpressionValueDescription {
+                        defaultValue: 0.0,
+                        minimum: 0.0,
+                        maximum: 1.0,
+                        stepCount: 0, // Continuous
+                    };
+                    info_out.flags = 0;
+
+                    vst3::Steinberg::kResultOk
+                }
+                _ => vst3::Steinberg::kInvalidArgument,
+            }
         }
     }
 
@@ -1210,27 +1241,29 @@ impl INoteExpressionControllerTrait for EditController {
         value_normalized: NoteExpressionValue,
         string: *mut vst3::Steinberg::Vst::String128,
     ) -> vst3::Steinberg::tresult {
-        if !matches!(self.s.borrow().as_ref().unwrap(), State::Initialized(_)) {
-            return vst3::Steinberg::kInvalidArgument;
-        }
-        if bus_index != 0 {
-            return vst3::Steinberg::kInvalidArgument;
-        }
-        if channel != 0 {
-            return vst3::Steinberg::kInvalidArgument;
-        }
-        match id {
-            vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID => {
-                let value = (value_normalized - 0.5) * 240.0;
-                to_utf16(&format!("{value:.2}"), &mut *string);
-                vst3::Steinberg::kResultOk
+        unsafe {
+            if !matches!(self.s.borrow().as_ref().unwrap(), State::Initialized(_)) {
+                return vst3::Steinberg::kInvalidArgument;
             }
-            crate::processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID
-            | crate::processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID => {
-                to_utf16(&format!("{value_normalized:.2}"), &mut *string);
-                vst3::Steinberg::kResultOk
+            if bus_index != 0 {
+                return vst3::Steinberg::kInvalidArgument;
             }
-            _ => vst3::Steinberg::kInvalidArgument,
+            if channel != 0 {
+                return vst3::Steinberg::kInvalidArgument;
+            }
+            match id {
+                vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID => {
+                    let value = (value_normalized - 0.5) * 240.0;
+                    to_utf16(&format!("{value:.2}"), &mut *string);
+                    vst3::Steinberg::kResultOk
+                }
+                crate::processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID
+                | crate::processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID => {
+                    to_utf16(&format!("{value_normalized:.2}"), &mut *string);
+                    vst3::Steinberg::kResultOk
+                }
+                _ => vst3::Steinberg::kInvalidArgument,
+            }
         }
     }
 
@@ -1242,35 +1275,37 @@ impl INoteExpressionControllerTrait for EditController {
         string: *const vst3::Steinberg::Vst::TChar,
         value_normalized: *mut NoteExpressionValue,
     ) -> vst3::Steinberg::tresult {
-        // Note that VST3 doesn't put a limit on string sizes here,
-        // so we make a reasonable size up.
-        const MAX_STRING_SIZE: usize = 2049;
+        unsafe {
+            // Note that VST3 doesn't put a limit on string sizes here,
+            // so we make a reasonable size up.
+            const MAX_STRING_SIZE: usize = 2049;
 
-        if !matches!(self.s.borrow().as_ref().unwrap(), State::Initialized(_)) {
-            return vst3::Steinberg::kInvalidArgument;
-        }
-        if bus_index != 0 {
-            return vst3::Steinberg::kInvalidArgument;
-        }
-        if channel != 0 {
-            return vst3::Steinberg::kInvalidArgument;
-        }
-        if let Some(value) = (|| -> Option<f64> {
-            let string = from_utf16_ptr(string, MAX_STRING_SIZE)?;
-            let value = string.parse::<f64>().ok()?;
-            match id {
-                vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID => {
-                    Some((value / 240.0) + 0.5)
-                }
-                crate::processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID
-                | crate::processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID => Some(value),
-                _ => None,
+            if !matches!(self.s.borrow().as_ref().unwrap(), State::Initialized(_)) {
+                return vst3::Steinberg::kInvalidArgument;
             }
-        })() {
-            *value_normalized = value;
-            vst3::Steinberg::kResultOk
-        } else {
-            vst3::Steinberg::kResultFalse
+            if bus_index != 0 {
+                return vst3::Steinberg::kInvalidArgument;
+            }
+            if channel != 0 {
+                return vst3::Steinberg::kInvalidArgument;
+            }
+            if let Some(value) = (|| -> Option<f64> {
+                let string = from_utf16_ptr(string, MAX_STRING_SIZE)?;
+                let value = string.parse::<f64>().ok()?;
+                match id {
+                    vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID => {
+                        Some((value / 240.0) + 0.5)
+                    }
+                    crate::processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID
+                    | crate::processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID => Some(value),
+                    _ => None,
+                }
+            })() {
+                *value_normalized = value;
+                vst3::Steinberg::kResultOk
+            } else {
+                vst3::Steinberg::kResultFalse
+            }
         }
     }
 }
@@ -1282,35 +1317,38 @@ impl INoteExpressionPhysicalUIMappingTrait for EditController {
         channel: i16,
         list: *mut vst3::Steinberg::Vst::PhysicalUIMapList,
     ) -> vst3::Steinberg::tresult {
-        if !matches!(self.s.borrow().as_ref().unwrap(), State::Initialized(_)) {
-            return vst3::Steinberg::kInvalidArgument;
-        }
-        if bus_index != 0 {
-            return vst3::Steinberg::kInvalidArgument;
-        }
-        if channel != 0 {
-            return vst3::Steinberg::kInvalidArgument;
-        }
-
-        let list = &mut *list;
-        for idx in 0..list.count {
-            let item = &mut (*list.map.offset(idx as isize));
-            match item.physicalUITypeID {
-                vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIXMovement => {
-                    item.noteExpressionTypeID =
-                        vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID;
-                }
-                vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIYMovement => {
-                    item.noteExpressionTypeID = crate::processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID;
-                }
-                vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIPressure => {
-                    item.noteExpressionTypeID =
-                        crate::processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID;
-                }
-                _ => {}
+        unsafe {
+            if !matches!(self.s.borrow().as_ref().unwrap(), State::Initialized(_)) {
+                return vst3::Steinberg::kInvalidArgument;
             }
+            if bus_index != 0 {
+                return vst3::Steinberg::kInvalidArgument;
+            }
+            if channel != 0 {
+                return vst3::Steinberg::kInvalidArgument;
+            }
+
+            let list = &mut *list;
+            for idx in 0..list.count {
+                let item = &mut (*list.map.offset(idx as isize));
+                match item.physicalUITypeID {
+                    vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIXMovement => {
+                        item.noteExpressionTypeID =
+                            vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID;
+                    }
+                    vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIYMovement => {
+                        item.noteExpressionTypeID =
+                            crate::processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID;
+                    }
+                    vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIPressure => {
+                        item.noteExpressionTypeID =
+                            crate::processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID;
+                    }
+                    _ => {}
+                }
+            }
+            vst3::Steinberg::kResultOk
         }
-        vst3::Steinberg::kResultOk
     }
 }
 

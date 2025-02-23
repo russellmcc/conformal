@@ -56,7 +56,7 @@ struct StoreImpl<O> {
 
 #[must_use]
 #[allow(clippy::implicit_hasher)]
-pub fn create_store(domain: &str, defaults: HashMap<String, Value>) -> impl Store {
+pub fn create_store(domain: &str, defaults: HashMap<String, Value>) -> impl Store + use<> {
     StoreImpl {
         os_store: create_os_store(domain),
         defaults,

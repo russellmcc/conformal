@@ -248,47 +248,49 @@ impl ProcessorCategory for SynthProcessorCategory {
         index: vst3::Steinberg::int32,
         bus: *mut vst3::Steinberg::Vst::BusInfo,
     ) -> vst3::Steinberg::tresult {
-        match (
-            rtype as vst3::Steinberg::Vst::MediaTypes,
-            dir as vst3::Steinberg::Vst::BusDirections,
-            index,
-        ) {
-            (
-                vst3::Steinberg::Vst::MediaTypes_::kAudio,
-                vst3::Steinberg::Vst::BusDirections_::kOutput,
-                0,
-            ) => {
-                (*bus).mediaType = rtype;
-                (*bus).direction = dir;
-                (*bus).channelCount = match self.channel_layout {
-                    ChannelLayout::Mono => 1,
-                    ChannelLayout::Stereo => 2,
-                };
-                (*bus).busType = vst3::Steinberg::Vst::BusTypes_::kMain as i32;
-                (*bus).flags = vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive;
+        unsafe {
+            match (
+                rtype as vst3::Steinberg::Vst::MediaTypes,
+                dir as vst3::Steinberg::Vst::BusDirections,
+                index,
+            ) {
+                (
+                    vst3::Steinberg::Vst::MediaTypes_::kAudio,
+                    vst3::Steinberg::Vst::BusDirections_::kOutput,
+                    0,
+                ) => {
+                    (*bus).mediaType = rtype;
+                    (*bus).direction = dir;
+                    (*bus).channelCount = match self.channel_layout {
+                        ChannelLayout::Mono => 1,
+                        ChannelLayout::Stereo => 2,
+                    };
+                    (*bus).busType = vst3::Steinberg::Vst::BusTypes_::kMain as i32;
+                    (*bus).flags = vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive;
 
-                // fill name
-                to_utf16("Output", &mut (*bus).name);
+                    // fill name
+                    to_utf16("Output", &mut (*bus).name);
 
-                vst3::Steinberg::kResultOk
+                    vst3::Steinberg::kResultOk
+                }
+                (
+                    vst3::Steinberg::Vst::MediaTypes_::kEvent,
+                    vst3::Steinberg::Vst::BusDirections_::kInput,
+                    0,
+                ) => {
+                    (*bus).mediaType = rtype;
+                    (*bus).direction = dir;
+                    (*bus).channelCount = 1;
+                    (*bus).busType = vst3::Steinberg::Vst::BusTypes_::kMain as i32;
+                    (*bus).flags = vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive;
+
+                    // Fill name
+                    to_utf16("Event In", &mut (*bus).name);
+
+                    vst3::Steinberg::kResultOk
+                }
+                _ => vst3::Steinberg::kInvalidArgument,
             }
-            (
-                vst3::Steinberg::Vst::MediaTypes_::kEvent,
-                vst3::Steinberg::Vst::BusDirections_::kInput,
-                0,
-            ) => {
-                (*bus).mediaType = rtype;
-                (*bus).direction = dir;
-                (*bus).channelCount = 1;
-                (*bus).busType = vst3::Steinberg::Vst::BusTypes_::kMain as i32;
-                (*bus).flags = vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive;
-
-                // Fill name
-                to_utf16("Event In", &mut (*bus).name);
-
-                vst3::Steinberg::kResultOk
-            }
-            _ => vst3::Steinberg::kInvalidArgument,
         }
     }
 
@@ -298,19 +300,21 @@ impl ProcessorCategory for SynthProcessorCategory {
         index: vst3::Steinberg::int32,
         arr: *mut vst3::Steinberg::Vst::SpeakerArrangement,
     ) -> vst3::Steinberg::tresult {
-        if index != 0 || dir != vst3::Steinberg::Vst::BusDirections_::kOutput as i32 {
-            return vst3::Steinberg::kInvalidArgument;
-        }
+        unsafe {
+            if index != 0 || dir != vst3::Steinberg::Vst::BusDirections_::kOutput as i32 {
+                return vst3::Steinberg::kInvalidArgument;
+            }
 
-        match self.channel_layout {
-            ChannelLayout::Mono => {
-                *arr = vst3::Steinberg::Vst::SpeakerArr::kMono;
+            match self.channel_layout {
+                ChannelLayout::Mono => {
+                    *arr = vst3::Steinberg::Vst::SpeakerArr::kMono;
+                }
+                ChannelLayout::Stereo => {
+                    *arr = vst3::Steinberg::Vst::SpeakerArr::kStereo;
+                }
             }
-            ChannelLayout::Stereo => {
-                *arr = vst3::Steinberg::Vst::SpeakerArr::kStereo;
-            }
+            vst3::Steinberg::kResultOk
         }
-        vst3::Steinberg::kResultOk
     }
 
     unsafe fn activate_bus(
@@ -360,19 +364,21 @@ impl ProcessorCategory for SynthProcessorCategory {
         outputs: *mut vst3::Steinberg::Vst::SpeakerArrangement,
         num_outs: vst3::Steinberg::int32,
     ) -> vst3::Steinberg::tresult {
-        if num_ins != 0 || num_outs != 1 {
-            return vst3::Steinberg::kInvalidArgument;
-        }
-        match *outputs {
-            vst3::Steinberg::Vst::SpeakerArr::kMono => {
-                self.channel_layout = ChannelLayout::Mono;
-                vst3::Steinberg::kResultTrue
+        unsafe {
+            if num_ins != 0 || num_outs != 1 {
+                return vst3::Steinberg::kInvalidArgument;
             }
-            vst3::Steinberg::Vst::SpeakerArr::kStereo => {
-                self.channel_layout = ChannelLayout::Stereo;
-                vst3::Steinberg::kResultTrue
+            match *outputs {
+                vst3::Steinberg::Vst::SpeakerArr::kMono => {
+                    self.channel_layout = ChannelLayout::Mono;
+                    vst3::Steinberg::kResultTrue
+                }
+                vst3::Steinberg::Vst::SpeakerArr::kStereo => {
+                    self.channel_layout = ChannelLayout::Stereo;
+                    vst3::Steinberg::kResultTrue
+                }
+                _ => vst3::Steinberg::kResultFalse,
             }
-            _ => vst3::Steinberg::kResultFalse,
         }
     }
 
@@ -462,50 +468,52 @@ impl ProcessorCategory for EffectProcessorCategory {
         index: vst3::Steinberg::int32,
         bus: *mut vst3::Steinberg::Vst::BusInfo,
     ) -> vst3::Steinberg::tresult {
-        match (
-            rtype as vst3::Steinberg::Vst::MediaTypes,
-            dir as vst3::Steinberg::Vst::BusDirections,
-            index,
-        ) {
-            (
-                vst3::Steinberg::Vst::MediaTypes_::kAudio,
-                vst3::Steinberg::Vst::BusDirections_::kOutput,
-                0,
-            ) => {
-                (*bus).mediaType = rtype;
-                (*bus).direction = dir;
-                (*bus).channelCount = match self.channel_layout {
-                    ChannelLayout::Mono => 1,
-                    ChannelLayout::Stereo => 2,
-                };
-                (*bus).busType = vst3::Steinberg::Vst::BusTypes_::kMain as i32;
-                (*bus).flags = vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive;
+        unsafe {
+            match (
+                rtype as vst3::Steinberg::Vst::MediaTypes,
+                dir as vst3::Steinberg::Vst::BusDirections,
+                index,
+            ) {
+                (
+                    vst3::Steinberg::Vst::MediaTypes_::kAudio,
+                    vst3::Steinberg::Vst::BusDirections_::kOutput,
+                    0,
+                ) => {
+                    (*bus).mediaType = rtype;
+                    (*bus).direction = dir;
+                    (*bus).channelCount = match self.channel_layout {
+                        ChannelLayout::Mono => 1,
+                        ChannelLayout::Stereo => 2,
+                    };
+                    (*bus).busType = vst3::Steinberg::Vst::BusTypes_::kMain as i32;
+                    (*bus).flags = vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive;
 
-                // fill name
-                to_utf16("Output", &mut (*bus).name);
+                    // fill name
+                    to_utf16("Output", &mut (*bus).name);
 
-                vst3::Steinberg::kResultOk
+                    vst3::Steinberg::kResultOk
+                }
+                (
+                    vst3::Steinberg::Vst::MediaTypes_::kAudio,
+                    vst3::Steinberg::Vst::BusDirections_::kInput,
+                    0,
+                ) => {
+                    (*bus).mediaType = rtype;
+                    (*bus).direction = dir;
+                    (*bus).channelCount = match self.channel_layout {
+                        ChannelLayout::Mono => 1,
+                        ChannelLayout::Stereo => 2,
+                    };
+                    (*bus).busType = vst3::Steinberg::Vst::BusTypes_::kMain as i32;
+                    (*bus).flags = vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive;
+
+                    // Fill name
+                    to_utf16("Input", &mut (*bus).name);
+
+                    vst3::Steinberg::kResultOk
+                }
+                _ => vst3::Steinberg::kInvalidArgument,
             }
-            (
-                vst3::Steinberg::Vst::MediaTypes_::kAudio,
-                vst3::Steinberg::Vst::BusDirections_::kInput,
-                0,
-            ) => {
-                (*bus).mediaType = rtype;
-                (*bus).direction = dir;
-                (*bus).channelCount = match self.channel_layout {
-                    ChannelLayout::Mono => 1,
-                    ChannelLayout::Stereo => 2,
-                };
-                (*bus).busType = vst3::Steinberg::Vst::BusTypes_::kMain as i32;
-                (*bus).flags = vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive;
-
-                // Fill name
-                to_utf16("Input", &mut (*bus).name);
-
-                vst3::Steinberg::kResultOk
-            }
-            _ => vst3::Steinberg::kInvalidArgument,
         }
     }
 
@@ -515,19 +523,21 @@ impl ProcessorCategory for EffectProcessorCategory {
         index: vst3::Steinberg::int32,
         arr: *mut vst3::Steinberg::Vst::SpeakerArrangement,
     ) -> vst3::Steinberg::tresult {
-        if index != 0 {
-            return vst3::Steinberg::kInvalidArgument;
-        }
+        unsafe {
+            if index != 0 {
+                return vst3::Steinberg::kInvalidArgument;
+            }
 
-        match self.channel_layout {
-            ChannelLayout::Mono => {
-                *arr = vst3::Steinberg::Vst::SpeakerArr::kMono;
+            match self.channel_layout {
+                ChannelLayout::Mono => {
+                    *arr = vst3::Steinberg::Vst::SpeakerArr::kMono;
+                }
+                ChannelLayout::Stereo => {
+                    *arr = vst3::Steinberg::Vst::SpeakerArr::kStereo;
+                }
             }
-            ChannelLayout::Stereo => {
-                *arr = vst3::Steinberg::Vst::SpeakerArr::kStereo;
-            }
+            vst3::Steinberg::kResultOk
         }
-        vst3::Steinberg::kResultOk
     }
 
     unsafe fn activate_bus(
@@ -569,27 +579,29 @@ impl ProcessorCategory for EffectProcessorCategory {
         outputs: *mut vst3::Steinberg::Vst::SpeakerArrangement,
         num_outs: vst3::Steinberg::int32,
     ) -> vst3::Steinberg::tresult {
-        if num_ins != 1 || num_outs != 1 {
-            return vst3::Steinberg::kInvalidArgument;
-        }
-        match *inputs {
-            vst3::Steinberg::Vst::SpeakerArr::kMono => {
-                self.channel_layout = ChannelLayout::Mono;
-                if *inputs == *outputs {
-                    vst3::Steinberg::kResultTrue
-                } else {
-                    vst3::Steinberg::kResultFalse
-                }
+        unsafe {
+            if num_ins != 1 || num_outs != 1 {
+                return vst3::Steinberg::kInvalidArgument;
             }
-            vst3::Steinberg::Vst::SpeakerArr::kStereo => {
-                self.channel_layout = ChannelLayout::Stereo;
-                if *inputs == *outputs {
-                    vst3::Steinberg::kResultTrue
-                } else {
-                    vst3::Steinberg::kResultFalse
+            match *inputs {
+                vst3::Steinberg::Vst::SpeakerArr::kMono => {
+                    self.channel_layout = ChannelLayout::Mono;
+                    if *inputs == *outputs {
+                        vst3::Steinberg::kResultTrue
+                    } else {
+                        vst3::Steinberg::kResultFalse
+                    }
                 }
+                vst3::Steinberg::Vst::SpeakerArr::kStereo => {
+                    self.channel_layout = ChannelLayout::Stereo;
+                    if *inputs == *outputs {
+                        vst3::Steinberg::kResultTrue
+                    } else {
+                        vst3::Steinberg::kResultFalse
+                    }
+                }
+                _ => vst3::Steinberg::kResultFalse,
             }
-            _ => vst3::Steinberg::kResultFalse,
         }
     }
 
@@ -628,25 +640,27 @@ impl<P: Effect> ActiveProcessorCategory<P> for ActiveEffectProcessorCategory {
         processor: &'a mut P,
         data: *mut vst3::Steinberg::Vst::ProcessData,
     ) -> Option<Self::ProcessBuffer<'a>> {
-        if (*data).numOutputs != 1 {
-            return None;
+        unsafe {
+            if (*data).numOutputs != 1 {
+                return None;
+            }
+            if (*data).numInputs != 1 {
+                return None;
+            }
+            Some(EffectProcessBuffer {
+                processor,
+                input: UnsafeBufferFromRaw {
+                    ptr: (*(*data).inputs).__field0.channelBuffers32,
+                    channel_layout: self.channel_layout,
+                    num_frames: (*data).numSamples as usize,
+                },
+                output: UnsafeMutBufferFromRaw {
+                    ptr: (*(*data).outputs).__field0.channelBuffers32,
+                    channel_layout: self.channel_layout,
+                    num_frames: (*data).numSamples as usize,
+                },
+            })
         }
-        if (*data).numInputs != 1 {
-            return None;
-        }
-        Some(EffectProcessBuffer {
-            processor,
-            input: UnsafeBufferFromRaw {
-                ptr: (*(*data).inputs).__field0.channelBuffers32,
-                channel_layout: self.channel_layout,
-                num_frames: (*data).numSamples as usize,
-            },
-            output: UnsafeMutBufferFromRaw {
-                ptr: (*(*data).outputs).__field0.channelBuffers32,
-                channel_layout: self.channel_layout,
-                num_frames: (*data).numSamples as usize,
-            },
-        })
     }
 
     fn handle_events<
@@ -841,14 +855,16 @@ where
         &self,
         context: *mut vst3::Steinberg::FUnknown,
     ) -> vst3::Steinberg::tresult {
-        if self.host.borrow().is_some() {
-            return vst3::Steinberg::kInvalidArgument;
-        }
+        unsafe {
+            if self.host.borrow().is_some() {
+                return vst3::Steinberg::kInvalidArgument;
+            }
 
-        if let Some(host) = ComRef::from_raw(context).and_then(|context| context.cast()) {
-            self.host.replace(Some(host));
-        } else {
-            return vst3::Steinberg::kInvalidArgument;
+            if let Some(host) = ComRef::from_raw(context).and_then(|context| context.cast()) {
+                self.host.replace(Some(host));
+            } else {
+                return vst3::Steinberg::kInvalidArgument;
+            }
         }
 
         let (s, res) = match (
@@ -897,19 +913,21 @@ where
 
     unsafe fn terminate(&self) -> vst3::Steinberg::tresult {
         self.host.replace(None);
-        match self.s.take() {
-            Some(State::Initialized(InitializedData { factory, .. })) => {
-                // Check invariant that process_context is initialized here.
-                assert!(!matches!(
+        if let Some(State::Initialized(InitializedData { factory, .. })) = self.s.take() {
+            // Check invariant that process_context is initialized here.
+            assert!(
+                !matches!(
                     *self.process_context.borrow(),
                     ProcessContext::Uninitialized
-                ), "Invariant violation - process_context is uninitialized while we are initialized");
+                ),
+                "Invariant violation - process_context is uninitialized while we are initialized"
+            );
 
-                self.s.replace(Some(State::ReadyForInitialization(factory)));
-                self.process_context.replace(ProcessContext::Uninitialized);
-                vst3::Steinberg::kResultOk
-            }
-            _ => vst3::Steinberg::kInvalidArgument,
+            self.s.replace(Some(State::ReadyForInitialization(factory)));
+            self.process_context.replace(ProcessContext::Uninitialized);
+            vst3::Steinberg::kResultOk
+        } else {
+            vst3::Steinberg::kInvalidArgument
         }
     }
 }
@@ -922,12 +940,14 @@ impl<CF: ComponentFactory<Component: Component<Processor: ProcessorT>>, PC: Proc
         &self,
         class_id: *mut vst3::Steinberg::TUID,
     ) -> vst3::Steinberg::tresult {
-        self.controller_cid
-            .iter()
-            .zip((*class_id).iter_mut())
-            .for_each(|(a, b)| *b = *a as i8);
+        unsafe {
+            self.controller_cid
+                .iter()
+                .zip((*class_id).iter_mut())
+                .for_each(|(a, b)| *b = *a as i8);
 
-        vst3::Steinberg::kResultOk
+            vst3::Steinberg::kResultOk
+        }
     }
 
     unsafe fn setIoMode(&self, _mode: vst3::Steinberg::Vst::IoMode) -> vst3::Steinberg::tresult {
@@ -944,7 +964,7 @@ impl<CF: ComponentFactory<Component: Component<Processor: ProcessorT>>, PC: Proc
         rtype: vst3::Steinberg::Vst::MediaType,
         dir: vst3::Steinberg::Vst::BusDirection,
     ) -> vst3::Steinberg::int32 {
-        self.category.borrow().get_bus_count(rtype, dir)
+        unsafe { self.category.borrow().get_bus_count(rtype, dir) }
     }
 
     unsafe fn getBusInfo(
@@ -954,7 +974,7 @@ impl<CF: ComponentFactory<Component: Component<Processor: ProcessorT>>, PC: Proc
         index: vst3::Steinberg::int32,
         bus: *mut vst3::Steinberg::Vst::BusInfo,
     ) -> vst3::Steinberg::tresult {
-        self.category.borrow().get_bus_info(rtype, dir, index, bus)
+        unsafe { self.category.borrow().get_bus_info(rtype, dir, index, bus) }
     }
 
     unsafe fn getRoutingInfo(
@@ -973,13 +993,15 @@ impl<CF: ComponentFactory<Component: Component<Processor: ProcessorT>>, PC: Proc
         index: vst3::Steinberg::int32,
         state: vst3::Steinberg::TBool,
     ) -> vst3::Steinberg::tresult {
-        // Note that if processing is active, it's too late to call this!
-        if self.processing_active() {
-            return vst3::Steinberg::kInvalidArgument;
+        unsafe {
+            // Note that if processing is active, it's too late to call this!
+            if self.processing_active() {
+                return vst3::Steinberg::kInvalidArgument;
+            }
+            self.category
+                .borrow_mut()
+                .activate_bus(rtype, dir, index, state)
         }
-        self.category
-            .borrow_mut()
-            .activate_bus(rtype, dir, index, state)
     }
 
     unsafe fn setActive(&self, state: vst3::Steinberg::TBool) -> vst3::Steinberg::tresult {
@@ -1103,25 +1125,27 @@ impl<CF: ComponentFactory<Component: Component<Processor: ProcessorT>>, PC: Proc
     }
 
     unsafe fn getState(&self, state: *mut vst3::Steinberg::IBStream) -> vst3::Steinberg::tresult {
-        if let Some(State::Initialized(InitializedData {
-            params_main: main_context_store,
-            ..
-        })) = self.s.borrow().as_ref()
-        {
-            if let Some(com_state) = ComRef::from_raw(state) {
-                let writer = StreamWrite::new(com_state);
-                if (state::State {
-                    params: main_context_store.snapshot_with_tearing(),
-                })
-                .serialize(&mut rmp_serde::Serializer::new(writer))
-                .is_ok()
-                {
-                    return vst3::Steinberg::kResultOk;
+        unsafe {
+            if let Some(State::Initialized(InitializedData {
+                params_main: main_context_store,
+                ..
+            })) = self.s.borrow().as_ref()
+            {
+                if let Some(com_state) = ComRef::from_raw(state) {
+                    let writer = StreamWrite::new(com_state);
+                    if (state::State {
+                        params: main_context_store.snapshot_with_tearing(),
+                    })
+                    .serialize(&mut rmp_serde::Serializer::new(writer))
+                    .is_ok()
+                    {
+                        return vst3::Steinberg::kResultOk;
+                    }
+                    return vst3::Steinberg::kInternalError;
                 }
-                return vst3::Steinberg::kInternalError;
             }
+            vst3::Steinberg::kInvalidArgument
         }
-        vst3::Steinberg::kInvalidArgument
     }
 }
 
@@ -1219,34 +1243,40 @@ impl<H: ProcessBuffer, I: Iterator<Item = conformal_component::events::Event> + 
         mpe_quirks: Option<&mut mpe_quirks::State>,
         num_frames: usize,
     ) -> vst3::Steinberg::tresult {
-        if let Some(com_changes) = vst3::ComRef::from_raw((*data).inputParameterChanges) {
-            if let Some(buffer_states) =
-                parameters::param_changes_from_vst3(com_changes, params, num_frames)
-            {
-                if let Some(mpe_quirks) = mpe_quirks {
-                    let buffer_states_clone = buffer_states.clone();
-                    let events = add_mpe_quirk_events_buffer(
-                        self.clone().into_iter(),
-                        mpe_quirks.clone(),
-                        &buffer_states_clone,
-                        num_frames,
-                    );
-                    helper.process(events, buffer_states.clone());
-                    update_mpe_quirk_events_buffer(self.into_iter(), mpe_quirks, &buffer_states);
+        unsafe {
+            if let Some(com_changes) = vst3::ComRef::from_raw((*data).inputParameterChanges) {
+                if let Some(buffer_states) =
+                    parameters::param_changes_from_vst3(com_changes, params, num_frames)
+                {
+                    if let Some(mpe_quirks) = mpe_quirks {
+                        let buffer_states_clone = buffer_states.clone();
+                        let events = add_mpe_quirk_events_buffer(
+                            self.clone().into_iter(),
+                            mpe_quirks.clone(),
+                            &buffer_states_clone,
+                            num_frames,
+                        );
+                        helper.process(events, buffer_states.clone());
+                        update_mpe_quirk_events_buffer(
+                            self.into_iter(),
+                            mpe_quirks,
+                            &buffer_states,
+                        );
+                    } else {
+                        helper.process(self, buffer_states);
+                    }
+                    vst3::Steinberg::kResultOk
                 } else {
-                    helper.process(self, buffer_states);
+                    vst3::Steinberg::kInvalidArgument
+                }
+            } else {
+                let buffer_states = parameters::ExistingBufferStates::new(params);
+                helper.process(self.clone(), buffer_states.clone());
+                if let Some(mpe_quirks) = mpe_quirks {
+                    update_mpe_quirk_events_buffer(self.into_iter(), mpe_quirks, &buffer_states);
                 }
                 vst3::Steinberg::kResultOk
-            } else {
-                vst3::Steinberg::kInvalidArgument
             }
-        } else {
-            let buffer_states = parameters::ExistingBufferStates::new(params);
-            helper.process(self.clone(), buffer_states.clone());
-            if let Some(mpe_quirks) = mpe_quirks {
-                update_mpe_quirk_events_buffer(self.into_iter(), mpe_quirks, &buffer_states);
-            }
-            vst3::Steinberg::kResultOk
         }
     }
 }
@@ -1272,40 +1302,42 @@ impl<
         mpe_quirks: Option<&mut mpe_quirks::State>,
         _: usize,
     ) -> vst3::Steinberg::tresult {
-        if let Some(param_changes) = ComRef::from_raw((*data).inputParameterChanges) {
-            if let Some((change_status, param_states)) =
-                parameters::no_audio_param_changes_from_vst3(param_changes, params)
-            {
-                if change_status == parameters::ChangesStatus::Changes || !helper.events_empty {
-                    if let Some(mpe_quirks) = mpe_quirks {
-                        let param_states_clone = param_states.clone();
-                        let events = add_mpe_quirk_events_no_audio(
-                            self.clone(),
-                            mpe_quirks.clone(),
-                            &param_states_clone,
-                        );
-                        helper.category.handle_events(
-                            helper.processor,
-                            events,
-                            param_states.clone(),
-                        );
-                        update_mpe_quirk_events_no_audio(self, mpe_quirks, &param_states);
-                    } else {
-                        helper
-                            .category
-                            .handle_events(helper.processor, self, param_states);
+        unsafe {
+            if let Some(param_changes) = ComRef::from_raw((*data).inputParameterChanges) {
+                if let Some((change_status, param_states)) =
+                    parameters::no_audio_param_changes_from_vst3(param_changes, params)
+                {
+                    if change_status == parameters::ChangesStatus::Changes || !helper.events_empty {
+                        if let Some(mpe_quirks) = mpe_quirks {
+                            let param_states_clone = param_states.clone();
+                            let events = add_mpe_quirk_events_no_audio(
+                                self.clone(),
+                                mpe_quirks.clone(),
+                                &param_states_clone,
+                            );
+                            helper.category.handle_events(
+                                helper.processor,
+                                events,
+                                param_states.clone(),
+                            );
+                            update_mpe_quirk_events_no_audio(self, mpe_quirks, &param_states);
+                        } else {
+                            helper
+                                .category
+                                .handle_events(helper.processor, self, param_states);
+                        }
                     }
+                    return vst3::Steinberg::kResultOk;
                 }
-                return vst3::Steinberg::kResultOk;
+                return vst3::Steinberg::kInvalidArgument;
             }
-            return vst3::Steinberg::kInvalidArgument;
+            if !helper.events_empty {
+                helper
+                    .category
+                    .handle_events(helper.processor, self, &*params);
+            }
+            vst3::Steinberg::kResultOk
         }
-        if !helper.events_empty {
-            helper
-                .category
-                .handle_events(helper.processor, self, &*params);
-        }
-        vst3::Steinberg::kResultOk
     }
 }
 
@@ -1320,18 +1352,20 @@ impl<P: Synth> ActiveProcessorCategory<P> for ActiveSynthProcessorCategory {
         processor: &'a mut P,
         data: *mut vst3::Steinberg::Vst::ProcessData,
     ) -> Option<Self::ProcessBuffer<'a>> {
-        if (*data).numOutputs != 1 {
-            return None;
-        }
+        unsafe {
+            if (*data).numOutputs != 1 {
+                return None;
+            }
 
-        Some(SynthProcessBuffer {
-            synth: processor,
-            output: UnsafeMutBufferFromRaw {
-                ptr: (*(*data).outputs).__field0.channelBuffers32,
-                channel_layout: self.channel_layout,
-                num_frames: (*data).numSamples as usize,
-            },
-        })
+            Some(SynthProcessBuffer {
+                synth: processor,
+                output: UnsafeMutBufferFromRaw {
+                    ptr: (*(*data).outputs).__field0.channelBuffers32,
+                    channel_layout: self.channel_layout,
+                    num_frames: (*data).numSamples as usize,
+                },
+            })
+        }
     }
 
     fn handle_events<
@@ -1360,20 +1394,22 @@ impl<
         outputs: *mut vst3::Steinberg::Vst::SpeakerArrangement,
         num_outs: vst3::Steinberg::int32,
     ) -> vst3::Steinberg::tresult {
-        if let Some(State::Initialized(InitializedData {
-            process_context_active,
-            ..
-        })) = self.s.borrow().as_ref()
-        {
-            // This isn't legal if we're active!
-            if *process_context_active {
-                return vst3::Steinberg::kInvalidArgument;
+        unsafe {
+            if let Some(State::Initialized(InitializedData {
+                process_context_active,
+                ..
+            })) = self.s.borrow().as_ref()
+            {
+                // This isn't legal if we're active!
+                if *process_context_active {
+                    return vst3::Steinberg::kInvalidArgument;
+                }
+                self.category
+                    .borrow_mut()
+                    .set_bus_arrangements(inputs, num_ins, outputs, num_outs)
+            } else {
+                vst3::Steinberg::kInvalidArgument
             }
-            self.category
-                .borrow_mut()
-                .set_bus_arrangements(inputs, num_ins, outputs, num_outs)
-        } else {
-            vst3::Steinberg::kInvalidArgument
         }
     }
 
@@ -1383,10 +1419,12 @@ impl<
         index: vst3::Steinberg::int32,
         arr: *mut vst3::Steinberg::Vst::SpeakerArrangement,
     ) -> vst3::Steinberg::tresult {
-        if let Some(State::Initialized(_)) = self.s.borrow().as_ref() {
-            self.category.borrow().get_bus_arrangement(dir, index, arr)
-        } else {
-            vst3::Steinberg::kInvalidArgument
+        unsafe {
+            if let Some(State::Initialized(_)) = self.s.borrow().as_ref() {
+                self.category.borrow().get_bus_arrangement(dir, index, arr)
+            } else {
+                vst3::Steinberg::kInvalidArgument
+            }
         }
     }
 
@@ -1409,36 +1447,38 @@ impl<
         &self,
         setup: *mut vst3::Steinberg::Vst::ProcessSetup,
     ) -> vst3::Steinberg::tresult {
-        if let Some(State::Initialized(InitializedData {
-            processing_environment,
-            process_context_active,
-            ..
-        })) = self.s.borrow_mut().as_mut()
-        {
-            // This isn't legal if we're active!
-            if *process_context_active {
-                return vst3::Steinberg::kInvalidArgument;
+        unsafe {
+            if let Some(State::Initialized(InitializedData {
+                processing_environment,
+                process_context_active,
+                ..
+            })) = self.s.borrow_mut().as_mut()
+            {
+                // This isn't legal if we're active!
+                if *process_context_active {
+                    return vst3::Steinberg::kInvalidArgument;
+                }
+                *processing_environment = (PartialProcessingEnvironment {
+                    // Note that we lose some resolution on the sample rate here, but
+                    // it's okay.
+                    #[allow(clippy::cast_possible_truncation)]
+                    sampling_rate: (*setup).sampleRate as f32,
+
+                    max_samples_per_process_call: (*setup).maxSamplesPerBlock as usize,
+                    processing_mode: match (*setup).processMode as u32 {
+                        vst3::Steinberg::Vst::ProcessModes_::kRealtime => ProcessingMode::Realtime,
+                        vst3::Steinberg::Vst::ProcessModes_::kPrefetch => ProcessingMode::Prefetch,
+                        vst3::Steinberg::Vst::ProcessModes_::kOffline => ProcessingMode::Offline,
+                        _ => unreachable!(),
+                    },
+                })
+                .into();
+
+                vst3::Steinberg::kResultOk
+            } else {
+                // We must be initialized!
+                vst3::Steinberg::kInvalidArgument
             }
-            *processing_environment = (PartialProcessingEnvironment {
-                // Note that we lose some resolution on the sample rate here, but
-                // it's okay.
-                #[allow(clippy::cast_possible_truncation)]
-                sampling_rate: (*setup).sampleRate as f32,
-
-                max_samples_per_process_call: (*setup).maxSamplesPerBlock as usize,
-                processing_mode: match (*setup).processMode as u32 {
-                    vst3::Steinberg::Vst::ProcessModes_::kRealtime => ProcessingMode::Realtime,
-                    vst3::Steinberg::Vst::ProcessModes_::kPrefetch => ProcessingMode::Prefetch,
-                    vst3::Steinberg::Vst::ProcessModes_::kOffline => ProcessingMode::Offline,
-                    _ => unreachable!(),
-                },
-            })
-            .into();
-
-            vst3::Steinberg::kResultOk
-        } else {
-            // We must be initialized!
-            vst3::Steinberg::kInvalidArgument
         }
     }
 
@@ -1460,30 +1500,45 @@ impl<
         &self,
         data: *mut vst3::Steinberg::Vst::ProcessData,
     ) -> vst3::Steinberg::tresult {
-        if let ProcessContext::Active(ref mut pd) = *self.process_context.borrow_mut() {
-            if !pd.processing {
-                return vst3::Steinberg::kInvalidArgument;
-            }
+        unsafe {
+            if let ProcessContext::Active(ref mut pd) = *self.process_context.borrow_mut() {
+                if !pd.processing {
+                    return vst3::Steinberg::kInvalidArgument;
+                }
 
-            pd.params.sync_from_main_thread();
-            let num_frames = (*data).numSamples as usize;
+                pd.params.sync_from_main_thread();
+                let num_frames = (*data).numSamples as usize;
 
-            if num_frames == 0 {
-                if let Some(input_events) = ComRef::from_raw((*data).inputEvents) {
-                    if let Some(event_iter) = events::all_zero_event_iterator(
-                        input_events,
-                        if pd.mpe_quirks.is_some() {
-                            Support::SupportQuirks
-                        } else {
-                            Support::DoNotSupportQuirks
-                        },
-                    ) {
+                if num_frames == 0 {
+                    if let Some(input_events) = ComRef::from_raw((*data).inputEvents) {
+                        if let Some(event_iter) = events::all_zero_event_iterator(
+                            input_events,
+                            if pd.mpe_quirks.is_some() {
+                                Support::SupportQuirks
+                            } else {
+                                Support::DoNotSupportQuirks
+                            },
+                        ) {
+                            let helper = NoAudioProcessHelper {
+                                processor: &mut pd.processor,
+                                events_empty: event_iter.clone().next().is_none(),
+                                category: &pd.category,
+                            };
+                            return event_iter.do_process(
+                                helper,
+                                &mut pd.params,
+                                data,
+                                pd.mpe_quirks.as_mut(),
+                                0,
+                            );
+                        }
+                    } else {
                         let helper = NoAudioProcessHelper {
                             processor: &mut pd.processor,
-                            events_empty: event_iter.clone().next().is_none(),
+                            events_empty: true,
                             category: &pd.category,
                         };
-                        return event_iter.do_process(
+                        return std::iter::empty().do_process(
                             helper,
                             &mut pd.params,
                             data,
@@ -1491,65 +1546,54 @@ impl<
                             0,
                         );
                     }
-                } else {
-                    let helper = NoAudioProcessHelper {
-                        processor: &mut pd.processor,
-                        events_empty: true,
-                        category: &pd.category,
-                    };
-                    return std::iter::empty().do_process(
-                        helper,
-                        &mut pd.params,
-                        data,
-                        pd.mpe_quirks.as_mut(),
-                        0,
-                    );
+                    // If we got here, some pre-condition of the parameters was not met by the host
+                    return vst3::Steinberg::kInvalidArgument;
                 }
-                // If we got here, some pre-condition of the parameters was not met by the host
-                return vst3::Steinberg::kInvalidArgument;
-            }
-            if (*data).symbolicSampleSize
-                != vst3::Steinberg::Vst::SymbolicSampleSizes_::kSample32 as i32
-            {
-                return vst3::Steinberg::kInvalidArgument;
-            }
+                if (*data).symbolicSampleSize
+                    != vst3::Steinberg::Vst::SymbolicSampleSizes_::kSample32 as i32
+                {
+                    return vst3::Steinberg::kInvalidArgument;
+                }
 
-            if let Some(process_buffer) = pd.category.make_process_buffer(&mut pd.processor, data) {
-                if let Some(input_events) = ComRef::from_raw((*data).inputEvents) {
-                    if let Some(events) = Events::new(
-                        events::event_iterator(
-                            input_events,
-                            if pd.mpe_quirks.is_some() {
-                                Support::SupportQuirks
-                            } else {
-                                Support::DoNotSupportQuirks
-                            },
-                        ),
-                        num_frames,
-                    ) {
-                        return events.do_process(
-                            process_buffer,
-                            &mut pd.params,
-                            data,
-                            pd.mpe_quirks.as_mut(),
+                if let Some(process_buffer) =
+                    pd.category.make_process_buffer(&mut pd.processor, data)
+                {
+                    if let Some(input_events) = ComRef::from_raw((*data).inputEvents) {
+                        if let Some(events) = Events::new(
+                            events::event_iterator(
+                                input_events,
+                                if pd.mpe_quirks.is_some() {
+                                    Support::SupportQuirks
+                                } else {
+                                    Support::DoNotSupportQuirks
+                                },
+                            ),
                             num_frames,
-                        );
+                        ) {
+                            return events.do_process(
+                                process_buffer,
+                                &mut pd.params,
+                                data,
+                                pd.mpe_quirks.as_mut(),
+                                num_frames,
+                            );
+                        }
+                    } else {
+                        return Events::new(std::iter::empty(), num_frames)
+                            .unwrap()
+                            .do_process(
+                                process_buffer,
+                                &mut pd.params,
+                                data,
+                                pd.mpe_quirks.as_mut(),
+                                num_frames,
+                            );
                     }
-                } else {
-                    return Events::new(std::iter::empty(), num_frames)
-                        .unwrap()
-                        .do_process(
-                            process_buffer,
-                            &mut pd.params,
-                            data,
-                            pd.mpe_quirks.as_mut(),
-                            num_frames,
-                        );
                 }
             }
+            // If we got here, some invariant was not met by the host (i.e., Events was misformated, or wrong audio format.)
+            vst3::Steinberg::kInvalidArgument
         }
-        // If we got here, some invariant was not met by the host (i.e., Events was misformated, or wrong audio format.)
-        vst3::Steinberg::kInvalidArgument
     }
 
     unsafe fn getTailSamples(&self) -> vst3::Steinberg::uint32 {

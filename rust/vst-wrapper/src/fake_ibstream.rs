@@ -30,7 +30,7 @@ impl IBStreamTrait for Stream {
         buffer: *mut std::ffi::c_void,
         num_bytes: vst3::Steinberg::int32,
         num_bytes_read_out: *mut vst3::Steinberg::int32,
-    ) -> vst3::Steinberg::tresult {
+    ) -> vst3::Steinberg::tresult { unsafe {
         // Read the bytes into the passed-in buffer
         let num_bytes = num_bytes as usize;
         let num_bytes_read =
@@ -45,14 +45,14 @@ impl IBStreamTrait for Stream {
             *num_bytes_read_out = num_bytes_read as i32;
         }
         vst3::Steinberg::kResultOk
-    }
+    }}
 
     unsafe fn write(
         &self,
         buffer: *mut std::ffi::c_void,
         num_bytes: vst3::Steinberg::int32,
         num_bytes_written: *mut vst3::Steinberg::int32,
-    ) -> vst3::Steinberg::tresult {
+    ) -> vst3::Steinberg::tresult { unsafe {
         // Write the bytes from the passed-in buffer, expanding if necessary.
         let num_bytes = num_bytes as usize;
         if *self.head.borrow() + num_bytes > self.data.borrow().len() {
@@ -70,14 +70,14 @@ impl IBStreamTrait for Stream {
             *num_bytes_written = num_bytes as i32;
         }
         vst3::Steinberg::kResultOk
-    }
+    }}
 
     unsafe fn seek(
         &self,
         pos: vst3::Steinberg::int64,
         mode: vst3::Steinberg::int32,
         result: *mut vst3::Steinberg::int64,
-    ) -> vst3::Steinberg::tresult {
+    ) -> vst3::Steinberg::tresult { unsafe {
         if let Some(next_head) = match mode as u32 {
             vst3::Steinberg::IBStream_::IStreamSeekMode_::kIBSeekCur => {
                 let saturated = if pos < 0 {
@@ -112,14 +112,14 @@ impl IBStreamTrait for Stream {
         } else {
             vst3::Steinberg::kInvalidArgument
         }
-    }
+    }}
 
-    unsafe fn tell(&self, pos: *mut vst3::Steinberg::int64) -> vst3::Steinberg::tresult {
+    unsafe fn tell(&self, pos: *mut vst3::Steinberg::int64) -> vst3::Steinberg::tresult { unsafe {
         if !pos.is_null() {
             *pos = *self.head.borrow() as i64;
         }
         vst3::Steinberg::kResultOk
-    }
+    }}
 }
 
 impl Class for Stream {

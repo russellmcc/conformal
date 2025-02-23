@@ -7,7 +7,7 @@ struct Store {
 }
 
 #[link(name = "AppKit", kind = "framework")]
-extern "C" {}
+unsafe extern "C" {}
 
 unsafe fn autoreleased_nsstring(s: &str) -> *mut Object {
     let nsstring = objc::class!(NSString);
@@ -15,7 +15,7 @@ unsafe fn autoreleased_nsstring(s: &str) -> *mut Object {
     objc::msg_send![nsstring, stringWithUTF8String: cstring.as_ptr()]
 }
 
-unsafe fn with_user_defaults<F: FnOnce(*mut Object)>(f: F, domain: &str) {
+unsafe fn with_user_defaults<F: FnOnce(*mut Object)>(f: F, domain: &str) { unsafe {
     let user_defaults_class = objc::class!(NSUserDefaults);
     let domain_string = autoreleased_nsstring(domain);
     let user_defaults_alloc: *mut Object = objc::msg_send![user_defaults_class, alloc];
@@ -23,7 +23,7 @@ unsafe fn with_user_defaults<F: FnOnce(*mut Object)>(f: F, domain: &str) {
         objc::msg_send![user_defaults_alloc, initWithSuiteName: domain_string];
     f(user_defaults);
     let _: () = objc::msg_send![user_defaults, release];
-}
+}}
 
 impl super::OSStore for Store {
     fn get(&self, unique_id: &str) -> Option<super::Value> {
@@ -85,7 +85,7 @@ impl super::OSStore for Store {
     }
 }
 
-pub fn create_os_store(domain: &str) -> impl super::OSStore {
+pub fn create_os_store(domain: &str) -> impl super::OSStore + use<> {
     Store {
         domain: domain.to_string(),
     }

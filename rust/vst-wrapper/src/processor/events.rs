@@ -12,7 +12,7 @@ use crate::mpe_quirks::Support;
 unsafe fn get_event(
     event_list: ComRef<'_, IEventList>,
     index: i32,
-) -> Option<vst3::Steinberg::Vst::Event> {
+) -> Option<vst3::Steinberg::Vst::Event> { unsafe {
     let mut event = vst3::Steinberg::Vst::Event {
         busIndex: 0,
         sampleOffset: 0,
@@ -35,12 +35,12 @@ unsafe fn get_event(
         return None;
     }
     Some(event)
-}
+}}
 
 unsafe fn convert_event(
     event: &vst3::Steinberg::Vst::Event,
     support_mpe_quirks: Support,
-) -> Option<Event> {
+) -> Option<Event> { unsafe {
     if event.sampleOffset < 0 {
         return None;
     }
@@ -119,23 +119,23 @@ unsafe fn convert_event(
         }),
         _ => None,
     }
-}
+}}
 
 pub unsafe fn event_iterator(
     event_list: ComRef<'_, IEventList>,
     support_mpe_quirks: Support,
-) -> impl Iterator<Item = Event> + '_ + Clone {
+) -> impl Iterator<Item = Event> + '_ + Clone { unsafe {
     (0..event_list.getEventCount()).filter_map(move |i| -> Option<Event> {
         get_event(event_list, i)
             .as_ref()
             .and_then(|x| unsafe { convert_event(x, support_mpe_quirks) })
     })
-}
+}}
 
 pub unsafe fn all_zero_event_iterator(
     event_list: ComRef<'_, IEventList>,
     support_mpe_quirks: Support,
-) -> Option<impl Iterator<Item = Data> + Clone + '_> {
+) -> Option<impl Iterator<Item = Data> + Clone + '_> { unsafe {
     let i = (0..event_list.getEventCount()).filter_map(move |i| -> Option<Event> {
         get_event(event_list, i)
             .as_ref()
@@ -146,4 +146,4 @@ pub unsafe fn all_zero_event_iterator(
     } else {
         Some(i.map(|x| x.data))
     }
-}
+}}

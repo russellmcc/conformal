@@ -48,22 +48,22 @@ fn to_cstr<'a, T: Iterator<Item = &'a mut i8>>(s: &str, it: T) {
     }
 }
 
-unsafe fn compare_fid(a: FIDString, b: ClassID) -> bool {
+unsafe fn compare_fid(a: FIDString, b: ClassID) -> bool { unsafe {
     for i in 0..16 {
         if *a.offset(i) != b[i as usize] as i8 {
             return false;
         }
     }
     true
-}
+}}
 
-unsafe fn to_iid(iid: FIDString) -> [u8; 16] {
+unsafe fn to_iid(iid: FIDString) -> [u8; 16] { unsafe {
     let mut ret = [0; 16];
     for i in 0isize..16 {
         ret[i as usize] = *iid.offset(i) as u8;
     }
     ret
-}
+}}
 
 impl IPluginFactoryTrait for Factory {
     unsafe fn countClasses(&self) -> vst3::Steinberg::int32 {
@@ -75,7 +75,7 @@ impl IPluginFactoryTrait for Factory {
         class_id: FIDString,
         interface_id: FIDString,
         obj: *mut *mut ::std::ffi::c_void,
-    ) -> tresult {
+    ) -> tresult { unsafe {
         for class in self.classes {
             if compare_fid(class_id, class.info().edit_controller_cid) {
                 let com_ptr = ComWrapper::new(edit_controller::create(
@@ -107,13 +107,13 @@ impl IPluginFactoryTrait for Factory {
             }
         }
         vst3::Steinberg::kInvalidArgument
-    }
+    }}
 
     unsafe fn getClassInfo(
         &self,
         index: vst3::Steinberg::int32,
         info: *mut vst3::Steinberg::PClassInfo,
-    ) -> tresult {
+    ) -> tresult { unsafe {
         if let Some(class) = &self.classes.get(index as usize / 2) {
             let is_ec = index % 2 == 1;
 
@@ -145,15 +145,15 @@ impl IPluginFactoryTrait for Factory {
         } else {
             vst3::Steinberg::kInvalidArgument
         }
-    }
+    }}
 
-    unsafe fn getFactoryInfo(&self, info: *mut vst3::Steinberg::PFactoryInfo) -> tresult {
+    unsafe fn getFactoryInfo(&self, info: *mut vst3::Steinberg::PFactoryInfo) -> tresult { unsafe {
         to_cstr(self.info.vendor, (*info).vendor.iter_mut());
         to_cstr(self.info.url, (*info).url.iter_mut());
         to_cstr(self.info.email, (*info).email.iter_mut());
         (*info).flags = vst3::Steinberg::PFactoryInfo_::FactoryFlags_::kUnicode as i32;
         vst3::Steinberg::kResultOk
-    }
+    }}
 }
 
 impl IPluginFactory2Trait for Factory {
@@ -161,7 +161,7 @@ impl IPluginFactory2Trait for Factory {
         &self,
         index: vst3::Steinberg::int32,
         info: *mut vst3::Steinberg::PClassInfo2,
-    ) -> tresult {
+    ) -> tresult { unsafe {
         if let Some(class) = &self.classes.get(index as usize / 2) {
             let is_ec = index % 2 == 1;
             (*info).cardinality =
@@ -202,7 +202,7 @@ impl IPluginFactory2Trait for Factory {
         } else {
             vst3::Steinberg::kInvalidArgument
         }
-    }
+    }}
 }
 
 impl Class for Factory {

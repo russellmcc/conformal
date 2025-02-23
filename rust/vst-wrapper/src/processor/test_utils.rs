@@ -35,7 +35,7 @@ pub(super) fn process_setup(
     }
 }
 
-pub unsafe fn activate_busses<P: IComponentTrait>(proc: &P) {
+pub unsafe fn activate_busses<P: IComponentTrait>(proc: &P) { unsafe {
     assert_eq!(
         proc.activateBus(
             vst3::Steinberg::Vst::MediaTypes_::kAudio as i32,
@@ -54,9 +54,9 @@ pub unsafe fn activate_busses<P: IComponentTrait>(proc: &P) {
         ),
         vst3::Steinberg::kResultOk
     );
-}
+}}
 
-pub unsafe fn activate_effect_busses<P: IComponentTrait>(proc: &P) {
+pub unsafe fn activate_effect_busses<P: IComponentTrait>(proc: &P) { unsafe {
     assert_eq!(
         proc.activateBus(
             vst3::Steinberg::Vst::MediaTypes_::kAudio as i32,
@@ -75,7 +75,7 @@ pub unsafe fn activate_effect_busses<P: IComponentTrait>(proc: &P) {
         ),
         vst3::Steinberg::kResultOk
     );
-}
+}}
 
 pub unsafe fn setup_proc<
     P: IAudioProcessorTrait + IComponentTrait,
@@ -83,7 +83,7 @@ pub unsafe fn setup_proc<
 >(
     proc: &P,
     host: &ComWrapper<H>,
-) {
+) { unsafe {
     let host_ref = host.as_com_ref::<IHostApplication>().unwrap();
     assert_eq!(
         proc.initialize(host_ref.cast().unwrap().as_ptr()),
@@ -101,7 +101,7 @@ pub unsafe fn setup_proc<
     activate_busses(proc);
     assert_eq!(proc.setActive(1u8), vst3::Steinberg::kResultOk);
     assert_eq!(proc.setProcessing(1u8), vst3::Steinberg::kResultOk);
-}
+}}
 
 pub unsafe fn setup_proc_effect<
     P: IAudioProcessorTrait + IComponentTrait,
@@ -109,7 +109,7 @@ pub unsafe fn setup_proc_effect<
 >(
     proc: &P,
     host: &ComWrapper<H>,
-) {
+) { unsafe {
     let host_ref = host.as_com_ref::<IHostApplication>().unwrap();
     assert_eq!(
         proc.initialize(host_ref.cast().unwrap().as_ptr()),
@@ -128,7 +128,7 @@ pub unsafe fn setup_proc_effect<
     activate_effect_busses(proc);
     assert_eq!(proc.setActive(1u8), vst3::Steinberg::kResultOk);
     assert_eq!(proc.setProcessing(1u8), vst3::Steinberg::kResultOk);
-}
+}}
 
 pub struct ParameterValueQueuePoint {
     pub sample_offset: usize,
@@ -154,7 +154,7 @@ impl vst3::Steinberg::Vst::IParamValueQueueTrait for ParameterValueQueueImpl {
         index: vst3::Steinberg::int32,
         sample_offset: *mut vst3::Steinberg::int32,
         value: *mut vst3::Steinberg::Vst::ParamValue,
-    ) -> vst3::Steinberg::tresult {
+    ) -> vst3::Steinberg::tresult { unsafe {
         if let Some(point) = self.points.get(index as usize) {
             *sample_offset = point.sample_offset as i32;
             *value = point.value;
@@ -162,7 +162,7 @@ impl vst3::Steinberg::Vst::IParamValueQueueTrait for ParameterValueQueueImpl {
         } else {
             vst3::Steinberg::kInvalidArgument
         }
-    }
+    }}
 
     unsafe fn addPoint(
         &self,
@@ -305,14 +305,14 @@ impl IEventListTrait for EventList {
         &self,
         index: vst3::Steinberg::int32,
         e: *mut vst3::Steinberg::Vst::Event,
-    ) -> vst3::Steinberg::tresult {
+    ) -> vst3::Steinberg::tresult { unsafe {
         if let Some(event) = self.events.get(index as usize) {
             (*e) = event_to_vst3_event(event);
             vst3::Steinberg::kResultOk
         } else {
             vst3::Steinberg::kInvalidArgument
         }
-    }
+    }}
 
     unsafe fn addEvent(&self, _e: *mut vst3::Steinberg::Vst::Event) -> vst3::Steinberg::tresult {
         unimplemented!()
@@ -334,7 +334,7 @@ pub unsafe fn mock_process_mod<
     params: Vec<ParameterValueQueueImpl>,
     processor: &D,
     mod_data: F,
-) -> Option<Vec<Vec<f32>>> {
+) -> Option<Vec<Vec<f32>>> { unsafe {
     let input_parameter_changes = ComWrapper::new(ParameterChangesImpl::new(params))
         .to_com_ptr::<IParameterChanges>()
         .unwrap();
@@ -375,22 +375,22 @@ pub unsafe fn mock_process_mod<
     } else {
         None
     }
-}
+}}
 
 pub unsafe fn mock_process<D: IAudioProcessorTrait>(
     channel_count: usize,
     events: Vec<Event>,
     params: Vec<ParameterValueQueueImpl>,
     processor: &D,
-) -> Option<Vec<Vec<f32>>> {
+) -> Option<Vec<Vec<f32>>> { unsafe {
     mock_process_mod(channel_count, events, params, processor, |_| ())
-}
+}}
 
 pub unsafe fn mock_process_effect<D: IAudioProcessorTrait>(
     inputs: Vec<Vec<f32>>,
     params: Vec<ParameterValueQueueImpl>,
     processor: &D,
-) -> Option<Vec<Vec<f32>>> {
+) -> Option<Vec<Vec<f32>>> { unsafe {
     let input_parameter_changes = ComWrapper::new(ParameterChangesImpl::new(params))
         .to_com_ptr::<IParameterChanges>()
         .unwrap();
@@ -439,7 +439,7 @@ pub unsafe fn mock_process_effect<D: IAudioProcessorTrait>(
     } else {
         None
     }
-}
+}}
 
 // We need `dead_code` here since some members keep alive raw pointers
 // in `process_data`.

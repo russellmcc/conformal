@@ -898,7 +898,7 @@ unsafe fn check_changes_and_update_scratch_and_store<'a>(
     scratch: &'a mut Scratch,
     store: &'a ProcessingStoreCore,
     buffer_size: usize,
-) -> Option<(ChangesStatus, InitializedScratch<'a>)> {
+) -> Option<(ChangesStatus, InitializedScratch<'a>)> { unsafe {
     let param_count = changes.getParameterCount();
     let mut change_status = ChangesStatus::NoChanges;
     if param_count < 0 {
@@ -988,13 +988,13 @@ unsafe fn check_changes_and_update_scratch_and_store<'a>(
             buffer_size,
         },
     ))
-}
+}}
 
 pub unsafe fn param_changes_from_vst3<'a>(
     com_changes: ComRef<'a, IParameterChanges>,
     store: &'a mut ProcessingStore,
     buffer_size: usize,
-) -> Option<impl BufferStates + Clone + 'a> {
+) -> Option<impl BufferStates + Clone + 'a> { unsafe {
     let (_, states) = check_changes_and_update_scratch_and_store(
         com_changes,
         &mut store.scratch,
@@ -1002,12 +1002,12 @@ pub unsafe fn param_changes_from_vst3<'a>(
         buffer_size,
     )?;
     Some(states)
-}
+}}
 
 pub unsafe fn no_audio_param_changes_from_vst3<'a>(
     com_changes: ComRef<'a, IParameterChanges>,
     store: &'a mut ProcessingStore,
-) -> Option<(ChangesStatus, impl cp::States + Clone + 'a)> {
+) -> Option<(ChangesStatus, impl cp::States + Clone + 'a)> { unsafe {
     let (status, scratch) = check_changes_and_update_scratch_and_store(
         com_changes,
         &mut store.scratch,
@@ -1020,4 +1020,4 @@ pub unsafe fn no_audio_param_changes_from_vst3<'a>(
         }
     }
     Some((status, &store.core))
-}
+}}
