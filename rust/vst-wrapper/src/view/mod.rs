@@ -6,7 +6,7 @@ use vst3::{
 
 use conformal_component::parameters;
 use conformal_core::parameters::store;
-use conformal_ui::{self, raw_window_handle, Size, Ui};
+use conformal_ui::{self, Size, Ui, raw_window_handle};
 
 // Only include tests in test config on macos
 #[cfg(all(test, target_os = "macos"))]
@@ -58,7 +58,7 @@ impl<S> Deref for SharedView<S> {
     type Target = RefCell<View<S>>;
 
     fn deref(&self) -> &Self::Target {
-        &self.0 .0
+        &self.0.0
     }
 }
 

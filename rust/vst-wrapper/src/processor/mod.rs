@@ -3,15 +3,15 @@
 use std::cell::RefCell;
 
 use crate::mpe_quirks::{
-    self, add_mpe_quirk_events_buffer, add_mpe_quirk_events_no_audio,
-    update_mpe_quirk_events_buffer, update_mpe_quirk_events_no_audio, Support,
+    self, Support, add_mpe_quirk_events_buffer, add_mpe_quirk_events_no_audio,
+    update_mpe_quirk_events_buffer, update_mpe_quirk_events_no_audio,
 };
 use crate::{ClassID, ComponentFactory, HostInfo};
 use conformal_component::audio::{Buffer, BufferMut, ChannelLayout};
 use conformal_component::effect::Effect;
 use conformal_component::events::{Event, Events};
 use conformal_component::parameters::BufferStates;
-use conformal_component::synth::{Synth, CONTROLLER_PARAMETERS};
+use conformal_component::synth::{CONTROLLER_PARAMETERS, Synth};
 use conformal_component::{
     Component, ProcessingEnvironment, ProcessingMode, Processor as ProcessorT,
 };
@@ -808,10 +808,10 @@ pub fn create_synth<'a, CF: ComponentFactory<Component: Component<Processor: Syn
         IConnectionPoint,
     ),
 > + IComponentTrait
-       + IAudioProcessorTrait
-       + IProcessContextRequirementsTrait
-       + IConnectionPointTrait
-       + 'a {
++ IAudioProcessorTrait
++ IProcessContextRequirementsTrait
++ IConnectionPointTrait
++ use<'a, CF> {
     Processor {
         controller_cid,
         s: Some(State::ReadyForInitialization(factory)).into(),
@@ -833,10 +833,10 @@ pub fn create_effect<'a, CF: ComponentFactory<Component: Component<Processor: Ef
         IConnectionPoint,
     ),
 > + IComponentTrait
-       + IAudioProcessorTrait
-       + IProcessContextRequirementsTrait
-       + IConnectionPointTrait
-       + 'a {
++ IAudioProcessorTrait
++ IProcessContextRequirementsTrait
++ IConnectionPointTrait
++ use<'a, CF> {
     Processor {
         controller_cid,
         s: Some(State::ReadyForInitialization(factory)).into(),
@@ -891,10 +891,13 @@ where
                 });
 
                 // Check invariant that process_context is uninitialized here.
-                assert!(matches!(
-                    *self.process_context.borrow(),
-                    ProcessContext::Uninitialized
-                ), "Invariant violation - process_context is initialized while we are not initialized");
+                assert!(
+                    matches!(
+                        *self.process_context.borrow(),
+                        ProcessContext::Uninitialized
+                    ),
+                    "Invariant violation - process_context is initialized while we are not initialized"
+                );
 
                 // Safety note - this is clearly safe since `initialized` must be called
                 // before `setActive(1)` according to the call sequence diagrams.
@@ -1087,7 +1090,9 @@ impl<CF: ComponentFactory<Component: Component<Processor: ProcessorT>>, PC: Proc
                     }
                 }
                 (ProcessContext::Uninitialized, _) => {
-                    unreachable!("Invariant violated - process_context is uninitialized while we are initialized");
+                    unreachable!(
+                        "Invariant violated - process_context is uninitialized while we are initialized"
+                    );
                 }
             }
         } else {
@@ -1288,11 +1293,11 @@ struct NoAudioProcessHelper<'a, P, C> {
 }
 
 impl<
-        'a,
-        P: ProcessorT,
-        Iter: Iterator<Item = conformal_component::events::Data> + Clone,
-        C: ActiveProcessorCategory<P>,
-    > InternalProcessHelper<NoAudioProcessHelper<'a, P, C>> for Iter
+    'a,
+    P: ProcessorT,
+    Iter: Iterator<Item = conformal_component::events::Data> + Clone,
+    C: ActiveProcessorCategory<P>,
+> InternalProcessHelper<NoAudioProcessHelper<'a, P, C>> for Iter
 {
     unsafe fn do_process(
         self,
@@ -1382,9 +1387,9 @@ impl<P: Synth> ActiveProcessorCategory<P> for ActiveSynthProcessorCategory {
 }
 
 impl<
-        CF: ComponentFactory<Component: Component<Processor: ProcessorT>>,
-        PC: ProcessorCategory<Active: ActiveProcessorCategory<<CF::Component as Component>::Processor>>,
-    > IAudioProcessorTrait
+    CF: ComponentFactory<Component: Component<Processor: ProcessorT>>,
+    PC: ProcessorCategory<Active: ActiveProcessorCategory<<CF::Component as Component>::Processor>>,
+> IAudioProcessorTrait
     for Processor<<CF::Component as Component>::Processor, CF::Component, CF, PC, PC::Active>
 {
     unsafe fn setBusArrangements(
@@ -1622,10 +1627,9 @@ impl<CF: ComponentFactory<Component: Component<Processor: ProcessorT>>, PC: Proc
 }
 
 impl<
-        CF: ComponentFactory<Component: Component>,
-        PC: ProcessorCategory<Active: ActiveProcessorCategory<<CF::Component as Component>::Processor>>,
-    > Class
-    for Processor<<CF::Component as Component>::Processor, CF::Component, CF, PC, PC::Active>
+    CF: ComponentFactory<Component: Component>,
+    PC: ProcessorCategory<Active: ActiveProcessorCategory<<CF::Component as Component>::Processor>>,
+> Class for Processor<<CF::Component as Component>::Processor, CF::Component, CF, PC, PC::Active>
 {
     type Interfaces = (
         IPluginBase,

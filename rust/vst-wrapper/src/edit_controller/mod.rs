@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    collections::{hash_map, HashMap},
+    collections::{HashMap, hash_map},
     io::{Read, Write},
     rc,
 };
@@ -35,9 +35,9 @@ use vst3::{
 };
 
 use crate::{
-    io::StreamWrite,
-    mpe_quirks::{self, aftertouch_param_id, pitch_param_id, timbre_param_id, Support},
     HostInfo, ParameterModel,
+    io::StreamWrite,
+    mpe_quirks::{self, Support, aftertouch_param_id, pitch_param_id, timbre_param_id},
 };
 
 use super::{
@@ -163,11 +163,11 @@ pub fn create(
         INoteExpressionPhysicalUIMapping,
     ),
 > + IEditControllerTrait
-       + IMidiMappingTrait
-       + IConnectionPointTrait
-       + INoteExpressionControllerTrait
-       + INoteExpressionPhysicalUIMappingTrait
-       + 'static {
++ IMidiMappingTrait
++ IConnectionPointTrait
++ INoteExpressionControllerTrait
++ INoteExpressionPhysicalUIMappingTrait
++ 'static {
     create_internal(
         parameter_model,
         get_current_bundle_info()

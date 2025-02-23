@@ -1,7 +1,7 @@
 [package]
 name = "conformal_vst_wrapper"
 version = "0.3.5"
-edition = "2021"
+edition.workspace = true
 rust-version.workspace = true
 license = "ISC"
 description = "Implements a VST3-compatible plug-in for audio processors implemented with the conformal audio plug-in framework."

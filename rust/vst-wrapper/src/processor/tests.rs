@@ -9,29 +9,29 @@ use vst3::Steinberg::{
     Vst::{IAudioProcessorTrait, IComponentTrait, IHostApplication},
 };
 
-use super::test_utils::{activate_busses, process_setup, setup_proc, DEFAULT_ENV};
-use super::{create_effect, create_synth, PartialProcessingEnvironment};
+use super::test_utils::{DEFAULT_ENV, activate_busses, process_setup, setup_proc};
+use super::{PartialProcessingEnvironment, create_effect, create_synth};
+use crate::HostInfo;
 use crate::fake_ibstream::Stream;
 use crate::mpe_quirks::aftertouch_param_id;
 use crate::processor::test_utils::{
-    activate_effect_busses, mock_no_audio_process_data, mock_process, mock_process_effect,
-    mock_process_mod, setup_proc_effect, ParameterValueQueueImpl, ParameterValueQueuePoint,
-    SAMPLE_COUNT,
+    ParameterValueQueueImpl, ParameterValueQueuePoint, SAMPLE_COUNT, activate_effect_busses,
+    mock_no_audio_process_data, mock_process, mock_process_effect, mock_process_mod,
+    setup_proc_effect,
 };
-use crate::HostInfo;
 use crate::{dummy_host, from_utf16_buffer};
 use assert_approx_eq::assert_approx_eq;
 use conformal_component;
-use conformal_component::audio::{channels, channels_mut, BufferMut};
+use conformal_component::audio::{BufferMut, channels, channels_mut};
 use conformal_component::events::{
     Data, Event, Events, NoteData, NoteExpression, NoteExpressionData, NoteID,
 };
-use conformal_component::parameters::{enum_per_sample, numeric_per_sample, switch_per_sample};
 use conformal_component::parameters::{
     BufferStates, Flags, InfoRef, States, StaticInfoRef, TypeSpecificInfoRef,
 };
+use conformal_component::parameters::{enum_per_sample, numeric_per_sample, switch_per_sample};
 use conformal_component::{
-    synth::Synth, Component, ProcessingEnvironment, ProcessingMode, Processor,
+    Component, ProcessingEnvironment, ProcessingMode, Processor, synth::Synth,
 };
 
 #[derive(Default)]
@@ -231,9 +231,9 @@ fn dummy_synth() -> impl IComponentTrait + IAudioProcessorTrait {
     )
 }
 
-fn dummy_synth_with_processing_environment<'a>(
-    env: &'a RefCell<Option<ProcessingEnvironment>>,
-) -> impl IAudioProcessorTrait + IComponentTrait + 'a {
+fn dummy_synth_with_processing_environment(
+    env: &RefCell<Option<ProcessingEnvironment>>,
+) -> impl IAudioProcessorTrait + IComponentTrait {
     create_synth(
         |_: &HostInfo| FakeSynthComponent {
             last_process_env: Some(env),
@@ -243,9 +243,9 @@ fn dummy_synth_with_processing_environment<'a>(
     )
 }
 
-fn dummy_synth_with_host_info<'a>(
-    host_info: &'a RefCell<Option<HostInfo>>,
-) -> impl IAudioProcessorTrait + IComponentTrait + 'a {
+fn dummy_synth_with_host_info(
+    host_info: &RefCell<Option<HostInfo>>,
+) -> impl IAudioProcessorTrait + IComponentTrait {
     create_synth(
         |real_host_info: &HostInfo| {
             host_info.replace(Some((*real_host_info).clone()));
@@ -1593,23 +1593,25 @@ fn defends_against_events_past_buffer() {
 
     unsafe {
         setup_proc(&proc, &host);
-        assert!(mock_process(
-            2,
-            vec![Event {
-                sample_offset: SAMPLE_COUNT + 1000,
-                data: Data::NoteOn {
-                    data: NoteData {
-                        id: NoteID::from_id(0),
-                        pitch: 64,
-                        velocity: 0.5,
-                        tuning: 0f32,
+        assert!(
+            mock_process(
+                2,
+                vec![Event {
+                    sample_offset: SAMPLE_COUNT + 1000,
+                    data: Data::NoteOn {
+                        data: NoteData {
+                            id: NoteID::from_id(0),
+                            pitch: 64,
+                            velocity: 0.5,
+                            tuning: 0f32,
+                        },
                     },
-                },
-            }],
-            vec![],
-            &proc
-        )
-        .is_none());
+                }],
+                vec![],
+                &proc
+            )
+            .is_none()
+        );
     }
 }
 
@@ -1621,36 +1623,38 @@ fn defends_against_shuffled_events() {
     unsafe {
         setup_proc(&proc, &host);
 
-        assert!(mock_process(
-            2,
-            vec![
-                Event {
-                    sample_offset: 200,
-                    data: Data::NoteOn {
-                        data: NoteData {
-                            id: NoteID::from_id(0),
-                            pitch: 64,
-                            velocity: 0.5,
-                            tuning: 0f32,
+        assert!(
+            mock_process(
+                2,
+                vec![
+                    Event {
+                        sample_offset: 200,
+                        data: Data::NoteOn {
+                            data: NoteData {
+                                id: NoteID::from_id(0),
+                                pitch: 64,
+                                velocity: 0.5,
+                                tuning: 0f32,
+                            },
                         },
                     },
-                },
-                Event {
-                    sample_offset: 100,
-                    data: Data::NoteOff {
-                        data: NoteData {
-                            id: NoteID::from_id(0),
-                            pitch: 64,
-                            velocity: 0.5,
-                            tuning: 0f32,
+                    Event {
+                        sample_offset: 100,
+                        data: Data::NoteOff {
+                            data: NoteData {
+                                id: NoteID::from_id(0),
+                                pitch: 64,
+                                velocity: 0.5,
+                                tuning: 0f32,
+                            },
                         },
                     },
-                },
-            ],
-            vec![],
-            &proc
-        )
-        .is_none());
+                ],
+                vec![],
+                &proc
+            )
+            .is_none()
+        );
     }
 }
 

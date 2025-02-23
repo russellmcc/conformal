@@ -7,9 +7,9 @@ use vst3::{
 };
 
 use conformal_component::{
-    events::{to_vst_note_channel_for_mpe_quirks, to_vst_note_id, Data, Event, NoteExpressionData},
-    parameters::hash_id,
     ProcessingMode,
+    events::{Data, Event, NoteExpressionData, to_vst_note_channel_for_mpe_quirks, to_vst_note_id},
+    parameters::hash_id,
 };
 
 use super::PartialProcessingEnvironment;

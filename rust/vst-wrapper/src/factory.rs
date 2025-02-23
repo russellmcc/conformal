@@ -1,13 +1,13 @@
 use super::edit_controller;
 use crate::ClassCategory;
 use crate::{ClassID, Info};
-use vst3::com_scrape_types::Unknown;
 use vst3::Class;
 use vst3::ComWrapper;
 use vst3::Steinberg::IPluginFactoryTrait;
-use vst3::Steinberg::{tresult, IPluginBase};
 use vst3::Steinberg::{FIDString, IPluginFactory2};
+use vst3::Steinberg::{IPluginBase, tresult};
 use vst3::Steinberg::{IPluginFactory, IPluginFactory2Trait};
+use vst3::com_scrape_types::Unknown;
 
 pub struct Factory {
     classes: &'static [&'static dyn ClassCategory],

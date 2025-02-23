@@ -3,10 +3,10 @@ use std::iter::Peekable;
 use conformal_component::{
     audio::approx_eq,
     events::{
-        self, to_vst_note_channel_for_mpe_quirks, Events, NoteExpression, NoteExpressionData,
-        NoteID,
+        self, Events, NoteExpression, NoteExpressionData, NoteID,
+        to_vst_note_channel_for_mpe_quirks,
     },
-    parameters::{self, hash_id, BufferStates, Flags, IdHash, States, TypeSpecificInfo},
+    parameters::{self, BufferStates, Flags, IdHash, States, TypeSpecificInfo, hash_id},
 };
 
 use crate::HostInfo;
@@ -147,10 +147,14 @@ impl<A: Iterator<Item = Event> + Clone, B: Iterator<Item = Event> + Clone> Itera
     }
 }
 
-fn interleave_events<'a>(
-    a: impl Iterator<Item = Event> + Clone + 'a,
-    b: impl Iterator<Item = Event> + Clone + 'a,
-) -> impl Iterator<Item = Event> + Clone + 'a {
+fn interleave_events<
+    'a,
+    A: Iterator<Item = Event> + Clone + 'a,
+    B: Iterator<Item = Event> + Clone + 'a,
+>(
+    a: A,
+    b: B,
+) -> impl Iterator<Item = Event> + Clone + use<'a, A, B> {
     InterleavedEventIter {
         a: a.peekable(),
         b: b.peekable(),
@@ -374,12 +378,16 @@ pub fn update_mpe_quirk_events_no_audio(
     );
 }
 
-pub fn add_mpe_quirk_events_buffer<'a>(
-    events: impl Iterator<Item = events::Event> + Clone + 'a,
+pub fn add_mpe_quirk_events_buffer<
+    'a,
+    E: Iterator<Item = events::Event> + Clone + 'a,
+    S: BufferStates + Clone,
+>(
+    events: E,
     quirks_state: State,
-    buffer_states: &'a (impl BufferStates + Clone),
+    buffer_states: &'a S,
     buffer_size: usize,
-) -> Events<impl Iterator<Item = events::Event> + Clone + 'a> {
+) -> Events<impl Iterator<Item = events::Event> + Clone + use<'a, E, S>> {
     events::Events::new(
         with_mpe_events(
             all_param_event_iters_audio(events.into_iter(), &quirks_state.hashes, buffer_states),
