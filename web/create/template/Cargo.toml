@@ -4,6 +4,7 @@ members = []
 
 [workspace.package]
 rust-version = "1.84.1"
+edition = "2021"
 
 [workspace.lints.rust]
 nonstandard_style = "warn"

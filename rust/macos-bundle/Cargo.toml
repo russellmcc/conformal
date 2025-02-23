@@ -1,7 +1,7 @@
 [package]
 name = "conformal_macos_bundle"
 version = "0.3.5"
-edition = "2021"
+edition.workspace = true
 rust-version.workspace = true
 license = "ISC"
 description = "Utilities for macOS bundle directories used by the conformal audio plug-in framework."
