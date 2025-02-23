@@ -10,8 +10,8 @@ use std::{
 };
 
 use crate::{
-    protocol::{self, Request, Response},
     ParameterStore,
+    protocol::{self, Request, Response},
 };
 use conformal_component::parameters::Value;
 use conformal_core::parameters::store::{SetError, SetGrabbedError};

@@ -1,4 +1,4 @@
-use super::{decode_message, encode_message, Request, Response, Value};
+use super::{Request, Response, Value, decode_message, encode_message};
 
 #[test]
 fn decode_defends_against_non_b64_chars() {

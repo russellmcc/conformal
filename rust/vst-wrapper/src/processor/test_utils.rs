@@ -35,47 +35,51 @@ pub(super) fn process_setup(
     }
 }
 
-pub unsafe fn activate_busses<P: IComponentTrait>(proc: &P) { unsafe {
-    assert_eq!(
-        proc.activateBus(
-            vst3::Steinberg::Vst::MediaTypes_::kAudio as i32,
-            vst3::Steinberg::Vst::BusDirections_::kOutput as i32,
-            0,
-            1
-        ),
-        vst3::Steinberg::kResultOk
-    );
-    assert_eq!(
-        proc.activateBus(
-            vst3::Steinberg::Vst::MediaTypes_::kEvent as i32,
-            vst3::Steinberg::Vst::BusDirections_::kInput as i32,
-            0,
-            1
-        ),
-        vst3::Steinberg::kResultOk
-    );
-}}
+pub unsafe fn activate_busses<P: IComponentTrait>(proc: &P) {
+    unsafe {
+        assert_eq!(
+            proc.activateBus(
+                vst3::Steinberg::Vst::MediaTypes_::kAudio as i32,
+                vst3::Steinberg::Vst::BusDirections_::kOutput as i32,
+                0,
+                1
+            ),
+            vst3::Steinberg::kResultOk
+        );
+        assert_eq!(
+            proc.activateBus(
+                vst3::Steinberg::Vst::MediaTypes_::kEvent as i32,
+                vst3::Steinberg::Vst::BusDirections_::kInput as i32,
+                0,
+                1
+            ),
+            vst3::Steinberg::kResultOk
+        );
+    }
+}
 
-pub unsafe fn activate_effect_busses<P: IComponentTrait>(proc: &P) { unsafe {
-    assert_eq!(
-        proc.activateBus(
-            vst3::Steinberg::Vst::MediaTypes_::kAudio as i32,
-            vst3::Steinberg::Vst::BusDirections_::kOutput as i32,
-            0,
-            1
-        ),
-        vst3::Steinberg::kResultOk
-    );
-    assert_eq!(
-        proc.activateBus(
-            vst3::Steinberg::Vst::MediaTypes_::kAudio as i32,
-            vst3::Steinberg::Vst::BusDirections_::kInput as i32,
-            0,
-            1
-        ),
-        vst3::Steinberg::kResultOk
-    );
-}}
+pub unsafe fn activate_effect_busses<P: IComponentTrait>(proc: &P) {
+    unsafe {
+        assert_eq!(
+            proc.activateBus(
+                vst3::Steinberg::Vst::MediaTypes_::kAudio as i32,
+                vst3::Steinberg::Vst::BusDirections_::kOutput as i32,
+                0,
+                1
+            ),
+            vst3::Steinberg::kResultOk
+        );
+        assert_eq!(
+            proc.activateBus(
+                vst3::Steinberg::Vst::MediaTypes_::kAudio as i32,
+                vst3::Steinberg::Vst::BusDirections_::kInput as i32,
+                0,
+                1
+            ),
+            vst3::Steinberg::kResultOk
+        );
+    }
+}
 
 pub unsafe fn setup_proc<
     P: IAudioProcessorTrait + IComponentTrait,
@@ -83,25 +87,27 @@ pub unsafe fn setup_proc<
 >(
     proc: &P,
     host: &ComWrapper<H>,
-) { unsafe {
-    let host_ref = host.as_com_ref::<IHostApplication>().unwrap();
-    assert_eq!(
-        proc.initialize(host_ref.cast().unwrap().as_ptr()),
-        vst3::Steinberg::kResultOk
-    );
-    assert_eq!(
-        proc.setupProcessing(&mut process_setup(&DEFAULT_ENV)),
-        vst3::Steinberg::kResultOk
-    );
-    let mut out_arrangement = vst3::Steinberg::Vst::SpeakerArr::kStereo;
-    assert_eq!(
-        proc.setBusArrangements(std::ptr::null_mut(), 0, &mut out_arrangement, 1),
-        vst3::Steinberg::kResultOk
-    );
-    activate_busses(proc);
-    assert_eq!(proc.setActive(1u8), vst3::Steinberg::kResultOk);
-    assert_eq!(proc.setProcessing(1u8), vst3::Steinberg::kResultOk);
-}}
+) {
+    unsafe {
+        let host_ref = host.as_com_ref::<IHostApplication>().unwrap();
+        assert_eq!(
+            proc.initialize(host_ref.cast().unwrap().as_ptr()),
+            vst3::Steinberg::kResultOk
+        );
+        assert_eq!(
+            proc.setupProcessing(&mut process_setup(&DEFAULT_ENV)),
+            vst3::Steinberg::kResultOk
+        );
+        let mut out_arrangement = vst3::Steinberg::Vst::SpeakerArr::kStereo;
+        assert_eq!(
+            proc.setBusArrangements(std::ptr::null_mut(), 0, &mut out_arrangement, 1),
+            vst3::Steinberg::kResultOk
+        );
+        activate_busses(proc);
+        assert_eq!(proc.setActive(1u8), vst3::Steinberg::kResultOk);
+        assert_eq!(proc.setProcessing(1u8), vst3::Steinberg::kResultOk);
+    }
+}
 
 pub unsafe fn setup_proc_effect<
     P: IAudioProcessorTrait + IComponentTrait,
@@ -109,26 +115,28 @@ pub unsafe fn setup_proc_effect<
 >(
     proc: &P,
     host: &ComWrapper<H>,
-) { unsafe {
-    let host_ref = host.as_com_ref::<IHostApplication>().unwrap();
-    assert_eq!(
-        proc.initialize(host_ref.cast().unwrap().as_ptr()),
-        vst3::Steinberg::kResultOk
-    );
-    assert_eq!(
-        proc.setupProcessing(&mut process_setup(&DEFAULT_ENV)),
-        vst3::Steinberg::kResultOk
-    );
-    let mut out_arrangement = vst3::Steinberg::Vst::SpeakerArr::kStereo;
-    let mut in_arrangement = vst3::Steinberg::Vst::SpeakerArr::kStereo;
-    assert_eq!(
-        proc.setBusArrangements(&mut in_arrangement, 1, &mut out_arrangement, 1),
-        vst3::Steinberg::kResultOk
-    );
-    activate_effect_busses(proc);
-    assert_eq!(proc.setActive(1u8), vst3::Steinberg::kResultOk);
-    assert_eq!(proc.setProcessing(1u8), vst3::Steinberg::kResultOk);
-}}
+) {
+    unsafe {
+        let host_ref = host.as_com_ref::<IHostApplication>().unwrap();
+        assert_eq!(
+            proc.initialize(host_ref.cast().unwrap().as_ptr()),
+            vst3::Steinberg::kResultOk
+        );
+        assert_eq!(
+            proc.setupProcessing(&mut process_setup(&DEFAULT_ENV)),
+            vst3::Steinberg::kResultOk
+        );
+        let mut out_arrangement = vst3::Steinberg::Vst::SpeakerArr::kStereo;
+        let mut in_arrangement = vst3::Steinberg::Vst::SpeakerArr::kStereo;
+        assert_eq!(
+            proc.setBusArrangements(&mut in_arrangement, 1, &mut out_arrangement, 1),
+            vst3::Steinberg::kResultOk
+        );
+        activate_effect_busses(proc);
+        assert_eq!(proc.setActive(1u8), vst3::Steinberg::kResultOk);
+        assert_eq!(proc.setProcessing(1u8), vst3::Steinberg::kResultOk);
+    }
+}
 
 pub struct ParameterValueQueuePoint {
     pub sample_offset: usize,
@@ -154,15 +162,17 @@ impl vst3::Steinberg::Vst::IParamValueQueueTrait for ParameterValueQueueImpl {
         index: vst3::Steinberg::int32,
         sample_offset: *mut vst3::Steinberg::int32,
         value: *mut vst3::Steinberg::Vst::ParamValue,
-    ) -> vst3::Steinberg::tresult { unsafe {
-        if let Some(point) = self.points.get(index as usize) {
-            *sample_offset = point.sample_offset as i32;
-            *value = point.value;
-            vst3::Steinberg::kResultOk
-        } else {
-            vst3::Steinberg::kInvalidArgument
+    ) -> vst3::Steinberg::tresult {
+        unsafe {
+            if let Some(point) = self.points.get(index as usize) {
+                *sample_offset = point.sample_offset as i32;
+                *value = point.value;
+                vst3::Steinberg::kResultOk
+            } else {
+                vst3::Steinberg::kInvalidArgument
+            }
         }
-    }}
+    }
 
     unsafe fn addPoint(
         &self,
@@ -305,14 +315,16 @@ impl IEventListTrait for EventList {
         &self,
         index: vst3::Steinberg::int32,
         e: *mut vst3::Steinberg::Vst::Event,
-    ) -> vst3::Steinberg::tresult { unsafe {
-        if let Some(event) = self.events.get(index as usize) {
-            (*e) = event_to_vst3_event(event);
-            vst3::Steinberg::kResultOk
-        } else {
-            vst3::Steinberg::kInvalidArgument
+    ) -> vst3::Steinberg::tresult {
+        unsafe {
+            if let Some(event) = self.events.get(index as usize) {
+                (*e) = event_to_vst3_event(event);
+                vst3::Steinberg::kResultOk
+            } else {
+                vst3::Steinberg::kInvalidArgument
+            }
         }
-    }}
+    }
 
     unsafe fn addEvent(&self, _e: *mut vst3::Steinberg::Vst::Event) -> vst3::Steinberg::tresult {
         unimplemented!()
@@ -334,112 +346,116 @@ pub unsafe fn mock_process_mod<
     params: Vec<ParameterValueQueueImpl>,
     processor: &D,
     mod_data: F,
-) -> Option<Vec<Vec<f32>>> { unsafe {
-    let input_parameter_changes = ComWrapper::new(ParameterChangesImpl::new(params))
-        .to_com_ptr::<IParameterChanges>()
-        .unwrap();
-    let input_events = ComWrapper::new(EventList { events })
-        .to_com_ptr::<IEventList>()
-        .unwrap();
+) -> Option<Vec<Vec<f32>>> {
+    unsafe {
+        let input_parameter_changes = ComWrapper::new(ParameterChangesImpl::new(params))
+            .to_com_ptr::<IParameterChanges>()
+            .unwrap();
+        let input_events = ComWrapper::new(EventList { events })
+            .to_com_ptr::<IEventList>()
+            .unwrap();
 
-    let mut output_audio_channels = vec![vec![0f32; SAMPLE_COUNT]; channel_count];
-    let mut output_audio_channels_ptr = output_audio_channels
-        .iter_mut()
-        .map(|x| x.as_mut_ptr())
-        .collect::<Vec<_>>();
-    let mut audio_buffer_struct = Box::new(vst3::Steinberg::Vst::AudioBusBuffers {
-        numChannels: channel_count as i32,
-        silenceFlags: 0,
-        __field0: AudioBusBuffers__type0 {
-            channelBuffers32: output_audio_channels_ptr.as_mut_ptr(),
-        },
-    });
+        let mut output_audio_channels = vec![vec![0f32; SAMPLE_COUNT]; channel_count];
+        let mut output_audio_channels_ptr = output_audio_channels
+            .iter_mut()
+            .map(|x| x.as_mut_ptr())
+            .collect::<Vec<_>>();
+        let mut audio_buffer_struct = Box::new(vst3::Steinberg::Vst::AudioBusBuffers {
+            numChannels: channel_count as i32,
+            silenceFlags: 0,
+            __field0: AudioBusBuffers__type0 {
+                channelBuffers32: output_audio_channels_ptr.as_mut_ptr(),
+            },
+        });
 
-    let mut process_data = vst3::Steinberg::Vst::ProcessData {
-        processMode: vst3::Steinberg::Vst::ProcessModes_::kRealtime as i32,
-        symbolicSampleSize: vst3::Steinberg::Vst::SymbolicSampleSizes_::kSample32 as i32,
-        numSamples: SAMPLE_COUNT as i32,
-        numInputs: 0,
-        numOutputs: 1,
-        inputs: std::ptr::null_mut(),
-        outputs: audio_buffer_struct.as_mut(),
-        inputParameterChanges: input_parameter_changes.as_ptr(),
-        outputParameterChanges: std::ptr::null_mut(),
-        inputEvents: input_events.as_ptr(),
-        outputEvents: std::ptr::null_mut(),
-        processContext: std::ptr::null_mut(),
-    };
-    mod_data(&mut process_data);
-    if vst3::Steinberg::kResultOk == processor.process(&mut process_data) {
-        Some(output_audio_channels)
-    } else {
-        None
+        let mut process_data = vst3::Steinberg::Vst::ProcessData {
+            processMode: vst3::Steinberg::Vst::ProcessModes_::kRealtime as i32,
+            symbolicSampleSize: vst3::Steinberg::Vst::SymbolicSampleSizes_::kSample32 as i32,
+            numSamples: SAMPLE_COUNT as i32,
+            numInputs: 0,
+            numOutputs: 1,
+            inputs: std::ptr::null_mut(),
+            outputs: audio_buffer_struct.as_mut(),
+            inputParameterChanges: input_parameter_changes.as_ptr(),
+            outputParameterChanges: std::ptr::null_mut(),
+            inputEvents: input_events.as_ptr(),
+            outputEvents: std::ptr::null_mut(),
+            processContext: std::ptr::null_mut(),
+        };
+        mod_data(&mut process_data);
+        if vst3::Steinberg::kResultOk == processor.process(&mut process_data) {
+            Some(output_audio_channels)
+        } else {
+            None
+        }
     }
-}}
+}
 
 pub unsafe fn mock_process<D: IAudioProcessorTrait>(
     channel_count: usize,
     events: Vec<Event>,
     params: Vec<ParameterValueQueueImpl>,
     processor: &D,
-) -> Option<Vec<Vec<f32>>> { unsafe {
-    mock_process_mod(channel_count, events, params, processor, |_| ())
-}}
+) -> Option<Vec<Vec<f32>>> {
+    unsafe { mock_process_mod(channel_count, events, params, processor, |_| ()) }
+}
 
 pub unsafe fn mock_process_effect<D: IAudioProcessorTrait>(
     inputs: Vec<Vec<f32>>,
     params: Vec<ParameterValueQueueImpl>,
     processor: &D,
-) -> Option<Vec<Vec<f32>>> { unsafe {
-    let input_parameter_changes = ComWrapper::new(ParameterChangesImpl::new(params))
-        .to_com_ptr::<IParameterChanges>()
-        .unwrap();
+) -> Option<Vec<Vec<f32>>> {
+    unsafe {
+        let input_parameter_changes = ComWrapper::new(ParameterChangesImpl::new(params))
+            .to_com_ptr::<IParameterChanges>()
+            .unwrap();
 
-    let mut input_audio_channels_ptr = inputs
-        .iter()
-        .map(|x| x.as_ptr() as *mut f32)
-        .collect::<Vec<_>>();
+        let mut input_audio_channels_ptr = inputs
+            .iter()
+            .map(|x| x.as_ptr() as *mut f32)
+            .collect::<Vec<_>>();
 
-    let mut output_audio_channels = vec![vec![0f32; inputs[0].len()]; inputs.len()];
-    let mut output_audio_channels_ptr = output_audio_channels
-        .iter_mut()
-        .map(|x| x.as_mut_ptr())
-        .collect::<Vec<_>>();
-    let mut input_audio_buffer_struct = Box::new(vst3::Steinberg::Vst::AudioBusBuffers {
-        numChannels: inputs.len() as i32,
-        silenceFlags: 0,
-        __field0: AudioBusBuffers__type0 {
-            channelBuffers32: input_audio_channels_ptr.as_mut_ptr(),
-        },
-    });
+        let mut output_audio_channels = vec![vec![0f32; inputs[0].len()]; inputs.len()];
+        let mut output_audio_channels_ptr = output_audio_channels
+            .iter_mut()
+            .map(|x| x.as_mut_ptr())
+            .collect::<Vec<_>>();
+        let mut input_audio_buffer_struct = Box::new(vst3::Steinberg::Vst::AudioBusBuffers {
+            numChannels: inputs.len() as i32,
+            silenceFlags: 0,
+            __field0: AudioBusBuffers__type0 {
+                channelBuffers32: input_audio_channels_ptr.as_mut_ptr(),
+            },
+        });
 
-    let mut output_audio_buffer_struct = Box::new(vst3::Steinberg::Vst::AudioBusBuffers {
-        numChannels: inputs.len() as i32,
-        silenceFlags: 0,
-        __field0: AudioBusBuffers__type0 {
-            channelBuffers32: output_audio_channels_ptr.as_mut_ptr(),
-        },
-    });
-    let mut process_data = vst3::Steinberg::Vst::ProcessData {
-        processMode: vst3::Steinberg::Vst::ProcessModes_::kRealtime as i32,
-        symbolicSampleSize: vst3::Steinberg::Vst::SymbolicSampleSizes_::kSample32 as i32,
-        numSamples: inputs[0].len() as i32,
-        numInputs: 1,
-        numOutputs: 1,
-        inputs: input_audio_buffer_struct.as_mut(),
-        outputs: output_audio_buffer_struct.as_mut(),
-        inputParameterChanges: input_parameter_changes.as_ptr(),
-        outputParameterChanges: std::ptr::null_mut(),
-        inputEvents: std::ptr::null_mut(),
-        outputEvents: std::ptr::null_mut(),
-        processContext: std::ptr::null_mut(),
-    };
-    if vst3::Steinberg::kResultOk == processor.process(&mut process_data) {
-        Some(output_audio_channels)
-    } else {
-        None
+        let mut output_audio_buffer_struct = Box::new(vst3::Steinberg::Vst::AudioBusBuffers {
+            numChannels: inputs.len() as i32,
+            silenceFlags: 0,
+            __field0: AudioBusBuffers__type0 {
+                channelBuffers32: output_audio_channels_ptr.as_mut_ptr(),
+            },
+        });
+        let mut process_data = vst3::Steinberg::Vst::ProcessData {
+            processMode: vst3::Steinberg::Vst::ProcessModes_::kRealtime as i32,
+            symbolicSampleSize: vst3::Steinberg::Vst::SymbolicSampleSizes_::kSample32 as i32,
+            numSamples: inputs[0].len() as i32,
+            numInputs: 1,
+            numOutputs: 1,
+            inputs: input_audio_buffer_struct.as_mut(),
+            outputs: output_audio_buffer_struct.as_mut(),
+            inputParameterChanges: input_parameter_changes.as_ptr(),
+            outputParameterChanges: std::ptr::null_mut(),
+            inputEvents: std::ptr::null_mut(),
+            outputEvents: std::ptr::null_mut(),
+            processContext: std::ptr::null_mut(),
+        };
+        if vst3::Steinberg::kResultOk == processor.process(&mut process_data) {
+            Some(output_audio_channels)
+        } else {
+            None
+        }
     }
-}}
+}
 
 // We need `dead_code` here since some members keep alive raw pointers
 // in `process_data`.

@@ -1,7 +1,7 @@
 use std::{collections::HashMap, io::Write};
 
 use base64::engine::general_purpose;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub enum Value {

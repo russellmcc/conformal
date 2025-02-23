@@ -1,7 +1,7 @@
 //! Abstractions for processors that effect audio.
 
 use crate::audio::{Buffer, BufferMut};
-use crate::{parameters, parameters::BufferStates, Processor};
+use crate::{Processor, parameters, parameters::BufferStates};
 
 /// A trait for audio effects
 ///

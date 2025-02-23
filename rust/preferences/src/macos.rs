@@ -15,15 +15,17 @@ unsafe fn autoreleased_nsstring(s: &str) -> *mut Object {
     objc::msg_send![nsstring, stringWithUTF8String: cstring.as_ptr()]
 }
 
-unsafe fn with_user_defaults<F: FnOnce(*mut Object)>(f: F, domain: &str) { unsafe {
-    let user_defaults_class = objc::class!(NSUserDefaults);
-    let domain_string = autoreleased_nsstring(domain);
-    let user_defaults_alloc: *mut Object = objc::msg_send![user_defaults_class, alloc];
-    let user_defaults: *mut Object =
-        objc::msg_send![user_defaults_alloc, initWithSuiteName: domain_string];
-    f(user_defaults);
-    let _: () = objc::msg_send![user_defaults, release];
-}}
+unsafe fn with_user_defaults<F: FnOnce(*mut Object)>(f: F, domain: &str) {
+    unsafe {
+        let user_defaults_class = objc::class!(NSUserDefaults);
+        let domain_string = autoreleased_nsstring(domain);
+        let user_defaults_alloc: *mut Object = objc::msg_send![user_defaults_class, alloc];
+        let user_defaults: *mut Object =
+            objc::msg_send![user_defaults_alloc, initWithSuiteName: domain_string];
+        f(user_defaults);
+        let _: () = objc::msg_send![user_defaults, release];
+    }
+}
 
 impl super::OSStore for Store {
     fn get(&self, unique_id: &str) -> Option<super::Value> {

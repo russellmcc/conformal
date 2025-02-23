@@ -28,11 +28,7 @@ impl NoteExpressionState {
         update(|x| x.pitch_bend, |x| &mut x.pitch_bend);
         update(|x| x.aftertouch, |x| &mut x.aftertouch);
         update(|x| x.timbre, |x| &mut x.timbre);
-        if any_change {
-            Some(new)
-        } else {
-            None
-        }
+        if any_change { Some(new) } else { None }
     }
 
     fn update_with(&self, event: events::NoteExpression) -> NoteExpressionState {

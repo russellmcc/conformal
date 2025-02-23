@@ -128,14 +128,16 @@ unsafe fn app_kit_handle(
 unsafe fn to_window_handle(
     platform_type: &VST3PlatformType,
     handle: std::ptr::NonNull<std::ffi::c_void>,
-) -> raw_window_handle::RawWindowHandle { unsafe {
-    match platform_type {
-        #[cfg(target_os = "macos")]
-        VST3PlatformType::NSView => {
-            raw_window_handle::RawWindowHandle::from(app_kit_handle(handle))
+) -> raw_window_handle::RawWindowHandle {
+    unsafe {
+        match platform_type {
+            #[cfg(target_os = "macos")]
+            VST3PlatformType::NSView => {
+                raw_window_handle::RawWindowHandle::from(app_kit_handle(handle))
+            }
         }
     }
-}}
+}
 
 impl VST3PlatformType {
     fn from_vst3_str(s: vst3::Steinberg::FIDString) -> Option<VST3PlatformType> {
@@ -162,20 +164,22 @@ impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
         &self,
         parent: *mut std::ffi::c_void,
         platform_type: vst3::Steinberg::FIDString,
-    ) -> vst3::Steinberg::tresult { unsafe {
-        if let (Some(platform_type), Some(parent)) = (
-            VST3PlatformType::from_vst3_str(platform_type),
-            std::ptr::NonNull::new(parent),
-        ) {
-            let handle = to_window_handle(&platform_type, parent);
-            let store = self.borrow().store.clone();
-            let domain = self.borrow().domain.clone();
-            let initial_size = self.borrow().initial_size;
-            self.borrow_mut().ui = Ui::new(handle, store, domain.as_str(), initial_size).ok();
-            return vst3::Steinberg::kResultOk;
+    ) -> vst3::Steinberg::tresult {
+        unsafe {
+            if let (Some(platform_type), Some(parent)) = (
+                VST3PlatformType::from_vst3_str(platform_type),
+                std::ptr::NonNull::new(parent),
+            ) {
+                let handle = to_window_handle(&platform_type, parent);
+                let store = self.borrow().store.clone();
+                let domain = self.borrow().domain.clone();
+                let initial_size = self.borrow().initial_size;
+                self.borrow_mut().ui = Ui::new(handle, store, domain.as_str(), initial_size).ok();
+                return vst3::Steinberg::kResultOk;
+            }
+            vst3::Steinberg::kInvalidArgument
         }
-        vst3::Steinberg::kInvalidArgument
-    }}
+    }
 
     unsafe fn removed(&self) -> vst3::Steinberg::tresult {
         self.borrow_mut().ui = None;
@@ -210,14 +214,16 @@ impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
         vst3::Steinberg::kResultFalse
     }
 
-    unsafe fn getSize(&self, size: *mut vst3::Steinberg::ViewRect) -> vst3::Steinberg::tresult { unsafe {
-        (*size).top = 0;
-        (*size).left = 0;
-        (*size).right = self.borrow().initial_size.width;
-        (*size).bottom = self.borrow().initial_size.height;
-        (*size).bottom = 400;
-        vst3::Steinberg::kResultOk
-    }}
+    unsafe fn getSize(&self, size: *mut vst3::Steinberg::ViewRect) -> vst3::Steinberg::tresult {
+        unsafe {
+            (*size).top = 0;
+            (*size).left = 0;
+            (*size).right = self.borrow().initial_size.width;
+            (*size).bottom = self.borrow().initial_size.height;
+            (*size).bottom = 400;
+            vst3::Steinberg::kResultOk
+        }
+    }
 
     unsafe fn onSize(&self, _new_size: *mut vst3::Steinberg::ViewRect) -> vst3::Steinberg::tresult {
         vst3::Steinberg::kNotImplemented

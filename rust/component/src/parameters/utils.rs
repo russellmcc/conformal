@@ -10,9 +10,9 @@ use std::{
 use crate::{audio::approx_eq, synth::CONTROLLER_PARAMETERS};
 
 use super::{
-    hash_id, BufferState, BufferStates, EnumBufferState, IdHash, InfoRef, InternalValue,
-    NumericBufferState, PiecewiseLinearCurve, PiecewiseLinearCurvePoint, States, SwitchBufferState,
-    TimedEnumValues, TimedSwitchValues, TimedValue, TypeSpecificInfoRef,
+    BufferState, BufferStates, EnumBufferState, IdHash, InfoRef, InternalValue, NumericBufferState,
+    PiecewiseLinearCurve, PiecewiseLinearCurvePoint, States, SwitchBufferState, TimedEnumValues,
+    TimedSwitchValues, TimedValue, TypeSpecificInfoRef, hash_id,
 };
 
 #[derive(Clone)]
