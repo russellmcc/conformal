@@ -4,7 +4,7 @@
   "workspaces": [
     "web/*"
   ],
-  "devDependencies": {
+  "dependencies": {
     "@morlay/bunpublish": "^0.4.1",
     "@next/eslint-plugin-next": "^14.2.16",
     "@testing-library/react": "^16.2.0",
