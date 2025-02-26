@@ -12,5 +12,6 @@ export const cleanWorkspaceProtocols = async () => {
   const packageFiles = (await $`git ls-files -- '*package.json'`.text())
     .trim()
     .split("\n");
-  await $`perl -pi -e 's/"workspace:"([^"]+)"/"$1"/' ${packageFiles}`;
+  console.log(packageFiles);
+  await $`perl -pi -e 's/"workspace:([^"]+)"/"$1"/' ${packageFiles}`;
 };
