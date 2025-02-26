@@ -1,5 +1,11 @@
 # @conformal/scripts
 
+## 0.4.1
+
+### Patch Changes
+
+- a998c14: Fix issue where workspace protocols were not cleaned
+
 ## 0.4.0
 
 ### Minor Changes
