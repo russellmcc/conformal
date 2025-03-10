@@ -35,15 +35,80 @@ const rust = (options: {
     name: "rust",
     check: async () => {
       try {
-        const cargoVersion = (await $`cargo --version`.text()).split(" ")[1];
-        if (cargoVersion !== version) {
-          console.warn(
-            cargoVersion
-              ? `cargo installed, but wrong version ${cargoVersion}`
-              : "cargo installed, but could not get version",
-          );
+        const checkCargoToolVersion = async (
+          command: string,
+          expectedVersion: string,
+          toolName = "cargo",
+        ): Promise<boolean> => {
+          const installedVersion = (await $`${{ raw: command }}`.text())
+            .split(" ")[1]
+            ?.trim();
+          if (installedVersion !== expectedVersion) {
+            console.warn(
+              installedVersion
+                ? `${toolName} installed, but wrong version ${installedVersion} (expected ${expectedVersion})`
+                : `${toolName} installed, but could not get version`,
+            );
+            return false;
+          }
+          return true;
+        };
+
+        if (!(await checkCargoToolVersion("cargo --version", version))) {
           return false;
         }
+
+        const checkAvailable = async (
+          command: string,
+          label: string,
+          required: string[],
+        ) => {
+          const installeds = (await $`${{ raw: command }}`.text())
+            .split("\n")
+            .map((x) => x.trim());
+          for (const r of required) {
+            if (!installeds.some((x) => new RegExp(r).test(x))) {
+              console.warn(
+                `missing ${label} ${r}, only have ${installeds.join(", ")}`,
+              );
+              return false;
+            }
+          }
+          return true;
+        };
+
+        if (
+          !(await checkAvailable("rustup target list --installed", "target", [
+            "aarch64-apple-darwin",
+            "x86_64-apple-darwin",
+          ]))
+        ) {
+          return false;
+        }
+
+        if (
+          !(await checkAvailable(
+            "rustup component list --installed",
+            "component",
+            [
+              "rustfmt-(?:aarch64|x86_64)-apple-darwin",
+              "clippy-(?:aarch64|x86_64)-apple-darwin",
+            ],
+          ))
+        ) {
+          return false;
+        }
+
+        if (
+          !(await checkCargoToolVersion(
+            "cargo about --version",
+            cargoAboutVersion,
+            "cargo-about",
+          ))
+        ) {
+          return false;
+        }
+
         return true;
       } catch {
         return false;
