@@ -1,5 +1,11 @@
 # @conformal/scripts
 
+## 0.4.2
+
+### Patch Changes
+
+- bb4ecea: Correctly bootstrap rust, including checking for all toolchains
+
 ## 0.4.1
 
 ### Patch Changes
