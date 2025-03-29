@@ -1,5 +1,11 @@
 # @conformal/create-plugin
 
+## 0.4.1
+
+### Patch Changes
+
+- ddc3214: fix gitignore in web folder
+
 ## 0.4.0
 
 ### Minor Changes
