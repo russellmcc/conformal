@@ -1,5 +1,11 @@
 # @conformal/scripts
 
+## 0.4.3
+
+### Patch Changes
+
+- da1fbc3: Fix bootstrapping for rust miri
+
 ## 0.4.2
 
 ### Patch Changes
