@@ -25,6 +25,23 @@ const rustup = () => brew("rustup");
 
 const knope = () => brew("knope-dev/tap/knope", "knope");
 
+const checkAvailable = async (
+  command: string,
+  label: string,
+  required: string[],
+) => {
+  const installeds = (await $`${{ raw: command }}`.text())
+    .split("\n")
+    .map((x) => x.trim());
+  for (const r of required) {
+    if (!installeds.some((x) => new RegExp(r).test(x))) {
+      console.warn(`missing ${label} ${r}, only have ${installeds.join(", ")}`);
+      return false;
+    }
+  }
+  return true;
+};
+
 const rust = (options: {
   rustVersion?: string;
   cargoAboutVersion?: string;
@@ -57,25 +74,6 @@ const rust = (options: {
         if (!(await checkCargoToolVersion("cargo --version", version))) {
           return false;
         }
-
-        const checkAvailable = async (
-          command: string,
-          label: string,
-          required: string[],
-        ) => {
-          const installeds = (await $`${{ raw: command }}`.text())
-            .split("\n")
-            .map((x) => x.trim());
-          for (const r of required) {
-            if (!installeds.some((x) => new RegExp(r).test(x))) {
-              console.warn(
-                `missing ${label} ${r}, only have ${installeds.join(", ")}`,
-              );
-              return false;
-            }
-          }
-          return true;
-        };
 
         if (
           !(await checkAvailable("rustup target list --installed", "target", [
@@ -127,8 +125,18 @@ const rust = (options: {
 
 const rustNightly = (): Tool => ({
   name: "rust-nightly",
-  check: async () =>
-    (await $`cargo +nightly --version`.quiet().nothrow()).exitCode === 0,
+  check: async () => {
+    if ((await $`cargo +nightly --version`.quiet().nothrow()).exitCode !== 0) {
+      console.warn("missing rust-nightly");
+      return false;
+    }
+    // Check if miri is a component of nightly
+    return await checkAvailable(
+      "rustup +nightly component list --installed",
+      "component",
+      ["miri-(?:aarch64|x86_64)-apple-darwin"],
+    );
+  },
   install: async () => {
     await $`rustup toolchain install nightly`;
     await $`rustup +nightly component add miri`;
