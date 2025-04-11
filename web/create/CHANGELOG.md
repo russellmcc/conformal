@@ -1,5 +1,13 @@
 # create-conformal
 
+## 0.4.1
+
+### Patch Changes
+
+- d4b89a8: Fix version dependencies
+- Updated dependencies [ddc3214]
+  - @conformal/create-plugin@0.4.1
+
 ## 0.4.0
 
 ### Minor Changes
