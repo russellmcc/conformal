@@ -1,0 +1,221 @@
+# App Note 3: Quick Derivation of BLIT, BLEP, BLAMP polynomials
+
+This is a lightning-round, no-frills derivation of polynomial BLIT, BLEP, and BLAMP functions. I hope to expand this into a more didactic treatment in the future, but for now this will probably be most useful as a reference for those who have some experience with these functions.
+
+## BLIT
+
+BLIT stands for "band limited impulse train". In this case, we only want a single pulse at time $t = 0$, so maybe "BLI" is a better name.
+
+A band-limited impulse is a _continuous_ signal that has the following properties:
+
+- It must be at least approximately band-limited
+- Sampling it must yield approximately a sampled impulse (i.e., a sampled signal with a single non-zero sample at time $t = 0$)
+
+The only _truly_ band-limited signal that yields precisely a sampled impulse is the Sinc function, which has the downside of being infinitely long. See "Splitting the Unit Delay" by Laasko et al for more details and various approximation schemes that don't involve infinite-length signals.
+
+In this App Note, we'll focus on a family of polynomial signals called _Lagrange_ polynomials. For a given order $N$, we can construct a polynomial with support $1 + N$. Here, _support_ means the duration of signal that is non-zero. These are often called "polyBLIT".
+
+### 0th order polyBLIT
+
+The simplest one is order 0, which has support 1.
+
+```math
+\text{polyBLIT}_0(t) = \begin{cases}
+2 & \text{if } t \in \left[-\frac{1}{2}, \frac{1}{2}\right] \\
+0 & \text{otherwise}
+\end{cases}
+```
+
+![0-order polyBLIT](/app-notes/3/polyblit-0.png)
+
+### 1st order polyBLIT
+
+Order 1 is just a linear interpolation kernel, with support 2.
+
+```math
+\text{polyBLIT}_1(t) = \begin{cases}
+2t + 2 & \text{if } t \in \left[-1, 0\right) \\
+-2t + 2 & \text{if } t \in \left[0, 1\right] \\
+0 & \text{otherwise}
+\end{cases}
+```
+
+![1-order polyBLIT](/app-notes/3/polyblit-1.png)
+
+Order 2 and above are not treated here, but it's a quadratic lagrange polynomial. More information is available on [Wikipedia](https://en.wikipedia.org/wiki/Lagrange_polynomial).
+
+## BLEP
+
+"BLEP" stands for "Band Limited Step". It represents the _integral_ of a band-limited impulse. Generally we "package" these functions as residuals, with the 0-order step function subtracted off. This gives a signal that can be added to **any signal discontinuity** to easily band-limit it.
+
+When using a BLEP to band-limit a discontinuity, you must scale it by the size of the "jump". The BLEPs derived in this note are normalized for a jump from -1 to 1 (total distance of 2), for example the discontinuity of a downward-going saw wave or the upward-going discontinuity of a square wave. For bigger or smaller jumps, you must scale the BLEP linearly with the size of the jump.
+
+To construct a BLEP, we need to start with a band-limited impulse, and then integrate it. polyBLITs of order $N$ will integrate into a so-called "polyBLEP" with order $N+1$.
+
+### 0th order polyBLEP
+
+Note that a polyBLEP of order 0 is simply the 0-order step function, and has no residual (as an aside, I guess this makes the dirac delta in some sense an "order -1" polyBLIT, since you can integrate it into a 0-order polyBLEP).
+
+```math
+\text{polyBLEP}_0(t) = \begin{cases}
+-1 & \text{if } t \lt 0 \\
+1 & \text{otherwise}
+\end{cases}
+```
+
+![0-order polyBLEP](/app-notes/3/polyblep-0.png)
+
+### 1st order polyBLEP
+
+To derive the 1-order polyBLEP, we need to integrate the 0-order polyBLIT, which we can do piecewise. Since each segment is a polynomial, we can integrate it using the power rule:
+
+```math
+\text{polyBLEP}_1(t) = \begin{cases}
+-1 & \text{if } t \lt \frac{1}{2} \\
+2t & \text{if } t \in \left[-\frac{1}{2}, \frac{1}{2}\right] \\
+1 & \text{otherwise}
+\end{cases}
+```
+
+![1-order polyBLEP](/app-notes/3/polyblep-1.png)
+
+Now, we can calculate the residual by subtracting out the 0-order step function:
+
+```math
+\text{polyBLEP}_1^{\text{residual}}(t) = \begin{cases}
+0 & \text{if } t \lt \frac{1}{2} \\
+2t + 1 & \text{if } t \in \left[-\frac{1}{2}, 0\right) \\
+2t - 1 & \text{if } t \in \left[0, \frac{1}{2}\right] \\
+0 & \text{otherwise}
+\end{cases}
+```
+
+![1-order polyBLEP residual](/app-notes/3/polyblep-1-residual.png)
+
+### 2nd order polyBLEP
+
+We derive the 2-order polyBLEP by integrating the 1-order polyBLIT, which again can be done piecewise with the power rule.
+
+```math
+\text{polyBLEP}_2(t) = \begin{cases}
+-1 & \text{if } t \lt -1 \\
+t^2 + 2t & \text{if } t \in \left[-1, 0\right) \\
+-t^2 + 2t & \text{if } t \in \left[0, 1\right] \\
+1 & \text{otherwise}
+\end{cases}
+```
+
+![2-order polyBLEP](/app-notes/3/polyblep-2.png)
+
+Now, we can calculate the residual by subtracting out the 0-order step function:
+
+```math
+\text{polyBLEP}_2^{\text{residual}}(t) = \begin{cases}
+0 & \text{if } t \lt -1 \\
+t^2 + 2t + 1 & \text{if } t \in \left[-1, 0\right) \\
+-t^2 + 2t - 1 & \text{if } t \in \left[0, 1\right] \\
+0 & \text{otherwise}
+\end{cases}
+```
+
+simplifying:
+
+```math
+\text{polyBLEP}_2^{\text{residual}}(t) = \begin{cases}
+0 & \text{if } t \lt -1 \\
+(t + 1)^2 & \text{if } t \in \left[-1, 0\right) \\
+-(t - 2)^2 & \text{if } t \in \left[0, 1\right] \\
+0 & \text{otherwise}
+\end{cases}
+```
+
+![2-order polyBLEP residual](/app-notes/3/polyblep-2-residual.png)
+
+## BLAMP
+
+"BLAMP" stands for "Band Limited Ramp". It represents the integral of a BLEP. Similar to BLEPs, these are most often "packaged" as residuals, with the absolute value function (i.e., the 1st order ramp function) subtracted off. This gives a signal that can be added to **any derivative discontinuity** to easily band-limit it. Most often these are used for triangle waves.
+
+One important usage note is that, similar to BLEPs, the BLAMP needs to be scaled by the size of the derivative "jump". The BLAMPs derived in this note are normalized for a jump of derivative from -1 to 1.
+
+There is no meaningful 0-order BLAMP, since the lowest order where it's possible to have a derivative discontinuity is 1.
+
+### 1st order BLAMP
+
+The 1st order BLAMP is simply the 1st order ramp function or the absolute value function, and it has no residual.
+
+```math
+\text{polyBLAMP}_1(t) = \begin{cases}
+-t & \text{if } t \lt 0 \\
+t & \text{otherwise}
+\end{cases}
+```
+
+![1-order polyBLAMP](/app-notes/3/polyblamp-1.png)
+
+### 2nd order BLAMP
+
+The 2nd order BLAMP is the integral of the 1st order BLEP, and like other derivations this is done piecewise with the power rule.
+
+```math
+\text{polyBLAMP}_2(t) = \begin{cases}
+-t & \text{if } t \lt \frac{1}{2} \\
+t^2 + \frac{1}{4} & \text{if } t \in \left[-\frac{1}{2}, \frac{1}{2}\right] \\
+t & \text{otherwise}
+\end{cases}
+```
+
+![2-order polyBLAMP](/app-notes/3/polyblamp-2.png)
+
+Now, we can calculate the residual by subtracting out the 1st order ramp function:
+
+```math
+\text{polyBLAMP}_2(t) = \begin{cases}
+0 & \text{if } t \lt \frac{1}{2} \\
+t^2 + t + \frac{1}{4} & \text{if } t \in \left[-\frac{1}{2}, 0\right) \\
+t^2 - t + \frac{1}{4} & \text{if } t \in \left[0, \frac{1}{2}\right] \\
+0 & \text{otherwise}
+\end{cases}
+```
+
+simplifying:
+
+```math
+\text{polyBLAMP}_2^{\text{residual}}(t) = \begin{cases}
+0 & \text{if } t \lt \frac{1}{2} \\
+(t + \frac{1}{2})^2 & \text{if } t \in \left[-\frac{1}{2}, 0\right) \\
+(t - \frac{1}{2})^2 & \text{if } t \in \left[0, \frac{1}{2}\right] \\
+0 & \text{otherwise}
+\end{cases}
+```
+
+![2-order polyBLAMP residual](/app-notes/3/polyblamp-2-residual.png)
+
+### 3rd order BLAMP
+
+In exactly the same way as the 2nd order BLAMP, we can integrate the 2nd order polyBLEP to get the 3rd order BLAMP.
+
+```math
+\text{polyBLAMP}_3(t) = \begin{cases}
+-t & \text{if } t \lt -1 \\
+\frac{1}{3}t^3 + t^2 + \frac{1}{3} & \text{if } t \in \left[-1, 0\right) \\
+-\frac{1}{3}t^3 + t^2 + \frac{1}{3} & \text{if } t \in \left[0, 1\right] \\
+t & \text{otherwise}
+\end{cases}
+```
+
+![3-order polyBLAMP](/app-notes/3/polyblamp-3.png)
+
+Again, we can calculate the residual by subtracting out the 1st order ramp function:
+
+```math
+\text{polyBLAMP}_3^{\text{residual}}(t) = \begin{cases}
+0 & \text{if } t \lt -1 \\
+\frac{1}{3}t^3 + t^2 + t + \frac{1}{3} & \text{if } t \in \left[-1, 0\right) \\
+-\frac{1}{3}t^3 + t^2 - t + \frac{1}{3} & \text{if } t \in \left[0, 1\right] \\
+0 & \text{otherwise}
+\end{cases}
+```
+
+![3-order polyBLAMP residual](/app-notes/3/polyblamp-3-residual.png)
+
+Higher order BLAMPs are not treated here, but their derivation follows the exact same pattern of integrating a polyBLEP, which in turn was derived by integrating a polyBLIT.
