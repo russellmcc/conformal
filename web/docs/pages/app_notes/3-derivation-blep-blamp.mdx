@@ -1,6 +1,6 @@
 # App Note 3: Quick Derivation of BLIT, BLEP, BLAMP polynomials
 
-This is a lightening-round derivation of polynomial BLIT, BLEP, and BLAMP functions. I hope to expand this into a more didactic treatment in the future, but for now this will probably be most useful as a reference for those who have some experience with these functions.
+This is a lightning-round, no-frills derivation of polynomial BLIT, BLEP, and BLAMP functions. I hope to expand this into a more didactic treatment in the future, but for now this will probably be most useful as a reference for those who have some experience with these functions.
 
 ## BLIT
 
@@ -11,7 +11,7 @@ A band-limited impulse is a _continuous_ signal that has the following propertie
 - It must be at least approximately band-limited
 - Sampling it must yield approximately a sampled impulse (i.e., a sampled signal with a single non-zero sample at time $t = 0$)
 
-The only _truly_ band-limited signal that is all yields precisely a sampled impulse is the Sinc function, which has the downside of being infinitely long. See "Splitting the Unit Delay" by Laasko at all for more details and various approximation schemes that don't involve infinite-length signals.
+The only _truly_ band-limited signal that yields precisely a sampled impulse is the Sinc function, which has the downside of being infinitely long. See "Splitting the Unit Delay" by Laasko et al for more details and various approximation schemes that don't involve infinite-length signals.
 
 In this App Note, we'll focus on a family of polynomial signals called _Lagrange_ polynomials. For a given order $N$, we can construct a polynomial with support $1 + N$. Here, _support_ means the duration of signal that is non-zero. These are often called "polyBLIT".
 
