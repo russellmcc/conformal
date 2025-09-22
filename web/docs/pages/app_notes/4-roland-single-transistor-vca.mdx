@@ -82,7 +82,7 @@ The intuition here is that since $V_{BC}$ is constant, increasing $V_{\text{in}}
 
 ### $V_{BC}$ as a function of $V_{\text{control}}$
 
-Since we don't want to work with the cumbersome Lambert's W function, we can make a somewhat crude approximation at least in the case where $V_{\text{control}} \gg V_{BC}$. In this case,
+Since we don't want to work with the cumbersome Lambert's W function, we can make a somewhat crude approximation that $V_{\text{control}} \gg V_{BC}$. This lets us make progress on this analysis. We'll confirm that this approximation gives qualitatively correct behavior with SPICE simulations later. Given this assumption, we have:
 
 $$\frac{V_{\text{control}}}{R} \approx \frac{I_S}{\beta_R}e^{\frac{V_{BC}}{V_T}}$$
 
