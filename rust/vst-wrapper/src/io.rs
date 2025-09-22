@@ -21,13 +21,10 @@ impl std::io::Write for StreamWrite<'_> {
             match self.buffer.write(
                 buf.as_ptr() as *mut std::ffi::c_void,
                 buf.len().try_into().unwrap(),
-                &mut num_written,
+                &raw mut num_written,
             ) {
                 vst3::Steinberg::kResultOk => Ok(num_written.try_into().unwrap()),
-                _ => Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "VST3 write error",
-                )),
+                _ => Err(std::io::Error::other("VST3 write error")),
             }
         }
     }
@@ -56,13 +53,10 @@ impl std::io::Read for StreamRead<'_> {
             match self.buffer.read(
                 buf.as_mut_ptr().cast::<std::ffi::c_void>(),
                 buf.len().try_into().unwrap(),
-                &mut num_read,
+                &raw mut num_read,
             ) {
                 vst3::Steinberg::kResultOk => Ok(num_read.try_into().unwrap()),
-                _ => Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "VST3 read error",
-                )),
+                _ => Err(std::io::Error::other("VST3 read error")),
             }
         }
     }

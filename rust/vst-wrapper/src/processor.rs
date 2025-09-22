@@ -1100,25 +1100,24 @@ impl<CF: ComponentFactory<Component: Component<Processor: ProcessorT>>, PC: Proc
             params_main: main_context_store,
             ..
         })) = self.s.borrow_mut().as_mut()
+            && let Some(com_state) = unsafe { ComRef::from_raw(state) }
         {
-            if let Some(com_state) = unsafe { ComRef::from_raw(state) } {
-                let read = StreamRead::new(com_state);
-                if let Ok(state) = rmp_serde::from_read::<_, state::State>(read) {
-                    return match main_context_store.apply_snapshot(&state.params) {
-                        Ok(()) => vst3::Steinberg::kResultOk,
-                        Err(parameters::SnapshotError::QueueTooFull) => {
-                            // Note that right now, if we can't apply the snapshot due to the
-                            // snapshot queue being full, we just ignore this snapshot and
-                            // indiicate we failed. Hopefully we don't hit this, often
-                            // If we do we can consider more extreme measures such as stealing
-                            // the processor here and forcing it to sync.
-                            vst3::Steinberg::kInternalError
-                        }
-                        Err(parameters::SnapshotError::SnapshotCorrupted) => {
-                            vst3::Steinberg::kInvalidArgument
-                        }
-                    };
-                }
+            let read = StreamRead::new(com_state);
+            if let Ok(state) = rmp_serde::from_read::<_, state::State>(read) {
+                return match main_context_store.apply_snapshot(&state.params) {
+                    Ok(()) => vst3::Steinberg::kResultOk,
+                    Err(parameters::SnapshotError::QueueTooFull) => {
+                        // Note that right now, if we can't apply the snapshot due to the
+                        // snapshot queue being full, we just ignore this snapshot and
+                        // indiicate we failed. Hopefully we don't hit this, often
+                        // If we do we can consider more extreme measures such as stealing
+                        // the processor here and forcing it to sync.
+                        vst3::Steinberg::kInternalError
+                    }
+                    Err(parameters::SnapshotError::SnapshotCorrupted) => {
+                        vst3::Steinberg::kInvalidArgument
+                    }
+                };
             }
         }
         vst3::Steinberg::kInvalidArgument
@@ -1130,19 +1129,18 @@ impl<CF: ComponentFactory<Component: Component<Processor: ProcessorT>>, PC: Proc
                 params_main: main_context_store,
                 ..
             })) = self.s.borrow().as_ref()
+                && let Some(com_state) = ComRef::from_raw(state)
             {
-                if let Some(com_state) = ComRef::from_raw(state) {
-                    let writer = StreamWrite::new(com_state);
-                    if (state::State {
-                        params: main_context_store.snapshot_with_tearing(),
-                    })
-                    .serialize(&mut rmp_serde::Serializer::new(writer))
-                    .is_ok()
-                    {
-                        return vst3::Steinberg::kResultOk;
-                    }
-                    return vst3::Steinberg::kInternalError;
+                let writer = StreamWrite::new(com_state);
+                if (state::State {
+                    params: main_context_store.snapshot_with_tearing(),
+                })
+                .serialize(&mut rmp_serde::Serializer::new(writer))
+                .is_ok()
+                {
+                    return vst3::Steinberg::kResultOk;
                 }
+                return vst3::Steinberg::kInternalError;
             }
             vst3::Steinberg::kInvalidArgument
         }

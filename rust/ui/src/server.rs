@@ -83,14 +83,14 @@ impl<S: super::ParameterStore, R: ResponseSender> Server<S, R> {
             }
             protocol::Request::Set { path, value } => {
                 if let Some(parameter) = path.strip_prefix("params/") {
-                    if let Ok(v) = value.clone().try_into() {
-                        if self.param_store.set(parameter, v).is_err() {
-                            // HACK - eventually we should probably send an
-                            // error to the client - for now we just respond
-                            // with the current value, if subscribed.
-                            if let Some(value) = self.param_store.get(parameter) {
-                                self.update_parameter(parameter, &value);
-                            }
+                    if let Ok(v) = value.clone().try_into()
+                        && self.param_store.set(parameter, v).is_err()
+                    {
+                        // HACK - eventually we should probably send an
+                        // error to the client - for now we just respond
+                        // with the current value, if subscribed.
+                        if let Some(value) = self.param_store.get(parameter) {
+                            self.update_parameter(parameter, &value);
                         }
                     }
                 } else if let Some(parameter) = path.strip_prefix("params-grabbed/") {
@@ -98,19 +98,19 @@ impl<S: super::ParameterStore, R: ResponseSender> Server<S, R> {
                         let _ = self.param_store.set_grabbed(parameter, *b);
                     }
                 } else if let Some(preference) = path.strip_prefix("prefs/") {
-                    if let Ok(v) = value.clone().try_into() {
-                        if self.pref_store.borrow_mut().set(preference, v).is_ok() {
-                            // Same hack as note above.
-                            let ret = self.pref_store.borrow().get(preference);
-                            if let Ok(value) = ret {
-                                self.update_preference(preference, &value);
-                            }
+                    if let Ok(v) = value.clone().try_into()
+                        && self.pref_store.borrow_mut().set(preference, v).is_ok()
+                    {
+                        // Same hack as note above.
+                        let ret = self.pref_store.borrow().get(preference);
+                        if let Ok(value) = ret {
+                            self.update_preference(preference, &value);
                         }
                     }
-                } else if path == "ui-state" {
-                    if let protocol::Value::Bytes(bytes) = value {
-                        self.param_store.set_ui_state(bytes);
-                    }
+                } else if path == "ui-state"
+                    && let protocol::Value::Bytes(bytes) = value
+                {
+                    self.param_store.set_ui_state(bytes);
                 }
             }
         }

@@ -11,7 +11,7 @@ members = [
 ]
 
 [workspace.package]
-rust-version = "1.85.0"
+rust-version = "1.90.0"
 edition = "2024"
 
 [workspace.lints.rust]
@@ -31,3 +31,4 @@ type_complexity = "allow"
 cast_sign_loss = "allow"
 cast_possible_wrap = "allow"
 default_trait_access = "allow"
+large_enum_variant = "allow"

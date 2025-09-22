@@ -367,10 +367,10 @@ impl store::Store for SharedStore {
         }
 
         // Notify the listener
-        if let Some(listener) = self.store.borrow_mut().listener.as_ref() {
-            if let Some(listener) = listener.upgrade() {
-                listener.ui_state_changed(state);
-            }
+        if let Some(listener) = self.store.borrow_mut().listener.as_ref()
+            && let Some(listener) = listener.upgrade()
+        {
+            listener.ui_state_changed(state);
         }
 
         // Tell the host
@@ -378,11 +378,10 @@ impl store::Store for SharedStore {
             component_handler: Some(component_handler),
             ..
         } = &(*self.store.borrow())
+            && let Some(component_handler2) = component_handler.cast::<IComponentHandler2>()
         {
-            if let Some(component_handler2) = component_handler.cast::<IComponentHandler2>() {
-                unsafe {
-                    component_handler2.setDirty(1);
-                }
+            unsafe {
+                component_handler2.setDirty(1);
             }
         }
     }
@@ -585,10 +584,10 @@ impl IEditControllerTrait for EditController {
                                 );
 
                                 for (id, value) in &snapshot.values {
-                                    if let Some(listener) = listener {
-                                        if let Some(listener) = listener.upgrade() {
-                                            listener.parameter_changed(id.as_str(), value);
-                                        }
+                                    if let Some(listener) = listener
+                                        && let Some(listener) = listener.upgrade()
+                                    {
+                                        listener.parameter_changed(id.as_str(), value);
                                     }
                                 }
                                 vst3::Steinberg::kResultOk
@@ -629,10 +628,10 @@ impl IEditControllerTrait for EditController {
                         .is_ok()
                     {
                         *ui_state = new_state;
-                        if let Some(listener) = listener {
-                            if let Some(listener) = listener.upgrade() {
-                                listener.ui_state_changed(ui_state);
-                            }
+                        if let Some(listener) = listener
+                            && let Some(listener) = listener.upgrade()
+                        {
+                            listener.ui_state_changed(ui_state);
                         }
                         return vst3::Steinberg::kResultOk;
                     }
@@ -973,8 +972,8 @@ impl IEditControllerTrait for EditController {
                 listener,
                 ..
             } = &mut *store.store.borrow_mut();
-            if let Some(id) = unhash.get(&id) {
-                if let Some(value) = match infos.get(id) {
+            if let Some(id) = unhash.get(&id)
+                && let Some(value) = match infos.get(id) {
                     Some(parameters::Info {
                         type_specific: TypeSpecificInfo::Numeric { valid_range, .. },
                         ..
@@ -994,15 +993,15 @@ impl IEditControllerTrait for EditController {
                         ..
                     }) => Some(parameters::InternalValue::Switch(convert_switch(value))),
                     _ => None,
-                } {
-                    values.insert(id.to_string(), value);
-                    if let Some(listener) = listener {
-                        if let Some(listener) = listener.upgrade() {
-                            (*listener).parameter_changed(id, &from_internal(id, value, infos));
-                        }
-                    }
-                    return vst3::Steinberg::kResultOk;
                 }
+            {
+                values.insert(id.to_string(), value);
+                if let Some(listener) = listener
+                    && let Some(listener) = listener.upgrade()
+                {
+                    (*listener).parameter_changed(id, &from_internal(id, value, infos));
+                }
+                return vst3::Steinberg::kResultOk;
             }
         }
         vst3::Steinberg::kInvalidArgument
@@ -1013,13 +1012,12 @@ impl IEditControllerTrait for EditController {
         handler: *mut vst3::Steinberg::Vst::IComponentHandler,
     ) -> vst3::Steinberg::tresult {
         unsafe {
-            if let Some(handler) = ComRef::from_raw(handler).map(|handler| handler.to_com_ptr()) {
-                if let State::Initialized(Initialized { store, .. }) =
+            if let Some(handler) = ComRef::from_raw(handler).map(|handler| handler.to_com_ptr())
+                && let State::Initialized(Initialized { store, .. }) =
                     self.s.borrow().as_ref().unwrap()
-                {
-                    store.store.borrow_mut().component_handler = Some(handler);
-                    return vst3::Steinberg::kResultOk;
-                }
+            {
+                store.store.borrow_mut().component_handler = Some(handler);
+                return vst3::Steinberg::kResultOk;
             }
             vst3::Steinberg::kInvalidArgument
         }
@@ -1030,20 +1028,19 @@ impl IEditControllerTrait for EditController {
         name: vst3::Steinberg::FIDString,
     ) -> *mut vst3::Steinberg::IPlugView {
         unsafe {
-            if std::ffi::CStr::from_ptr(name).to_str() == Ok("editor") {
-                if let State::Initialized(Initialized { store, .. }) =
+            if std::ffi::CStr::from_ptr(name).to_str() == Ok("editor")
+                && let State::Initialized(Initialized { store, .. }) =
                     self.s.borrow().as_ref().unwrap()
-                {
-                    return view::create(
-                        store.clone(),
-                        get_current_bundle_info()
-                            .expect("Could not find bundle info")
-                            .identifier
-                            .clone(),
-                        self.ui_initial_size,
-                    )
-                    .into_raw();
-                }
+            {
+                return view::create(
+                    store.clone(),
+                    get_current_bundle_info()
+                        .expect("Could not find bundle info")
+                        .identifier
+                        .clone(),
+                    self.ui_initial_size,
+                )
+                .into_raw();
             }
             std::ptr::null_mut()
         }

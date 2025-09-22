@@ -151,10 +151,10 @@ impl<I: Iterator<Item = NoteExpressionPoint> + Clone> NoteExpressionCurve<I> {
                     return None;
                 }
                 contains_zero = true;
-            } else if let Some(last_time) = last_time {
-                if point.sample_offset < last_time {
-                    return None;
-                }
+            } else if let Some(last_time) = last_time
+                && point.sample_offset < last_time
+            {
+                return None;
             }
             last_time = Some(point.sample_offset);
         }

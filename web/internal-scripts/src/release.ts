@@ -11,12 +11,7 @@ export const release = async ({ skipPublish }: { skipPublish?: boolean }) => {
   }
 
   // Publish cargo packages
-  // Note that because of https://github.com/rust-lang/cargo/issues/1169
-  // We can't do this natively in cargo but have to use some third-party tool.
-  // None of these seem ideal, all are _very_ opinionated about the specific
-  // publish workflow.
-  await $`cargo install --locked cargo-workspaces`;
-  await $`cargo workspaces publish -y --publish-as-is --allow-dirty --no-git-commit`;
+  await $`cargo publish --workspace`;
 
   await cleanWorkspaceProtocols();
 
