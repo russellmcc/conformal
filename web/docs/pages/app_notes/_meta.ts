@@ -4,4 +4,6 @@ export default {
   "2-bbd-lfo": "2: Modeling LFOs for BBD Chorus",
   "3-derivation-blep-blamp":
     "3: Quick Derivation of BLIT, BLEP, BLAMP polynomials",
+  "4-roland-single-transistor-vca":
+    "4: Analysis of Roland single-transistor VCA",
 };

@@ -1,0 +1,147 @@
+# App Note 4: Analysis of Roland single-transistor VCA
+
+This is an analysis of a single-transistor VCA design found in a few roland products such as the TR-909 (e.g., for the snare drum volume control), and the JX-8P (for the oscillator mixing section). Similar designs were used by Korg in the MS20 and the Poly-61. I'm not sure who implemented this design first, I'd be very interested to hear from anyone who knows more about the history of this design.
+
+This app note assumes some knowledge of analog circuits and may not fully explain some prerequisites. If you find this confusing, please improve it by contributing a PR!
+
+This design is interesting in that it uses a transistor in saturation mode, which is a rather unusual operating mode for a bipolar transistor in analog electronics. It also has a rather startlingly low component count for a VCA!
+
+## The design
+
+Lets look at a simplified diagram of the circuit (component values here taken from JX-8P):
+
+![Single-transistor VCA circuit](/app-notes/4/circuit.png)
+
+In this design, $V_{\text{control}}$ varies from $0.6V$ to $5V$, and $V_{\text{in}}$ varies from $0V$ to $28mV$.
+
+Using ohm's law, we note that $V_{\text{out}} = I_E \times 20,000 \Omega$ where $I_E$ is the emitter current.
+
+Assuming an ideal op-amp, we note that the voltage at the non-inverting input of the op-amp is $0V$, since it is equal to the voltage at the inverting input.
+
+Thus, to understand the behavior of the circuit, we can analyze a simpler circuit
+
+![Single-transistor VCA circuit](/app-notes/4/simplified.png)
+
+The "output" of this simplified circuit is the emitter current.
+
+Note from ohm's law, $V_B = V_{\text{control}} - I_B R$, where $R$ is the 330k base resistor.
+
+## Analysis with Ebers-Moll
+
+One interesting thing to note in this configuration is that the Base voltage is going to be higher than both the emitter and collector voltages. This puts the transistor in the so-called "saturation" region, where a lot of the really simple transistor models for hand calculations don't apply. We'll go back to the Ebers-Moll model, which is a simple yet general purpose model that works in all regions. Wikipedia has a [good reference for this model](https://en.wikipedia.org/wiki/Bipolar_junction_transistor#Ebers–Moll_model). From wikipedia:
+
+$$I_B = I_S \left[\frac{1}{\beta_F}\left(e^{\frac{V_{BC}}{V_T}} - 1 \right) + \frac{1}{\beta_R}\left(e^{\frac{V_{BC}}{V_T}} - 1 \right)\right]$$
+
+$$I_E = I_S \left[\left(e^{\frac{V_{BE}}{V_T}} - e^{\frac{V_{BC}}{V_T}} \right) + \frac{1}{\beta_F}\left(e^{\frac{V_{BE}}{V_T}} - 1 \right)\right]$$
+
+Here $I_S$, $V_T$, $\beta_F$, and $\beta_R$ are all transistor parameters (saturation current, thermal voltage, forward current gain, and reverse current gain respectively).
+
+### Initial Approximations
+
+We now apply some approximations. First we make use of the fact that $\beta_F \gg \beta_R, 1$ for most transistors. Applying this to the above equations we have:
+
+$$I_B \approx \frac{I_S}{\beta_R}\left(e^{\frac{V_{BC}}{V_T}} - 1 \right)$$
+
+$$I_E \approx I_S \left(e^{\frac{V_{BE}}{V_T}} - e^{\frac{V_{BC}}{V_T}} \right)$$
+
+Now, we make use of the fact that in the saturation region, $e^{\frac{V_{BE}}{V_T}}, e^{\frac{V_{BC}}{V_T}} \gg 1$. Now,
+
+$$I_B \approx \frac{I_S}{\beta_R}e^{\frac{V_{BC}}{V_T}}$$
+
+$$I_E \approx I_S \left(e^{\frac{V_{BE}}{V_T}} - e^{\frac{V_{BC}}{V_T}} \right)$$
+
+### $V_{BC}$ does not depend on $V_{\text{in}}$
+
+Our next step is to recall that $I_B$ is actually related to $V_B$ by ohm's law, i.e., $V_B = V_{\text{control}} - I_B R$. This means that our first approximation becomes
+
+$$\frac{V_{\text{control}} - V_B}{R} \approx \frac{I_S}{\beta_R}e^{\frac{V_{BC}}{V_T}}$$
+
+But $V_{BC} = V_B - V_{\text{in}}$ by definition, so
+
+$$\frac{V_{\text{control}} - V_{\text{in}} - V_{BC}}{R} \approx \frac{I_S}{\beta_R}e^{\frac{V_{BC}}{V_T}}$$
+
+Now, we note that $V_{\text{control}} \gg V_{\text{in}}$, so
+
+$$\frac{V_{\text{control}} - V_{BC}}{R} \approx \frac{I_S}{\beta_R}e^{\frac{V_{BC}}{V_T}}$$
+
+We see now that $V_{BC}$, at least in this approximation, is only a function of $V_{\text{control}}$ _not_ $V_{\text{in}}$. This means, when considering the behavior under small $V_{\text{in}}$ changes, we can treat $V_{BC}$ as a constant.
+
+### $I_E$ as a function of $V_{\text{in}}$
+
+We now turn our attention to the output, $I_E$. First we recall that $V_B = V_{BC} + V_{\text{in}}$, so since $V_E$ is ground, we have $V_BE = V_{\text{in}} + V_{BC}$. So, our approximation for $I_E$ becomes
+
+$$I_E \approx I_S \left(e^{\frac{V_{\text{in}} + V_{BC}}{V_T}} - e^{\frac{V_{BC}}{V_T}} \right)$$
+
+or, re-arranging,
+
+$$I_E \approx I_S e^{\frac{V_{BC}}{V_T}}\left(e^{\frac{V_{\text{in}}}{V_T}} - 1\right)$$
+
+Note that since $V_{\text{in}}$ is small, this is approximately linear in $V_{\text{in}}$.
+
+### $V_{BC}$ as a function of $V_{\text{control}}$
+
+Since we don't want to work with the cumbersome Lambert's W function, we can make a somewhat crude approximation at least in the case where $V_{\text{control}} \gg V_{BC}$. In this case,
+
+$$\frac{V_{\text{control}}}{R} \approx \frac{I_S}{\beta_R}e^{\frac{V_{BC}}{V_T}}$$
+
+re-arranging,
+
+$$\frac{\beta_R}{I_S R}V_{\text{control}} \approx e^{\frac{V_{BC}}{V_T}}$$
+
+applying log to both sides,
+
+$$V_T \log{\frac{\beta_R}{I_S R}V_{\text{control}}} \approx V_{BC}$$
+
+### Full approximation
+
+Finally, we can plug in our approximations for $V_{BC}$ and $I_E$ together:
+
+$$I_E \approx I_S e^{\frac{V_T \log{\frac{\beta_R}{I_S R}V_{\text{control}}}}{V_T}}\left(e^{\frac{V_{\text{in}}}{V_T}} - 1\right)$$
+
+simplifying,
+
+$$I_E \approx \frac{\beta_R}{R}V_{\text{control}}\left(e^{\frac{V_{\text{in}}}{V_T}} - 1\right)$$
+
+so we see, that this is indeed _approximately_ a multiplication of $V_{\text{control}}$ and $V_{\text{in}}$.
+
+## Spice simulations
+
+Here we verify the behavior of the circuit with an LTSpice simulation. ([download](/conformal/app-notes/4/simplified.asc))
+
+The circuit we're simulating is the simplified circuit above.
+
+![Spice circuit](/app-notes/4/spice-circuit.png)
+
+We can use this simulation to verify a few key points of the analysis above. First, we fix $V_{\text{control}}$ at $2.5V$ and sweep $V_{\text{in}}$ from $0V$ to $26mV$. We can see that $V_{BC}$ only varies from $557.9mV$ to $557mV$, so indeed it's a good approximation to treat $V_{BC}$ as independent of $V_{\text{in}}$.
+
+![Vbc vs Vin](/app-notes/4/spice_vbc_vs_vin.png)
+
+Now, let's check the dependence of $I_E$ on $V_{\text{in}}$. We keep $V_{\text{control}}$ at $2.5V$ and sweep $V_{\text{in}}$ from $0V$ to $26mV$. We see that $I_E$ indeed looks like a small slice of an exponential function (and approximately linear), a great match to the by-hand analysis above.
+
+![Ie vs Vin](/app-notes/4/spice_ie_vs_vin.png)
+
+We can also check the dependence of $V_{BC}$ on $V_{\text{control}}$. To do this, we keep $V_{\text{in}}$ at $13mV$ and sweep $V_{\text{control}}$ from $0.6V$ to $5V$. We see that $V_{BC}$ indeed looks something like a logarithmic function of $V_{\text{control}}$.
+
+![Vbc vs Control](/app-notes/4/spice_vbc_vs_vcontrol.png)
+
+Let's check the dependence of $I_E$ on $V_{\text{control}}$. We again keep $V_{\text{in}}$ at $13mV$ and sweep $V_{\text{control}}$ from $0.6V$ to $5V$. Here we have what appears to be a linear dependence between $I_E$ and $V_{\text{control}}$, as predicted above.
+
+![Ie vs Control](/app-notes/4/spice_ie_vs_vcontrol.png)
+
+Finally, let's do a full simulation of the VCA action of circuit. We apply a sine wave with peaks at $0mV$ and $26mV$ at a frequency of 100hz to $V_{\text{in}}$ and sweep from $0.6V$ to $5V$ and back to $0.6V$ to $V_{\text{control}}$. We see that the output matches the predicted behavior of a multiplication of the two signals.
+
+![Vca](/app-notes/4/spice_vca.png)
+
+## Downsides of this design
+
+Wow, these simulations look pretty good! Given that this design only needs a single transistor, why isn't it more popular? A couple reasons come to mind:
+
+- Thermal noise. Given that an exponential function is applied to $V_{\text{in}}$, the level has to be very low to approximate linearity. In roland's implementation, peak to peak voltage is kept under $26mV$. This means that the effective noise floor is quite high at most real-world temperatures.
+- Non-linearity. Even with a signal as low as $26mV$, we have some visible non-linearity in $V_{\text{in}}$ (see spice simulations). Linearity of $V_{\text{control}}$ looks pretty good, though. It might be interesting to reverse the inputs and apply the signal through the "control" input of the circuit.
+- The design depends on the transistor being deep in saturation mode, which means that the control voltage _must_ be significantly above both the emitter voltage and the input voltage at the collector. This means that careful control of bias is required.
+- The design is very dependent on the temperature, since the $V_T$ term is temperature dependent.
+
+## References
+
+- ["Roland “Cross Mod” and “Metal Sync” – What do they actually do?" - Tom Wiltshire, 2019](https://electricdruid.net/roland-cross-mod-metal-sync/)
+- ["A Study of the Korg MS10 & MS20 Filters", Section 3.1 - Tim Stinchcombe, 2006](https://www.timstinchcombe.co.uk/synth/MS20_study.pdf)
