@@ -205,6 +205,8 @@ impl ProcessorCategory for SynthProcessorCategory {
     type Active = ActiveSynthProcessorCategory;
 
     fn activate(&self) -> Option<Self::Active> {
+        // TODO - we need to support a never-process state if bus is inactive!
+        //
         // We can only be activated if all our buses are active.
         if self.bus_activation_state.event_input_active
             && self.bus_activation_state.audio_output_active
@@ -420,6 +422,8 @@ impl ProcessorCategory for EffectProcessorCategory {
     type Active = ActiveEffectProcessorCategory;
 
     fn activate(&self) -> Option<Self::Active> {
+        // TODO - we need to support a never-process state if bus is inactive!
+        //
         // We can only be activated if all our buses are active.
         if self.bus_activation_state.audio_input_active
             && self.bus_activation_state.audio_output_active

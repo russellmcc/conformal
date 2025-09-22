@@ -1,3 +1,8 @@
+// Note that previous versions of the SDK had incorrect typing for the `ParameterFlags` enum,
+// and we make a best-effort attempt to support these older versions. This requires casts
+// that are unnecessary in newer versions.
+#![allow(clippy::unnecessary_cast)]
+
 use std::{
     cell::RefCell,
     collections::{HashMap, hash_map},
