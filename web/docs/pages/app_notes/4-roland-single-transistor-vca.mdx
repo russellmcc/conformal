@@ -8,7 +8,7 @@ This design is interesting in that it uses a transistor in saturation mode, whic
 
 ## The design
 
-Lets look at a simplified diagram of the circuit (component values here taken from JX-8P):
+Let's look at a simplified diagram of the circuit (component values here taken from JX-8P):
 
 ![Single-transistor VCA circuit](/app-notes/4/circuit.png)
 
@@ -30,7 +30,7 @@ Note from ohm's law, $V_B = V_{\text{control}} - I_B R$, where $R$ is the 330k b
 
 One interesting thing to note in this configuration is that the Base voltage is going to be higher than both the emitter and collector voltages. This puts the transistor in the so-called "saturation" region, where a lot of the really simple transistor models for hand calculations don't apply. We'll go back to the Ebers-Moll model, which is a simple yet general purpose model that works in all regions. Wikipedia has a [good reference for this model](https://en.wikipedia.org/wiki/Bipolar_junction_transistor#Ebers–Moll_model). From wikipedia:
 
-$$I_B = I_S \left[\frac{1}{\beta_F}\left(e^{\frac{V_{BC}}{V_T}} - 1 \right) + \frac{1}{\beta_R}\left(e^{\frac{V_{BC}}{V_T}} - 1 \right)\right]$$
+$$I_B = I_S \left[\frac{1}{\beta_F}\left(e^{\frac{V_{BE}}{V_T}} - 1 \right) + \frac{1}{\beta_R}\left(e^{\frac{V_{BC}}{V_T}} - 1 \right)\right]$$
 
 $$I_E = I_S \left[\left(e^{\frac{V_{BE}}{V_T}} - e^{\frac{V_{BC}}{V_T}} \right) + \frac{1}{\beta_F}\left(e^{\frac{V_{BE}}{V_T}} - 1 \right)\right]$$
 
@@ -136,7 +136,7 @@ Finally, let's do a full simulation of the VCA action of circuit. We apply a sin
 
 Wow, these simulations look pretty good! Given that this design only needs a single transistor, why isn't it more popular? A couple reasons come to mind:
 
-- Thermal noise. Given that an exponential function is applied to $V_{\text{in}}$, the level has to be very low to approximate linearity. In roland's implementation, peak to peak voltage is kept under $26mV$. This means that the effective noise floor is quite high at most real-world temperatures.
+- Thermal noise. Given that an exponential function is applied to $V_{\text{in}}$, the level has to be very low to approximate linearity. In Roland's implementation, peak to peak voltage is kept under $26mV$. This means that the effective noise floor is quite high at most real-world temperatures.
 - Non-linearity. Even with a signal as low as $26mV$, we have some visible non-linearity in $V_{\text{in}}$ (see spice simulations). Linearity of $V_{\text{control}}$ looks pretty good, though. It might be interesting to reverse the inputs and apply the signal through the "control" input of the circuit.
 - The design depends on the transistor being deep in saturation mode, which means that the control voltage _must_ be significantly above both the emitter voltage and the input voltage at the collector. This means that careful control of bias is required.
 - The design is very dependent on the temperature, since the $V_T$ term is temperature dependent.
