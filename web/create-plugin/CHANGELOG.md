@@ -1,5 +1,11 @@
 # @conformal/create-plugin
 
+## 0.5.0
+
+### Minor Changes
+
+- 0d15265: Upgrade rust to 1.90
+
 ## 0.4.1
 
 ### Patch Changes

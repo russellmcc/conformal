@@ -1,6 +1,6 @@
 {
   "name": "@conformal/create-plugin",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Utility functions for adding a plugin to a conformal project",
   "homepage": "https://russellmcc.github.io/conformal",
   "bugs": "https://github.com/russellmcc/conformal/issues",
