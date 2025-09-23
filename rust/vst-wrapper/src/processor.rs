@@ -67,7 +67,7 @@ struct ActiveProcessContext<P, A> {
     params: parameters::ProcessingStore,
 
     processor: P,
-    category: A,
+    active_processor: A,
 
     /// If we support hosts with MPE Quirks, the current state for MPE quirks.
     mpe_quirks: Option<mpe_quirks::State>,
@@ -112,8 +112,10 @@ struct SynthProcessorCategory {
     bus_activation_state: SynthBusActivationState,
 }
 
-struct ActiveSynthProcessorCategory {
-    channel_layout: ChannelLayout,
+#[derive(Debug)]
+enum ActiveSynthProcessor {
+    AudioEnabled(ChannelLayout),
+    AudioDisabled,
 }
 
 impl Default for SynthProcessorCategory {
@@ -125,11 +127,14 @@ impl Default for SynthProcessorCategory {
     }
 }
 
-trait ActiveProcessorCategory<P> {
+trait ActiveProcessor<P> {
     type ProcessBuffer<'a>: ProcessBuffer
     where
         P: 'a,
         Self: 'a;
+
+    fn audio_enabled(&self) -> bool;
+
     unsafe fn make_process_buffer<'a>(
         &self,
         processor: &'a mut P,
@@ -150,7 +155,7 @@ trait ActiveProcessorCategory<P> {
 trait ProcessorCategory {
     type Active;
 
-    fn activate(&self) -> Option<Self::Active>;
+    fn activate(&self) -> Self::Active;
 
     fn create_processor<C: Component>(
         &self,
@@ -202,20 +207,15 @@ trait ProcessorCategory {
 }
 
 impl ProcessorCategory for SynthProcessorCategory {
-    type Active = ActiveSynthProcessorCategory;
+    type Active = ActiveSynthProcessor;
 
-    fn activate(&self) -> Option<Self::Active> {
-        // TODO - we need to support a never-process state if bus is inactive!
-        //
-        // We can only be activated if all our buses are active.
+    fn activate(&self) -> Self::Active {
         if self.bus_activation_state.event_input_active
             && self.bus_activation_state.audio_output_active
         {
-            Some(ActiveSynthProcessorCategory {
-                channel_layout: self.channel_layout,
-            })
+            ActiveSynthProcessor::AudioEnabled(self.channel_layout)
         } else {
-            None
+            ActiveSynthProcessor::AudioDisabled
         }
     }
 
@@ -414,25 +414,21 @@ impl Default for EffectProcessorCategory {
 }
 
 #[derive(Debug)]
-struct ActiveEffectProcessorCategory {
-    channel_layout: ChannelLayout,
+enum ActiveEffectProcessor {
+    AudioEnabled(ChannelLayout),
+    AudioDisabled,
 }
 
 impl ProcessorCategory for EffectProcessorCategory {
-    type Active = ActiveEffectProcessorCategory;
+    type Active = ActiveEffectProcessor;
 
-    fn activate(&self) -> Option<Self::Active> {
-        // TODO - we need to support a never-process state if bus is inactive!
-        //
-        // We can only be activated if all our buses are active.
+    fn activate(&self) -> Self::Active {
         if self.bus_activation_state.audio_input_active
             && self.bus_activation_state.audio_output_active
         {
-            Some(ActiveEffectProcessorCategory {
-                channel_layout: self.channel_layout,
-            })
+            ActiveEffectProcessor::AudioEnabled(self.channel_layout)
         } else {
-            None
+            ActiveEffectProcessor::AudioDisabled
         }
     }
 
@@ -630,7 +626,7 @@ impl<P: Effect> ProcessBuffer for EffectProcessBuffer<'_, P> {
     }
 }
 
-impl<P: Effect> ActiveProcessorCategory<P> for ActiveEffectProcessorCategory {
+impl<P: Effect> ActiveProcessor<P> for ActiveEffectProcessor {
     type ProcessBuffer<'a>
         = EffectProcessBuffer<'a, P>
     where
@@ -641,26 +637,29 @@ impl<P: Effect> ActiveProcessorCategory<P> for ActiveEffectProcessorCategory {
         processor: &'a mut P,
         data: *mut vst3::Steinberg::Vst::ProcessData,
     ) -> Option<Self::ProcessBuffer<'a>> {
-        unsafe {
-            if (*data).numOutputs != 1 {
-                return None;
-            }
-            if (*data).numInputs != 1 {
-                return None;
-            }
-            Some(EffectProcessBuffer {
-                processor,
-                input: UnsafeBufferFromRaw {
-                    ptr: (*(*data).inputs).__field0.channelBuffers32,
-                    channel_layout: self.channel_layout,
-                    num_frames: (*data).numSamples as usize,
-                },
-                output: UnsafeMutBufferFromRaw {
-                    ptr: (*(*data).outputs).__field0.channelBuffers32,
-                    channel_layout: self.channel_layout,
-                    num_frames: (*data).numSamples as usize,
-                },
-            })
+        match self {
+            ActiveEffectProcessor::AudioEnabled(channel_layout) => unsafe {
+                if (*data).numOutputs != 1 {
+                    return None;
+                }
+                if (*data).numInputs != 1 {
+                    return None;
+                }
+                Some(EffectProcessBuffer {
+                    processor,
+                    input: UnsafeBufferFromRaw {
+                        ptr: (*(*data).inputs).__field0.channelBuffers32,
+                        channel_layout: *channel_layout,
+                        num_frames: (*data).numSamples as usize,
+                    },
+                    output: UnsafeMutBufferFromRaw {
+                        ptr: (*(*data).outputs).__field0.channelBuffers32,
+                        channel_layout: *channel_layout,
+                        num_frames: (*data).numSamples as usize,
+                    },
+                })
+            },
+            ActiveEffectProcessor::AudioDisabled => None,
         }
     }
 
@@ -674,6 +673,13 @@ impl<P: Effect> ActiveProcessorCategory<P> for ActiveEffectProcessorCategory {
         p: Parameters,
     ) {
         processor.handle_parameters(p);
+    }
+
+    fn audio_enabled(&self) -> bool {
+        match self {
+            ActiveEffectProcessor::AudioEnabled(_) => true,
+            ActiveEffectProcessor::AudioDisabled => false,
+        }
     }
 }
 
@@ -1056,37 +1062,28 @@ impl<CF: ComponentFactory<Component: Component<Processor: ProcessorT>>, PC: Proc
                     },
                     true,
                 ) => {
-                    if let Some(category) = self.category.borrow().activate() {
-                        let mut processor = self
-                            .category
-                            .borrow()
-                            .create_processor(conformal_component, env);
-                        if processing {
-                            processor.set_processing(true);
-                        }
-                        self.process_context.replace(ProcessContext::Active(
-                            ActiveProcessContext {
-                                processing,
-                                params,
-                                processor,
-                                category,
-                                mpe_quirks: if support_mpe_quirks == Support::SupportQuirks {
-                                    Some(Default::default())
-                                } else {
-                                    None
-                                },
-                            },
-                        ));
-                        *process_context_active = true;
-                        vst3::Steinberg::kResultOk
-                    } else {
-                        self.process_context.replace(ProcessContext::Inactive {
+                    let active_processor = self.category.borrow().activate();
+                    let mut processor = self
+                        .category
+                        .borrow()
+                        .create_processor(conformal_component, env);
+                    if processing {
+                        processor.set_processing(true);
+                    }
+                    self.process_context
+                        .replace(ProcessContext::Active(ActiveProcessContext {
                             processing,
                             params,
-                            support_mpe_quirks,
-                        });
-                        vst3::Steinberg::kInvalidArgument
-                    }
+                            processor,
+                            active_processor,
+                            mpe_quirks: if support_mpe_quirks == Support::SupportQuirks {
+                                Some(Default::default())
+                            } else {
+                                None
+                            },
+                        }));
+                    *process_context_active = true;
+                    vst3::Steinberg::kResultOk
                 }
                 (ProcessContext::Uninitialized, _) => {
                     unreachable!(
@@ -1286,14 +1283,14 @@ impl<H: ProcessBuffer, I: Iterator<Item = conformal_component::events::Event> + 
 struct NoAudioProcessHelper<'a, P, C> {
     processor: &'a mut P,
     events_empty: bool,
-    category: &'a C,
+    active_processor: &'a C,
 }
 
 impl<
     'a,
     P: ProcessorT,
     Iter: Iterator<Item = conformal_component::events::Data> + Clone,
-    C: ActiveProcessorCategory<P>,
+    C: ActiveProcessor<P>,
 > InternalProcessHelper<NoAudioProcessHelper<'a, P, C>> for Iter
 {
     unsafe fn do_process(
@@ -1317,16 +1314,18 @@ impl<
                                 mpe_quirks.clone(),
                                 &param_states_clone,
                             );
-                            helper.category.handle_events(
+                            helper.active_processor.handle_events(
                                 helper.processor,
                                 events,
                                 param_states.clone(),
                             );
                             update_mpe_quirk_events_no_audio(self, mpe_quirks, &param_states);
                         } else {
-                            helper
-                                .category
-                                .handle_events(helper.processor, self, param_states);
+                            helper.active_processor.handle_events(
+                                helper.processor,
+                                self,
+                                param_states,
+                            );
                         }
                     }
                     return vst3::Steinberg::kResultOk;
@@ -1335,7 +1334,7 @@ impl<
             }
             if !helper.events_empty {
                 helper
-                    .category
+                    .active_processor
                     .handle_events(helper.processor, self, &*params);
             }
             vst3::Steinberg::kResultOk
@@ -1343,7 +1342,7 @@ impl<
     }
 }
 
-impl<P: Synth> ActiveProcessorCategory<P> for ActiveSynthProcessorCategory {
+impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
     type ProcessBuffer<'a>
         = SynthProcessBuffer<'a, P>
     where
@@ -1354,19 +1353,22 @@ impl<P: Synth> ActiveProcessorCategory<P> for ActiveSynthProcessorCategory {
         processor: &'a mut P,
         data: *mut vst3::Steinberg::Vst::ProcessData,
     ) -> Option<Self::ProcessBuffer<'a>> {
-        unsafe {
-            if (*data).numOutputs != 1 {
-                return None;
-            }
+        match self {
+            ActiveSynthProcessor::AudioEnabled(channel_layout) => unsafe {
+                if (*data).numOutputs != 1 {
+                    return None;
+                }
 
-            Some(SynthProcessBuffer {
-                synth: processor,
-                output: UnsafeMutBufferFromRaw {
-                    ptr: (*(*data).outputs).__field0.channelBuffers32,
-                    channel_layout: self.channel_layout,
-                    num_frames: (*data).numSamples as usize,
-                },
-            })
+                Some(SynthProcessBuffer {
+                    synth: processor,
+                    output: UnsafeMutBufferFromRaw {
+                        ptr: (*(*data).outputs).__field0.channelBuffers32,
+                        channel_layout: *channel_layout,
+                        num_frames: (*data).numSamples as usize,
+                    },
+                })
+            },
+            ActiveSynthProcessor::AudioDisabled => None,
         }
     }
 
@@ -1381,11 +1383,18 @@ impl<P: Synth> ActiveProcessorCategory<P> for ActiveSynthProcessorCategory {
     ) {
         processor.handle_events(e, p);
     }
+
+    fn audio_enabled(&self) -> bool {
+        match self {
+            ActiveSynthProcessor::AudioEnabled(_) => true,
+            ActiveSynthProcessor::AudioDisabled => false,
+        }
+    }
 }
 
 impl<
     CF: ComponentFactory<Component: Component<Processor: ProcessorT>>,
-    PC: ProcessorCategory<Active: ActiveProcessorCategory<<CF::Component as Component>::Processor>>,
+    PC: ProcessorCategory<Active: ActiveProcessor<<CF::Component as Component>::Processor>>,
 > IAudioProcessorTrait
     for Processor<<CF::Component as Component>::Processor, CF::Component, CF, PC, PC::Active>
 {
@@ -1511,7 +1520,7 @@ impl<
                 pd.params.sync_from_main_thread();
                 let num_frames = (*data).numSamples as usize;
 
-                if num_frames == 0 {
+                if num_frames == 0 || !pd.active_processor.audio_enabled() {
                     if let Some(input_events) = ComRef::from_raw((*data).inputEvents) {
                         if let Some(event_iter) = events::all_zero_event_iterator(
                             input_events,
@@ -1524,7 +1533,7 @@ impl<
                             let helper = NoAudioProcessHelper {
                                 processor: &mut pd.processor,
                                 events_empty: event_iter.clone().next().is_none(),
-                                category: &pd.category,
+                                active_processor: &pd.active_processor,
                             };
                             return event_iter.do_process(
                                 helper,
@@ -1538,7 +1547,7 @@ impl<
                         let helper = NoAudioProcessHelper {
                             processor: &mut pd.processor,
                             events_empty: true,
-                            category: &pd.category,
+                            active_processor: &pd.active_processor,
                         };
                         return std::iter::empty().do_process(
                             helper,
@@ -1557,8 +1566,9 @@ impl<
                     return vst3::Steinberg::kInvalidArgument;
                 }
 
-                if let Some(process_buffer) =
-                    pd.category.make_process_buffer(&mut pd.processor, data)
+                if let Some(process_buffer) = pd
+                    .active_processor
+                    .make_process_buffer(&mut pd.processor, data)
                 {
                     if let Some(input_events) = ComRef::from_raw((*data).inputEvents) {
                         if let Some(events) = Events::new(
@@ -1625,7 +1635,7 @@ impl<CF: ComponentFactory<Component: Component<Processor: ProcessorT>>, PC: Proc
 
 impl<
     CF: ComponentFactory<Component: Component>,
-    PC: ProcessorCategory<Active: ActiveProcessorCategory<<CF::Component as Component>::Processor>>,
+    PC: ProcessorCategory<Active: ActiveProcessor<<CF::Component as Component>::Processor>>,
 > Class for Processor<<CF::Component as Component>::Processor, CF::Component, CF, PC, PC::Active>
 {
     type Interfaces = (
@@ -2491,7 +2501,7 @@ mod tests {
     }
 
     #[test]
-    fn defends_against_activating_without_activating_busses() {
+    fn allows_activating_without_activating_busses() {
         let proc = dummy_synth();
 
         let host = ComWrapper::new(dummy_host::Host::default())
@@ -2513,12 +2523,12 @@ mod tests {
                 vst3::Steinberg::kResultOk
             );
 
-            assert_ne!(proc.setActive(1u8), vst3::Steinberg::kResultOk);
+            assert_eq!(proc.setActive(1u8), vst3::Steinberg::kResultOk);
         }
     }
 
     #[test]
-    fn defends_agsinst_effect_activating_without_activating_busses() {
+    fn allows_effect_activating_without_activating_busses() {
         let proc = dummy_effect();
         let host = ComWrapper::new(dummy_host::Host::default())
             .to_com_ptr::<IHostApplication>()
@@ -2539,7 +2549,7 @@ mod tests {
                 vst3::Steinberg::kResultOk
             );
 
-            assert_ne!(proc.setActive(1u8), vst3::Steinberg::kResultOk);
+            assert_eq!(proc.setActive(1u8), vst3::Steinberg::kResultOk);
         }
     }
 
@@ -3431,6 +3441,62 @@ mod tests {
             assert!(audio3.is_some());
             assert_eq!(audio3.as_ref().unwrap()[0][0], 1.0);
             assert_eq!(audio3.as_ref().unwrap()[1][100], 0.0);
+        }
+    }
+
+    #[test]
+    fn can_handle_events_when_activated_without_audio() {
+        let proc = dummy_synth();
+        let host = ComWrapper::new(dummy_host::Host::default());
+
+        unsafe {
+            let host_ref = host.as_com_ref::<IHostApplication>().unwrap();
+            assert_eq!(
+                proc.initialize(host_ref.cast().unwrap().as_ptr()),
+                vst3::Steinberg::kResultOk
+            );
+            assert_eq!(
+                proc.setupProcessing(&mut process_setup(&DEFAULT_ENV)),
+                vst3::Steinberg::kResultOk
+            );
+            let mut out_arrangement = vst3::Steinberg::Vst::SpeakerArr::kStereo;
+            assert_eq!(
+                proc.setBusArrangements(std::ptr::null_mut(), 0, &mut out_arrangement, 1),
+                vst3::Steinberg::kResultOk
+            );
+            assert_eq!(proc.setActive(1u8), vst3::Steinberg::kResultOk);
+            assert_eq!(proc.setProcessing(1u8), vst3::Steinberg::kResultOk);
+
+            let audio = mock_process(
+                2,
+                vec![
+                    Event {
+                        sample_offset: 0,
+                        data: Data::NoteOn {
+                            data: NoteData {
+                                id: NoteID::from_id(0),
+                                pitch: 64,
+                                velocity: 0.5,
+                                tuning: 0f32,
+                            },
+                        },
+                    },
+                    Event {
+                        sample_offset: 0,
+                        data: Data::NoteOn {
+                            data: NoteData {
+                                id: NoteID::from_id(1),
+                                pitch: 64,
+                                velocity: 0.5,
+                                tuning: 0f32,
+                            },
+                        },
+                    },
+                ],
+                vec![],
+                &proc,
+            );
+            assert!(audio.is_some());
         }
     }
 
