@@ -2,9 +2,9 @@ import { $ } from "bun";
 import { appendFile } from "node:fs/promises";
 import { Command } from "@commander-js/extra-typings";
 
-const RUST_VERSION = "1.85.0";
+const RUST_VERSION = "1.90.0";
 const CARGO_ABOUT_VERSION = "0.6.6";
-const VST3_VERSION = "v3.7.8_build_34";
+const VST3_VERSION = "v3.7.14_build_55";
 
 type Tool = {
   name: string;

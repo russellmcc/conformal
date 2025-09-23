@@ -187,10 +187,10 @@ fn check_events_invariants<I: Iterator<Item = Event>>(iter: I, buffer_size: usiz
         if event.sample_offset >= buffer_size {
             return false;
         }
-        if let Some(last) = last {
-            if event.sample_offset < last {
-                return false;
-            }
+        if let Some(last) = last
+            && event.sample_offset < last
+        {
+            return false;
         }
         last = Some(event.sample_offset);
     }

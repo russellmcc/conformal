@@ -31,7 +31,7 @@ unsafe fn get_event(
                 },
             },
         };
-        let result = event_list.getEvent(index, &mut event);
+        let result = event_list.getEvent(index, &raw mut event);
         if result != vst3::Steinberg::kResultOk {
             return None;
         }

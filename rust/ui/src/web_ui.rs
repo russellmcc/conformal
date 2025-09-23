@@ -54,10 +54,10 @@ impl server::ResponseSender for ResponseSender {
     }
 
     fn on_pref_update(&mut self, unique_id: &str, value: &conformal_preferences::Value) {
-        if unique_id == USE_WEB_DEV_SERVER_KEY {
-            if let Some(web_view) = self.web_view.borrow().upgrade() {
-                let _ = web_view.load_url(&app_url(value));
-            }
+        if unique_id == USE_WEB_DEV_SERVER_KEY
+            && let Some(web_view) = self.web_view.borrow().upgrade()
+        {
+            let _ = web_view.load_url(&app_url(value));
         }
     }
 }

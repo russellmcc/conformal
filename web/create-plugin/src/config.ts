@@ -46,6 +46,7 @@ export const toEnv = async (
     edit_class_id: uuidHex(),
     gitignore: ".gitignore",
     task_marker: "TOD" + "O",
+    test_marker: "test",
   };
 };
 

@@ -39,10 +39,10 @@ impl super::OSStore for Store {
                         return;
                     }
 
-                    if let Ok(s) = CStr::from_ptr(objc::msg_send!(value, UTF8String)).to_str() {
-                        if let Ok(v) = serde_json::from_str(s) {
-                            ret = Some(v);
-                        }
+                    if let Ok(s) = CStr::from_ptr(objc::msg_send!(value, UTF8String)).to_str()
+                        && let Ok(v) = serde_json::from_str(s)
+                    {
+                        ret = Some(v);
                     }
                 },
                 self.domain.as_str(),

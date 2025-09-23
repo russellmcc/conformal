@@ -651,7 +651,9 @@ fn raw_iterator_from_queue(
         (0..point_count).filter_map(move |idx| {
             let mut value = 0.0;
             let mut sample_offset = 0;
-            if queue.getPoint(idx, &mut sample_offset, &mut value) == vst3::Steinberg::kResultOk {
+            if queue.getPoint(idx, &raw mut sample_offset, &raw mut value)
+                == vst3::Steinberg::kResultOk
+            {
                 Some(RawQueuePoint {
                     sample_offset,
                     value,
