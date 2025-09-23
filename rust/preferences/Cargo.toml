@@ -1,6 +1,6 @@
 [package]
 name = "conformal_preferences"
-version = "0.3.5"
+version = "0.3.6"
 edition.workspace = true
 license = "ISC"
 description = "Utilities for persistent user preferences used by the conformal audio plug-in framework."
