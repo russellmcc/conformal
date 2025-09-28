@@ -6,4 +6,6 @@ export default {
     "3: Quick Derivation of BLIT, BLEP, BLAMP polynomials",
   "4-roland-single-transistor-vca":
     "4: Analysis of Roland single-transistor VCA",
+  "5-adaa-for-ring-mod":
+    "5: Continuous-time Convolution Anti-aliasing for Ring Modulation",
 };
