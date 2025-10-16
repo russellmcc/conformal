@@ -1,5 +1,8 @@
 import { Callout } from "nextra/components";
-import Image from "next/image";
+import Image from "../../../src/OptimizedImage";
+import ableton_img from "../../../src/images/first-plug-in-imgs/00-ableton.png";
+import stubUi_img from "../../../src/images/first-plug-in-imgs/01-stub-ui.png";
+import animation_img from "../../../src/images/first-plug-in-imgs/02-animation.gif";
 
 # Building your first plug-in with Conformal
 
@@ -106,7 +109,7 @@ bun run package
 
 Now, the plug-in should be accessible from your VST3-compatible DAW! For example, it should show up like this in Ableton:
 
-![Ableton Live plug-in list](/first-plug-in-imgs/00-ableton.png)
+<Image src={ableton_img} alt="Ableton Live plug-in list" />
 
 Right now, the plug-in will be a simple volume control, with a pretty awkward UI. But, it's a plug-in, and you built it! Congratulations! 🎊 Feel free to take some time to celebrate 🥳.
 
@@ -467,12 +470,7 @@ export default Layout;
 
 Running `bun run package` and re-launching our DAW should show something like this:
 
-<Image
-  src="/conformal/first-plug-in-imgs/01-stub-ui.png"
-  alt="Stub UI"
-  width="320"
-  height="320"
-/>
+<Image src={stubUi_img} alt="Stub UI" />
 
 We can now start building the UI by making changes to `Layout.tsx` and then remembering to call `bun run package` and re-launching our DAW to see the changes. However, there's a _much_ faster way to work on UIs, the Dev Server! To start the dev server, run:
 
@@ -704,12 +702,7 @@ Here you can tune the speed by eye, but dividing the actual LFO rate by 10 is a 
 
 The UI should now be looking something like this:
 
-<Image
-  src="/conformal/first-plug-in-imgs/02-animation.gif"
-  alt="Stub UI"
-  width="320"
-  height="320"
-/>
+<Image src={animation_img} alt="Animation" />
 
 And the speed of the animation is controlled by the current rate of the plug-in! Not too shabby! 🎨
 

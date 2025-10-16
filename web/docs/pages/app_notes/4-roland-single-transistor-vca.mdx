@@ -1,3 +1,13 @@
+import Image from "../../src/OptimizedImage";
+import circuit_img from "../../src/images/app-notes/4/circuit.png";
+import simplified_img from "../../src/images/app-notes/4/simplified.png";
+import spice_circuit_img from "../../src/images/app-notes/4/spice-circuit.png";
+import spice_vbc_vs_vin_img from "../../src/images/app-notes/4/spice_vbc_vs_vin.png";
+import spice_ie_vs_vin_img from "../../src/images/app-notes/4/spice_ie_vs_vin.png";
+import spice_vbc_vs_vcontrol_img from "../../src/images/app-notes/4/spice_vbc_vs_vcontrol.png";
+import spice_vca_img from "../../src/images/app-notes/4/spice_vca.png";
+import spice_ie_vs_vcontrol_img from "../../src/images/app-notes/4/spice_ie_vs_vcontrol.png";
+
 # App Note 4: Analysis of Roland single-transistor VCA
 
 This is an analysis of a single-transistor VCA design found in a few roland products such as the TR-909 (e.g., for the snare drum volume control), and the JX-8P (for the oscillator mixing section). Similar designs were used by Korg in the MS20 and the Poly-61. I'm not sure who implemented this design first, I'd be very interested to hear from anyone who knows more about the history of this design.
@@ -10,7 +20,7 @@ This design is interesting in that it uses a transistor in saturation mode, whic
 
 Let's look at a simplified diagram of the circuit (component values here taken from JX-8P):
 
-![Single-transistor VCA circuit](/app-notes/4/circuit.png)
+<Image src={circuit_img} alt="Single-transistor VCA circuit" />
 
 In this design, $V_{\text{control}}$ varies from $0.6V$ to $5V$, and $V_{\text{in}}$ varies from $0V$ to $28mV$.
 
@@ -20,7 +30,7 @@ Assuming an ideal op-amp, we note that the voltage at the non-inverting input of
 
 Thus, to understand the behavior of the circuit, we can analyze a simpler circuit
 
-![Single-transistor VCA circuit](/app-notes/4/simplified.png)
+<Image src={simplified_img} alt="Single-transistor VCA circuit" />
 
 The "output" of this simplified circuit is the emitter current.
 
@@ -112,27 +122,27 @@ Here we verify the behavior of the circuit with an LTSpice simulation. ([downloa
 
 The circuit we're simulating is the simplified circuit above.
 
-![Spice circuit](/app-notes/4/spice-circuit.png)
+<Image src={spice_circuit_img} alt="Spice circuit" />
 
 We can use this simulation to verify a few key points of the analysis above. First, we fix $V_{\text{control}}$ at $2.5V$ and sweep $V_{\text{in}}$ from $0V$ to $26mV$. We can see that $V_{BC}$ only varies from $557.9mV$ to $557mV$, so indeed it's a good approximation to treat $V_{BC}$ as independent of $V_{\text{in}}$.
 
-![Vbc vs Vin](/app-notes/4/spice_vbc_vs_vin.png)
+<Image src={spice_vbc_vs_vin_img} alt="Vbc vs Vin" />
 
 Now, let's check the dependence of $I_E$ on $V_{\text{in}}$. We keep $V_{\text{control}}$ at $2.5V$ and sweep $V_{\text{in}}$ from $0V$ to $26mV$. We see that $I_E$ indeed looks like a small slice of an exponential function (and approximately linear), a great match to the by-hand analysis above.
 
-![Ie vs Vin](/app-notes/4/spice_ie_vs_vin.png)
+<Image src={spice_ie_vs_vin_img} alt="Ie vs Vin" />
 
 We can also check the dependence of $V_{BC}$ on $V_{\text{control}}$. To do this, we keep $V_{\text{in}}$ at $13mV$ and sweep $V_{\text{control}}$ from $0.6V$ to $5V$. We see that $V_{BC}$ indeed looks something like a logarithmic function of $V_{\text{control}}$.
 
-![Vbc vs Control](/app-notes/4/spice_vbc_vs_vcontrol.png)
+<Image src={spice_vbc_vs_vcontrol_img} alt="Vbc vs Control" />
 
 Let's check the dependence of $I_E$ on $V_{\text{control}}$. We again keep $V_{\text{in}}$ at $13mV$ and sweep $V_{\text{control}}$ from $0.6V$ to $5V$. Here we have what appears to be a linear dependence between $I_E$ and $V_{\text{control}}$, as predicted above.
 
-![Ie vs Control](/app-notes/4/spice_ie_vs_vcontrol.png)
+<Image src={spice_ie_vs_vcontrol_img} alt="Ie vs Control" />
 
 Finally, let's do a full simulation of the VCA action of circuit. We apply a sine wave with peaks at $0mV$ and $26mV$ at a frequency of 100hz to $V_{\text{in}}$ and sweep from $0.6V$ to $5V$ and back to $0.6V$ to $V_{\text{control}}$. We see that the output matches the predicted behavior of a multiplication of the two signals.
 
-![Vca](/app-notes/4/spice_vca.png)
+<Image src={spice_vca_img} alt="Vca" />
 
 ## Downsides of this design
 

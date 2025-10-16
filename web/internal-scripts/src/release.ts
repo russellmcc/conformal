@@ -11,7 +11,13 @@ export const release = async ({ skipPublish }: { skipPublish?: boolean }) => {
   }
 
   // Publish cargo packages
-  await $`cargo publish --workspace`;
+  try {
+    // Note this could fail since having no changes is considered a failure
+    await $`cargo publish --workspace --keep-going`;
+  } catch (error) {
+    console.error(error);
+    // Continue to publish TS packages even if rust fails
+  }
 
   await cleanWorkspaceProtocols();
 

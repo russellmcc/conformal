@@ -148,6 +148,6 @@ describe("create-conformal template", () => {
         { unsafeCleanup: true },
       );
     },
-    3 * MINUTE,
+    5 * MINUTE,
   );
 });

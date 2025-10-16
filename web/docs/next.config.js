@@ -25,7 +25,4 @@ export default withNextra({
 
   trailingSlash: true,
   basePath: "/conformal",
-  images: {
-    unoptimized: true,
-  },
 });

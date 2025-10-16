@@ -2,6 +2,9 @@ import StickBrigade from "../../src/app_notes/2/StickBrigade";
 import ControlsStore from "../../src/app_notes/2/ControlsStore";
 import NumBucketControl from "../../src/app_notes/2/NumBucketControl";
 import ClockRateControl from "../../src/app_notes/2/ClockRateControl";
+import Image from "../../src/OptimizedImage";
+import smoothing_img from "../../src/images/app-notes/2/smoothing.png";
+import smoothing2_img from "../../src/images/app-notes/2/smoothing2.png";
 
 # App Note 2: Modeling LFOs for BBD Chorus
 
@@ -54,7 +57,7 @@ $$
 
 We can see this has the effect of _smoothing_ the clock rate modulation. Let's plot this:
 
-![Effect of smoothing delay time](/app-notes/2/smoothing.png)
+<Image src={smoothing_img} alt="Effect of smoothing delay time" />
 
 As we can see, rather than a sharp corner, we have a smoothed corner in the plot, which removes harsh discontinuities in the output. To hear this effect, let's listen to a vibrato effect applied to a simple tone with and without this smoothing.
 
@@ -78,7 +81,7 @@ $$
 
 We can get a pretty good fit by setting $\alpha = 1 - e^{-\frac{2}{t_{\text{avg}}}}$, where $t_{\text{avg}}$ is the average delay time expressed in samples:
 
-![recursive smoothing time](/app-notes/2/smoothing2.png)
+<Image src={smoothing2_img} alt="recursive smoothing time" />
 
 ## Conclusion and example
 
