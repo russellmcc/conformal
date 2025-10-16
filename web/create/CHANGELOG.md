@@ -1,5 +1,11 @@
 # create-conformal
 
+## 0.6.1
+
+### Patch Changes
+
+- 0ec3cc7: improve publish script
+
 ## 0.6.0
 
 ### Minor Changes
