@@ -1,5 +1,11 @@
 # create-conformal
 
+## 0.6.0
+
+### Minor Changes
+
+- b695473: use hoisted linker to support bun 1.3.0
+
 ## 0.5.0
 
 ### Minor Changes
