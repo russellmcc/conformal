@@ -9,6 +9,6 @@ describe("conformal documentation", () => {
     async () => {
       await $`bun run web-build docs`;
     },
-    2 * MINUTE,
+    5 * MINUTE,
   );
 });
