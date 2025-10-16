@@ -1,3 +1,19 @@
+import Image from "../../src/OptimizedImage";
+import clipper_img from "../../src/images/app-notes/5/clipper.png";
+import x_img from "../../src/images/app-notes/5/x.png";
+import naive_y_img from "../../src/images/app-notes/5/naive_y.png";
+import lin_kernel_img from "../../src/images/app-notes/5/lin_kernel.png";
+import u_img from "../../src/images/app-notes/5/u.png";
+import v_img from "../../src/images/app-notes/5/v.png";
+import box_kernel_img from "../../src/images/app-notes/5/box_kernel.png";
+import y_img from "../../src/images/app-notes/5/y.png";
+import clipper_antiderivative_img from "../../src/images/app-notes/5/clipper_antiderivative.png";
+import y_calc_img from "../../src/images/app-notes/5/y_calc.png";
+import u_ring_img from "../../src/images/app-notes/5/u_ring.png";
+import v_ring_img from "../../src/images/app-notes/5/v_ring.png";
+import y_ring_img from "../../src/images/app-notes/5/y_ring.png";
+import spectrum_comparison_img from "../../src/images/app-notes/5/spectrum_comparison.png";
+
 # App Note 5: Continuous-time Convolution Anti-aliasing for Ring Modulation
 
 Continuous-time convolution anti-aliasing, sometimes known as antiderivative anti-aliasing (ADAA), is a technique for anti-aliasing digital audio effects. It was first introduced as a method for anti-aliasing static nonlinear waveshapers in a 2016 paper by Julian Parker, Vadim Zavalishin and Efflam Le Bivic [[1](#references1)]. Since then, the technique has been extended to a number of other applications in digital audio, including stateful systems [[2](#references2)] and even recurrent neural networks [[3](#references3)].
@@ -30,7 +46,7 @@ First, we define our continuous-time effect. Since this is a static waveshaper, 
 
 In plots, we'll use a simple clipper function as our $f$, but we'll keep the math generic throughout.
 
-![clipper](/app-notes/5/clipper.png)
+<Image src={clipper_img} alt="clipper" />
 
 ### Naive discrete-time effect
 
@@ -42,7 +58,7 @@ $$
 
 Where $\delta(t)$ is the Dirac delta centered around $0$ (normalized such that $\int_{-\infty}^{\infty}\! d\tau\, \delta(\tau) = 1$). Note that we'll use the convention that samples occur at integers, that is, the sampling period is $1$. This will make the expressions below a bit more concise. We can think of this as a unit convention, where we consider the units of continuous-time to be sampling periods.
 
-![x(t)](/app-notes/5/x.png)
+<Image src={x_img} alt="x(t)" />
 
 Then we apply the continuous-time effect:
 
@@ -50,7 +66,7 @@ $$
 y(t) = f(x(t))
 $$
 
-![y(t)](/app-notes/5/naive_y.png)
+<Image src={naive_y_img} alt="y(t)" />
 
 Finally, we sample the result at $t = n$ to get our discrete-time output signal:
 
@@ -91,7 +107,7 @@ t + 1 & \text{if } t \in \left[-1, 0\right) \\
 \end{cases}
 ```
 
-![h_i(t)](/app-notes/5/lin_kernel.png)
+<Image src={lin_kernel_img} alt="h_i(t)" />
 
 To apply this filter, we convolve the naive input signal $x(t)$ with $h_i(t)$.
 
@@ -117,7 +133,7 @@ $$
 u(t) = \sum_{n=-\infty}^{\infty} x[n] h_i(t - n)
 $$
 
-![u(t)](/app-notes/5/u.png)
+<Image src={u_img} alt="u(t)" />
 
 We note that this is simply a linear interpolation, so for $t \in [(n - 1), n]$,
 
@@ -135,7 +151,7 @@ $$
 
 assuming $t \in [(n-1), n]$.
 
-![v(t)](/app-notes/5/v.png)
+<Image src={v_img} alt="v(t)" />
 
 ### Sampling filter
 
@@ -148,7 +164,7 @@ h_s(t) = \begin{cases}
 \end{cases}
 ```
 
-![h_s(t)](/app-notes/5/box_kernel.png)
+<Image src={box_kernel_img} alt="h_s(t)" />
 
 To compute this analytically, we first use the definition of convolution:
 
@@ -162,7 +178,7 @@ $$
 y(t) = \int_{0}^{1}\! d\tau\, v(t - \tau)
 $$
 
-![y(t)](/app-notes/5/y.png)
+<Image src={y_img} alt="y(t)" />
 
 While it won't be important in this note, it's interesting to notice that shifting the filter to be centered at $\frac{1}{2}$ introduces a _system delay_ - that is, $y(t)$ is slightly shifted compared to $v(t)$. This effect is clearly visible in the plot above.
 
@@ -196,7 +212,7 @@ F(x) = \begin{cases}
 \end{cases}
 ```
 
-![F(x)](/app-notes/5/clipper_antiderivative.png)
+<Image src={clipper_antiderivative_img} alt="F(x)" />
 
 Using the chain rule for derivatives, we see that the derivative of $\frac{F((x[n-1] - x[n])\tau + x[n])}{x[n-1] - x[n]}$ with respect to $\tau$ is $f\left((x[n-1] - x[n])\tau + x[n]\right)$. Thus by the fundamental theorem of calculus,
 
@@ -212,7 +228,7 @@ $$
 
 We've successfully collapsed our continuous system, with an interpolation filter, effect, and sampling filter, into a relatively simple discrete-time system. This indeed does achieve some level of anti-aliasing, as explored in [[1](#references1), [4](#references4)]. We now also can see why this technique is sometimes called "antiderivative anti-aliasing" - when we use a zero-order hold filter on a static nonlinear waveshaper, the antiderivative of the waveshaping function shows up in the anti-aliased expression.
 
-![yn](/app-notes/5/y_calc.png)
+<Image src={y_calc_img} alt="yn" />
 
 It's worth noting that this expression becomes ill-defined when $x[n] = x[n-1]$. However, in this case our expression above for $y[n]$ simplifies to $f(x[n])$.
 
@@ -247,7 +263,7 @@ $$
 
 As a running example in plots, we'll apply the effect to a sine wave and a band-limited sawtooth wave.
 
-![u1](/app-notes/5/u_ring.png)
+<Image src={u_ring_img} alt="u1" />
 
 ### Continuous-time effect
 
@@ -257,7 +273,7 @@ $$
 v(t) = u_1(t) u_2(t)
 $$
 
-![v](/app-notes/5/v_ring.png)
+<Image src={v_ring_img} alt="v" />
 
 expanding with the assumption $t \in [(n-1), n]$,
 
@@ -286,7 +302,7 @@ $$
 y(t) = (h_s * v)(t)
 $$
 
-![y](/app-notes/5/y_ring.png)
+<Image src={y_ring_img} alt="y" />
 
 The convolution and sampling go through very similarly to the example above,
 
@@ -337,7 +353,7 @@ While a full analysis of the effectiveness of this anti-aliasing scheme is out o
 - $y_{\text{naive}}$ - the naive discrete-time implementation
 - $y_{\text{antialias}}$ - the continuous-time convolution anti-aliasing implementation
 
-![comparison](/app-notes/5/spectrum_comparison.png)
+<Image src={spectrum_comparison_img} alt="comparison" />
 
 For this choice of input signals, there is a single clear aliased harmonic (which doesn't exist in $y_{\text{ideal}}$). We see that indeed, $y_{\text{antialias}}$ suppresses this aliased harmonic, while largely preserving the other desired harmonics. Some desired high‑frequency harmonics are attenuated by the non‑ideal interpolation and sampling filters.
 

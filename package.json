@@ -26,6 +26,7 @@
     "eslint-plugin-react-refresh": "^0.4.14",
     "mime": "^4.0.4",
     "next": "^15.1.7",
+    "next-image-export-optimizer": "^1.19.0",
     "nextra": "^3.2.0",
     "nextra-theme-docs": "^3.2.0",
     "prettier": "^3.3.3",
