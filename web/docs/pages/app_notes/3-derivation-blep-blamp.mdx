@@ -1,3 +1,17 @@
+import Image from "../../src/OptimizedImage";
+import polyblit0_img from "../../src/images/app-notes/3/polyblit-0.png";
+import polyblit1_img from "../../src/images/app-notes/3/polyblit-1.png";
+import polyblep0_img from "../../src/images/app-notes/3/polyblep-0.png";
+import polyblep1_img from "../../src/images/app-notes/3/polyblep-1.png";
+import polyblep1res_img from "../../src/images/app-notes/3/polyblep-1-residual.png";
+import polyblep2_img from "../../src/images/app-notes/3/polyblep-2.png";
+import polyblep2res_img from "../../src/images/app-notes/3/polyblep-2-residual.png";
+import polyblamp1_img from "../../src/images/app-notes/3/polyblamp-1.png";
+import polyblamp2_img from "../../src/images/app-notes/3/polyblamp-2.png";
+import polyblamp2res_img from "../../src/images/app-notes/3/polyblamp-2-residual.png";
+import polyblamp3_img from "../../src/images/app-notes/3/polyblamp-3.png";
+import polyblamp3res_img from "../../src/images/app-notes/3/polyblamp-3-residual.png";
+
 # App Note 3: Quick Derivation of BLIT, BLEP, BLAMP polynomials
 
 This is a lightning-round, no-frills derivation of polynomial BLIT, BLEP, and BLAMP functions. I hope to expand this into a more didactic treatment in the future, but for now this will probably be most useful as a reference for those who have some experience with these functions.
@@ -26,7 +40,7 @@ The simplest one is order 0, which has support 1.
 \end{cases}
 ```
 
-![0-order polyBLIT](/app-notes/3/polyblit-0.png)
+<Image src={polyblit0_img} alt="0-order polyBLIT" />
 
 ### 1st order polyBLIT
 
@@ -40,7 +54,7 @@ Order 1 is just a linear interpolation kernel, with support 2.
 \end{cases}
 ```
 
-![1-order polyBLIT](/app-notes/3/polyblit-1.png)
+<Image src={polyblit1_img} alt="1-order polyBLIT" />
 
 Order 2 and above are not treated here, but it's a quadratic lagrange polynomial. More information is available on [Wikipedia](https://en.wikipedia.org/wiki/Lagrange_polynomial).
 
@@ -63,7 +77,7 @@ Note that a polyBLEP of order 0 is simply the 0-order step function, and has no 
 \end{cases}
 ```
 
-![0-order polyBLEP](/app-notes/3/polyblep-0.png)
+<Image src={polyblep0_img} alt="0-order polyBLEP" />
 
 ### 1st order polyBLEP
 
@@ -77,7 +91,7 @@ To derive the 1-order polyBLEP, we need to integrate the 0-order polyBLIT, which
 \end{cases}
 ```
 
-![1-order polyBLEP](/app-notes/3/polyblep-1.png)
+<Image src={polyblep1_img} alt="1-order polyBLEP" />
 
 Now, we can calculate the residual by subtracting out the 0-order step function:
 
@@ -90,7 +104,7 @@ Now, we can calculate the residual by subtracting out the 0-order step function:
 \end{cases}
 ```
 
-![1-order polyBLEP residual](/app-notes/3/polyblep-1-residual.png)
+<Image src={polyblep1res_img} alt="1-order polyBLEP residual" />
 
 ### 2nd order polyBLEP
 
@@ -105,7 +119,7 @@ t^2 + 2t & \text{if } t \in \left[-1, 0\right) \\
 \end{cases}
 ```
 
-![2-order polyBLEP](/app-notes/3/polyblep-2.png)
+<Image src={polyblep2_img} alt="2-order polyBLEP" />
 
 Now, we can calculate the residual by subtracting out the 0-order step function:
 
@@ -129,7 +143,7 @@ simplifying:
 \end{cases}
 ```
 
-![2-order polyBLEP residual](/app-notes/3/polyblep-2-residual.png)
+<Image src={polyblep2res_img} alt="2-order polyBLEP residual" />
 
 ## BLAMP
 
@@ -150,7 +164,7 @@ t & \text{otherwise}
 \end{cases}
 ```
 
-![1-order polyBLAMP](/app-notes/3/polyblamp-1.png)
+<Image src={polyblamp1_img} alt="1-order polyBLAMP" />
 
 ### 2nd order BLAMP
 
@@ -164,7 +178,7 @@ t & \text{otherwise}
 \end{cases}
 ```
 
-![2-order polyBLAMP](/app-notes/3/polyblamp-2.png)
+<Image src={polyblamp2_img} alt="2-order polyBLAMP" />
 
 Now, we can calculate the residual by subtracting out the 1st order ramp function:
 
@@ -188,7 +202,7 @@ simplifying:
 \end{cases}
 ```
 
-![2-order polyBLAMP residual](/app-notes/3/polyblamp-2-residual.png)
+<Image src={polyblamp2res_img} alt="2-order polyBLAMP residual" />
 
 ### 3rd order BLAMP
 
@@ -203,7 +217,7 @@ t & \text{otherwise}
 \end{cases}
 ```
 
-![3-order polyBLAMP](/app-notes/3/polyblamp-3.png)
+<Image src={polyblamp3_img} alt="3-order polyBLAMP" />
 
 Again, we can calculate the residual by subtracting out the 1st order ramp function:
 
@@ -216,7 +230,7 @@ Again, we can calculate the residual by subtracting out the 1st order ramp funct
 \end{cases}
 ```
 
-![3-order polyBLAMP residual](/app-notes/3/polyblamp-3-residual.png)
+<Image src={polyblamp3res_img} alt="3-order polyBLAMP residual" />
 
 Higher order BLAMPs are not treated here, but their derivation follows the exact same pattern of integrating a polyBLEP, which in turn was derived by integrating a polyBLIT.
 

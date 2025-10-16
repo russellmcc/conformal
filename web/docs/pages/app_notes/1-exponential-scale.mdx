@@ -1,3 +1,8 @@
+import Image from "../../src/OptimizedImage";
+import changingc_img from "../../src/images/app-notes/1/changingc.gif";
+import fixedp_img from "../../src/images/app-notes/1/fixedp.gif";
+import varp_img from "../../src/images/app-notes/1/varp.gif";
+
 # App Note 1: Parameterized Exponential Scaling Functions
 
 When providing _continuous_ controls to users in the form of knobs or sliders, it's often useful to _scale_ these parameters non-linearly so that moving the control changes the parameter in a way that "feels" natural. Clearly, this is more art than science, but there's still mathematics involved! This brief application note defines one type of non-linear mapping that's often useful as a control scaling.
@@ -42,7 +47,7 @@ We can see that for positive $c$, this is clearly monotonic and it has an invers
 
 How should we pick $c$? Well, like everything else in the business of choosing scaling functions, it's a matter of taste! As we lower $c$, we'll get closer and closer to the identity mapping, and as we raise $c$, we'll get curvier and curvier, eventually staying near 0 until the very end of the range.
 
-![plot with changing c](/app-notes/1/changingc.gif)
+<Image src={changingc_img} alt="plot with changing c" />
 
 One way we might want to choose $c$ is if we have specific points we want to map, i.e., $p, q \in (0, 1)$ such that $f(p) = q$. Clearly we must have $p > q$ due to the shape of possible exponential maps. This gives us an equation we can solve to select $c$, $q = \frac{(c + 1)^p - 1}{c}$, which we can simplify to $qc + 1 = (c + 1)^p$. For reasons that will be convenient later, we can rewrite this to $(qc + 1)^{\frac{1}{p}} = c + 1$, or
 
@@ -62,7 +67,7 @@ $$c = \frac{1 - 2q}{q^2}$$
 
 Let's plot this!
 
-![plot with changing q](/app-notes/1/fixedp.gif)
+<Image src={fixedp_img} alt="plot with changing q" />
 
 ### Varying $p$
 
@@ -78,7 +83,7 @@ A super-simple way to implement newton's method is by calculating the derivative
 
 Using Newton-Raphson, we can indeed define $c$ to match arbitrary $p$ and $q$!
 
-![plot with changing p and q](/app-notes/1/varp.gif)
+<Image src={varp_img} alt="plot with changing p and q" />
 
 ## Appendix
 
