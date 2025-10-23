@@ -24,9 +24,9 @@ In Conformal, you as the plug-in author have to write two main pieces of code:
 
 ## Wrappers
 
-Once you have these two pieces of code, you can use a wrapper to turn them into a standard plug-in format. Currently, Conformal supports VST3 synth and effect plug-ins on macOS, but we hope to support more platforms, plug-in types and plug-in formats in the future.
+Once you have these two pieces of code, you can use a wrapper to turn them into a standard plug-in format. Currently, Conformal supports VST synth and effect plug-ins on macOS, but we hope to support more platforms, plug-in types and plug-in formats in the future.
 
-Note that the VST3 wrapper is already set up in the template project created by `bun create conformal`, so you can start building your plug-in right away. However, here's how you'd do it from scratch
+Note that the VST wrapper is already set up in the template project created by `bun create conformal`, so you can start building your plug-in right away. However, here's how you'd do it from scratch
 
 <Steps>
 
@@ -36,7 +36,7 @@ This should be a new crate of the `cdylib` type. This should use the [`wrap_fact
 
 ### Make a `bundle.json` file in your UI package
 
-This defines some additional metadata conformal needs to know about your plug-in, and also defines which crate implements the VST3.
+This defines some additional metadata conformal needs to know about your plug-in, and also defines which crate implements the VST.
 
 </Steps>
 
