@@ -176,7 +176,7 @@ const vst3Validator = (): Tool => ({
     }
     const buildPath = `${sdk}/build`;
     await $`mkdir -p ${buildPath}`.quiet();
-    await $`cmake ..`.cwd(buildPath);
+    await $`cmake .. -DSMTG_ENABLE_VSTGUI_SUPPORT=OFF`.cwd(buildPath);
     await $`cmake --build . --target validator`.cwd(buildPath);
   },
 });
