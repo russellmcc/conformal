@@ -188,8 +188,7 @@ dependencies = [
 [[package]]
 name = "com-scrape"
 version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97ea8fb7ccfb6d77b4aeef53bd54c8e4882d37048922fb7f6fadbc9376771935"
+source = "git+https://github.com/russellmcc/vst3-rs.git?branch=support-extern-records#4eaf686bd477ab1dd16035e1cc5878c2b01ae5fc"
 dependencies = [
  "clang-sys",
 ]
@@ -197,8 +196,7 @@ dependencies = [
 [[package]]
 name = "com-scrape-types"
 version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ce183b975b8fc736a20919c4002717255fbd867df575c792aeefa9a56a73ad0"
+source = "git+https://github.com/russellmcc/vst3-rs.git?branch=support-extern-records#4eaf686bd477ab1dd16035e1cc5878c2b01ae5fc"
 
 [[package]]
 name = "combine"
@@ -1967,8 +1965,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 [[package]]
 name = "vst3"
 version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f8763936350f719c37da0d6ccd5ab7ac1de05203995104452347fd3998401e7"
+source = "git+https://github.com/russellmcc/vst3-rs.git?branch=support-extern-records#4eaf686bd477ab1dd16035e1cc5878c2b01ae5fc"
 dependencies = [
  "com-scrape-types",
  "vst3-bindgen",
@@ -1977,8 +1974,7 @@ dependencies = [
 [[package]]
 name = "vst3-bindgen"
 version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "37c2c1284b0b2d0a1ddcd5ea7b1f74ea766a9a52e376f5402f02f217a629eee6"
+source = "git+https://github.com/russellmcc/vst3-rs.git?branch=support-extern-records#4eaf686bd477ab1dd16035e1cc5878c2b01ae5fc"
 dependencies = [
  "com-scrape",
 ]

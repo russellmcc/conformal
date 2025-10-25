@@ -4,7 +4,7 @@ import { Command } from "@commander-js/extra-typings";
 
 const RUST_VERSION = "1.90.0";
 const CARGO_ABOUT_VERSION = "0.6.6";
-const VST3_VERSION = "v3.7.14_build_55";
+const VST3_VERSION = "v3.8.0_build_66";
 
 type Tool = {
   name: string;
@@ -176,7 +176,7 @@ const vst3Validator = (): Tool => ({
     }
     const buildPath = `${sdk}/build`;
     await $`mkdir -p ${buildPath}`.quiet();
-    await $`cmake ..`.cwd(buildPath);
+    await $`cmake .. -DSMTG_ENABLE_VSTGUI_SUPPORT=OFF`.cwd(buildPath);
     await $`cmake --build . --target validator`.cwd(buildPath);
   },
 });
