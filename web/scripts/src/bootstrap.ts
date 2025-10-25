@@ -143,13 +143,14 @@ const rustNightly = (): Tool => ({
   },
 });
 
-const vst3 = (): Tool => ({
+const vst3 = (options: { vstSdkVersion?: string }): Tool => ({
   name: "vst3",
   // eslint-disable-next-line @typescript-eslint/require-await
   check: async (): Promise<boolean> => process.env.VST3_SDK_DIR !== undefined,
   install: async () => {
+    const vstSdkVersion = options.vstSdkVersion ?? VST3_VERSION;
     const tmpDir = (await $`mktemp -d`.text()).trim();
-    await $`git clone https://github.com/steinbergmedia/vst3sdk.git --branch ${VST3_VERSION}`.cwd(
+    await $`git clone https://github.com/steinbergmedia/vst3sdk.git --branch ${vstSdkVersion}`.cwd(
       tmpDir,
     );
     await $`git submodule update --init --recursive`.cwd(`${tmpDir}/vst3sdk`);
@@ -185,13 +186,14 @@ const cmake = () => brew("cmake");
 export type BootstrapOptions = {
   rustVersion?: string;
   cargoAboutVersion?: string;
+  vstSdkVersion?: string;
 };
 
 export const bootstrap = async (
   options: BootstrapOptions = {},
 ): Promise<void> => {
   const tools: Tool[] = [
-    vst3(),
+    vst3({ vstSdkVersion: options.vstSdkVersion }),
     knope(),
     cmake(),
     vst3Validator(),
@@ -221,10 +223,17 @@ export const addBootstrapCommand = (command: Command) =>
   command
     .command("bootstrap")
     .description("Make sure all build requirements are installed")
-    .option("--rust-version <version>", "The version of Rust to use")
+    .option(
+      "--rust-version <version>",
+      `The version of Rust to use (default: ${RUST_VERSION})`,
+    )
     .option(
       "--cargo-about-version <version>",
-      "The version of cargo-about to use",
+      `The version of cargo-about to use (default: ${CARGO_ABOUT_VERSION})`,
+    )
+    .option(
+      "--vst-sdk-version <version>",
+      `The version of the VST SDK to use (default: ${VST3_VERSION})`,
     )
     .action(async (options) => {
       await bootstrap(options);
