@@ -1,5 +1,11 @@
 # @conformal/scripts
 
+## 0.6.0
+
+### Minor Changes
+
+- ccfbe2e: Add option for vst sdk version to bootstrap script
+
 ## 0.5.0
 
 ### Minor Changes
