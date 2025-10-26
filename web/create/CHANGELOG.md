@@ -1,5 +1,13 @@
 # create-conformal
 
+## 0.6.2
+
+### Patch Changes
+
+- 74e0f8a: Redact cargo.toml filenames in templates
+- Updated dependencies [74e0f8a]
+  - @conformal/create-plugin@0.5.1
+
 ## 0.6.1
 
 ### Patch Changes
