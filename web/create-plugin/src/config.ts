@@ -45,6 +45,7 @@ export const toEnv = async (
     class_id: uuidHex(),
     edit_class_id: uuidHex(),
     gitignore: ".gitignore",
+    cargo_toml: "Cargo.toml",
     task_marker: "TOD" + "O",
     test_marker: "test",
   };
