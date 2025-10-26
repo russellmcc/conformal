@@ -1,5 +1,11 @@
 # @conformal/create-plugin
 
+## 0.5.1
+
+### Patch Changes
+
+- 74e0f8a: Redact cargo.toml filenames in templates
+
 ## 0.5.0
 
 ### Minor Changes
