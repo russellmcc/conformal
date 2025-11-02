@@ -3188,14 +3188,14 @@ mod tests {
         let ec = dummy_synth_edit_controller();
         let host = ComWrapper::new(dummy_host::Host::default());
         unsafe {
-            let mut string = [0i16; 128];
+            let mut string = [0u16; 128];
             assert_ne!(
                 ec.getNoteExpressionStringByValue(
                     0,
                     0,
                     vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID,
                     0.5,
-                    string.as_mut_ptr().cast::<[i16; 128]>()
+                    string.as_mut_ptr().cast::<[u16; 128]>()
                 ),
                 vst3::Steinberg::kResultOk
             );
@@ -3211,7 +3211,7 @@ mod tests {
                     0,
                     vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID,
                     0.5,
-                    string.as_mut_ptr().cast::<[i16; 128]>()
+                    string.as_mut_ptr().cast::<[u16; 128]>()
                 ),
                 vst3::Steinberg::kResultOk
             );
@@ -3222,7 +3222,7 @@ mod tests {
                     0,
                     vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID,
                     1.0,
-                    string.as_mut_ptr().cast::<[i16; 128]>()
+                    string.as_mut_ptr().cast::<[u16; 128]>()
                 ),
                 vst3::Steinberg::kResultOk
             );
@@ -3234,7 +3234,7 @@ mod tests {
                     0,
                     crate::processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID,
                     0.5,
-                    string.as_mut_ptr().cast::<[i16; 128]>()
+                    string.as_mut_ptr().cast::<[u16; 128]>()
                 ),
                 vst3::Steinberg::kResultOk
             );
@@ -3246,7 +3246,7 @@ mod tests {
                     0,
                     crate::processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID,
                     0.5,
-                    string.as_mut_ptr().cast::<[i16; 128]>()
+                    string.as_mut_ptr().cast::<[u16; 128]>()
                 ),
                 vst3::Steinberg::kResultOk
             );
@@ -3258,7 +3258,7 @@ mod tests {
                     0,
                     0,
                     0.5,
-                    string.as_mut_ptr().cast::<[i16; 128]>()
+                    string.as_mut_ptr().cast::<[u16; 128]>()
                 ),
                 vst3::Steinberg::kResultOk
             );
@@ -3268,7 +3268,7 @@ mod tests {
                     1,
                     0,
                     0.5,
-                    string.as_mut_ptr().cast::<[i16; 128]>()
+                    string.as_mut_ptr().cast::<[u16; 128]>()
                 ),
                 vst3::Steinberg::kResultOk
             );
@@ -3278,7 +3278,7 @@ mod tests {
                     1,
                     0,
                     0.5,
-                    string.as_mut_ptr().cast::<[i16; 128]>()
+                    string.as_mut_ptr().cast::<[u16; 128]>()
                 ),
                 vst3::Steinberg::kResultOk
             );
@@ -3291,7 +3291,7 @@ mod tests {
         let host = ComWrapper::new(dummy_host::Host::default());
         unsafe {
             let mut value = 0.0;
-            let mut string = [0i16; 128];
+            let mut string = [0u16; 128];
             to_utf16("60", &mut string);
             assert_ne!(
                 ec.getNoteExpressionValueByString(
