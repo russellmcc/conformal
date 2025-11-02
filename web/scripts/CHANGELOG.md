@@ -1,5 +1,17 @@
 # @conformal/scripts
 
+## 0.7.0
+
+### Minor Changes
+
+- 657e18a: update VST sdk version
+
+### Patch Changes
+
+- Updated dependencies [74e0f8a]
+- Updated dependencies [657e18a]
+  - @conformal/create-plugin@0.6.0
+
 ## 0.6.0
 
 ### Minor Changes

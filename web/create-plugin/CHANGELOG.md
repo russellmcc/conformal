@@ -1,5 +1,15 @@
 # @conformal/create-plugin
 
+## 0.6.0
+
+### Minor Changes
+
+- 657e18a: Bump vst3 wrapper version
+
+### Patch Changes
+
+- 74e0f8a: Redact cargo.toml filenames in templates
+
 ## 0.5.0
 
 ### Minor Changes
