@@ -12,5 +12,5 @@ workspace = true
 
 [dependencies]
 conformal_vst_wrapper = "{{{conformal_vst_wrapper_version}}}"
-vst3 = { git = "https://github.com/russellmcc/vst3-rs.git", branch = "support-extern-records" }
+vst3 = "0.2.0"
 {{plug_slug}}_component = { path = "../component" }
