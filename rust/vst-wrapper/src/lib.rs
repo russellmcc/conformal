@@ -221,13 +221,13 @@ pub fn _wrap_factory(
     factory::Factory::new(classes, info)
 }
 
-fn to_utf16(s: &str, buffer: &mut [i16]) {
+fn to_utf16(s: &str, buffer: &mut [u16]) {
     for (i, c) in s.encode_utf16().chain([0]).enumerate() {
-        buffer[i] = c as i16;
+        buffer[i] = c as u16;
     }
 }
 
-fn from_utf16_ptr(buffer: *const i16, max_size: usize) -> Option<String> {
+fn from_utf16_ptr(buffer: *const u16, max_size: usize) -> Option<String> {
     let mut len = 0;
     unsafe {
         while *buffer.add(len) != 0 {
@@ -241,7 +241,7 @@ fn from_utf16_ptr(buffer: *const i16, max_size: usize) -> Option<String> {
     String::from_utf16(utf16_slice).ok()
 }
 
-fn from_utf16_buffer(buffer: &[i16]) -> Option<String> {
+fn from_utf16_buffer(buffer: &[u16]) -> Option<String> {
     let mut len = 0;
     for c in buffer {
         if *c == 0 {
