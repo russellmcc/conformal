@@ -223,7 +223,7 @@ pub fn _wrap_factory(
 
 fn to_utf16(s: &str, buffer: &mut [u16]) {
     for (i, c) in s.encode_utf16().chain([0]).enumerate() {
-        buffer[i] = c as u16;
+        buffer[i] = c;
     }
 }
 
