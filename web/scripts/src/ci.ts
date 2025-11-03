@@ -10,6 +10,7 @@ export const execute = async () => {
     "check-lfs",
     "web-lint",
     "rust-lint",
+    "check-licenses",
     "web-test",
     "rust-test",
     ["validate", "*", "--release"],
