@@ -1,5 +1,18 @@
 # @conformal/scripts
 
+## 0.8.0
+
+### Minor Changes
+
+- 2b139f7: Allow clients to opt-out of CI steps by skipping scripts
+- 2b139f7: add check licenses script
+- 2b139f7: add required check licenses step to CI
+
+### Patch Changes
+
+- Updated dependencies [2b139f7]
+  - @conformal/create-plugin@0.7.0
+
 ## 0.7.0
 
 ### Minor Changes

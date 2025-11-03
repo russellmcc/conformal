@@ -1,5 +1,16 @@
 # create-conformal
 
+## 0.7.0
+
+### Minor Changes
+
+- 2b139f7: Support check-licenses script
+
+### Patch Changes
+
+- Updated dependencies [2b139f7]
+  - @conformal/create-plugin@0.7.0
+
 ## 0.6.2
 
 ### Patch Changes
