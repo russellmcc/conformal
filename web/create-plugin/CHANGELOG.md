@@ -1,5 +1,11 @@
 # @conformal/create-plugin
 
+## 0.7.0
+
+### Minor Changes
+
+- 2b139f7: allow unicode 3.0 license
+
 ## 0.6.0
 
 ### Minor Changes
