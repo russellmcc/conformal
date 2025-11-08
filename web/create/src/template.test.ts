@@ -132,6 +132,9 @@ describe("create-conformal template", () => {
             dest,
           );
 
+          // We have to re-install after adding new packages, now that dependencies are isolated.
+          await $`bun install`.cwd(dest);
+
           // In CI, we will have a 0.0.0 version for the conformal crates.
           // Replace these with a link to the local crate
           const createDependencies = ["component", "vst_wrapper", "poly"];
