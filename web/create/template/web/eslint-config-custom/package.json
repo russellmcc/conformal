@@ -1,5 +1,22 @@
 {
   "name": "eslint-config-custom",
-  "main": "config.cjs",
-  "private": true
+  "exports": {
+    ".": {
+      "default": "./index.mjs"
+    }
+  },
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "lint": "eslint . --max-warnings 0"
+  },
+  "dependencies": {
+    "globals": "catalog:",
+    "@eslint/js": "catalog:",
+    "eslint-plugin-react": "catalog:",
+    "eslint-plugin-react-hooks": "catalog:",
+    "eslint-plugin-react-refresh": "catalog:",
+    "eslint-plugin-prefer-arrow-functions": "catalog:",
+    "typescript-eslint": "catalog:"
+  }
 }
