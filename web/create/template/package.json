@@ -36,11 +36,10 @@
   "catalog": {
     "@conformal/plugin": "^0.3.5",
     "rollup-plugin-license": "^3.4.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "@types/react": "^18.2.79",
-    "@types/react-dom": "^18.2.25",
-    "@vitejs/plugin-react-swc": "^3.6.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
@@ -49,6 +48,8 @@
     "vite": "^5.2.9",
     "jotai": "^2.14.0",
     "globals": "^16.5.0",
-    "@eslint/js": "^9.39.1"
+    "@eslint/js": "^9.39.1",
+    "@vitejs/plugin-react": "^5.1.0",
+    "babel-plugin-react-compiler": "^1.0.0"
   }
 }
