@@ -3,6 +3,8 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 
 import { Command } from "@commander-js/extra-typings";
+
+// This is needed due to https://github.com/oven-sh/bun/issues/5141
 import dts from "bun-plugin-dts";
 import * as fs from "node:fs/promises";
 
