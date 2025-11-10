@@ -264,7 +264,7 @@ fn from_internal(
     match (value, metadatum) {
         (cp::InternalValue::Numeric(n), Metadatum::Numeric { .. }) => cp::Value::Numeric(n),
         (cp::InternalValue::Enum(v), Metadatum::Enum { datum }) => {
-            cp::Value::Enum(datum.values[v as usize].to_string())
+            cp::Value::Enum(datum.values[v as usize].clone())
         }
         (cp::InternalValue::Switch(n), Metadatum::Switch { .. }) => cp::Value::Switch(n),
         _ => panic!("Internal error"),
