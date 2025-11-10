@@ -18,5 +18,8 @@
     "@conformal/create-plugin": "workspace:^0.7.0",
     "@commander-js/extra-typings": "catalog:",
     "commander": "catalog:"
+  },
+  "devDependencies": {
+    "tmp-promise": "catalog:"
   }
 }

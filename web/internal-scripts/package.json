@@ -17,6 +17,10 @@
     "@commander-js/extra-typings": "catalog:",
     "commander": "catalog:",
     "tmp-promise": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "bun-plugin-dts": "catalog:"
+  },
+  "devDependencies": {
+    "@morlay/bunpublish": "catalog:"
   }
 }
