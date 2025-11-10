@@ -1,5 +1,14 @@
 # @conformal/scripts
 
+## 0.8.1
+
+### Patch Changes
+
+- Updated dependencies [739063e]
+- Updated dependencies [bf6b0e1]
+- Updated dependencies [34ed385]
+  - @conformal/create-plugin@0.8.0
+
 ## 0.8.0
 
 ### Minor Changes

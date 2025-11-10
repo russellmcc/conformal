@@ -1,5 +1,13 @@
 # @conformal/create-plugin
 
+## 0.8.0
+
+### Minor Changes
+
+- 739063e: use isolated installs
+- bf6b0e1: update template to eslint 9
+- 34ed385: support react compiler and bump to react 19
+
 ## 0.7.0
 
 ### Minor Changes
