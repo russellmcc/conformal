@@ -19,9 +19,9 @@
   },
   "type": "module",
   "dependencies": {
-    "handlebars": "^4.7.8",
-    "@commander-js/extra-typings": "^12.1.0",
-    "@inquirer/prompts": "^5.3.8",
-    "commander": "^12.1.0"
+    "handlebars": "catalog:",
+    "@commander-js/extra-typings": "catalog:",
+    "@inquirer/prompts": "catalog:",
+    "commander": "catalog:"
   }
 }

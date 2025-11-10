@@ -1,17 +1,59 @@
 import { $ } from "bun";
+import { z } from "zod";
 
-// Removes any `workspace` protocols for publishing.
+const packageJsonSchema = z.object({
+  catalog: z.optional(z.record(z.string(), z.string())),
+  dependencies: z.record(z.string(), z.string()),
+});
+
+// Cleans any `workspace` and `catalog` protocols for publishing.
+// This mutates the package.json files in place.
 export const cleanWorkspaceProtocols = async () => {
-  // Note we use perl as a sed replacement because of https://github.com/oven-sh/bun/issues/13197,
-  // which makes sed unusable on macOS.
-  //
-  // Note that we make a couple of assumptions here about the formatting of the project files,
-  // which is a bit fragile. It would be a nice improvement to use proper parsing here rather
-  // than just regexes.
-
-  const packageFiles = (await $`git ls-files -- '*package.json'`.text())
+  const packages = (await $`bun pm list`.quiet())
+    .text()
     .trim()
-    .split("\n");
-  console.log(packageFiles);
-  await $`perl -pi -e 's/"workspace:([^"]+)"/"$1"/' ${packageFiles}`;
+    .split("\n")
+    .filter((p) => p.includes("@workspace:"))
+    .map((p) => p.split("@workspace:")[1]!.trim());
+
+  const rootPackageJson = packageJsonSchema.parse(
+    await Bun.file("package.json").json(),
+  );
+
+  for (const p of packages) {
+    // Get json contents of package.json
+    const packageJson = packageJsonSchema.parse(
+      await Bun.file(`${p}/package.json`).json(),
+    );
+    for (const [key, version] of Object.entries(packageJson.dependencies)) {
+      // We demand exact versions in workspace cross-dependencies. This is enforced by changeset.
+      if (version.startsWith("workspace:^")) {
+        packageJson.dependencies[key] = version.replace("workspace:^", "^");
+        continue;
+      }
+      if (version.startsWith("workspace:")) {
+        throw new Error(
+          `Workspace dependencies must be exact versions: ${p} has ${key}@${version}, which is not allowed.`,
+        );
+      }
+      if (version === "catalog:") {
+        // Replace the catalog protocol with the root package.json's catalog.
+        const catalogVersion = rootPackageJson.catalog?.[key];
+        if (!catalogVersion) {
+          throw new Error(
+            `Catalog dependency ${key} not found in root package.json, but it is required by ${p}.`,
+          );
+        }
+        packageJson.dependencies[key] = catalogVersion;
+        continue;
+      } else if (version.startsWith("catalog:")) {
+        throw new Error(
+          `we don't support catalog-based versions other than 'catalog:', ${p} has ${key}@${version}, which is not allowed.`,
+        );
+      }
+    }
+
+    // Write the package.json back to the file system
+    await Bun.write(`${p}/package.json`, JSON.stringify(packageJson, null, 2));
+  }
 };
