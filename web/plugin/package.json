@@ -18,9 +18,13 @@
     "dist"
   ],
   "dependencies": {
-    "zod": "^3.23.8",
-    "jotai": "^2.9.3",
-    "@msgpack/msgpack": "^3.0.0-beta2"
+    "zod": "catalog:",
+    "jotai": "catalog:",
+    "@msgpack/msgpack": "catalog:"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:"
   },
   "peerDependencies": {
     "react": "^18.3.1 || ^19.0.0",

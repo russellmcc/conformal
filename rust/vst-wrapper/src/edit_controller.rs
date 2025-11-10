@@ -231,7 +231,7 @@ fn from_internal(
 ) -> parameters::Value {
     match (value, infos.get(unique_id).map(|info| &info.type_specific)) {
         (parameters::InternalValue::Enum(v), Some(TypeSpecificInfo::Enum { values, .. })) => {
-            parameters::Value::Enum(values[v as usize].to_string())
+            parameters::Value::Enum(values[v as usize].clone())
         }
         (parameters::InternalValue::Numeric(v), Some(TypeSpecificInfo::Numeric { .. })) => {
             parameters::Value::Numeric(v)
@@ -1000,7 +1000,7 @@ impl IEditControllerTrait for EditController {
                     _ => None,
                 }
             {
-                values.insert(id.to_string(), value);
+                values.insert(id.clone(), value);
                 if let Some(listener) = listener
                     && let Some(listener) = listener.upgrade()
                 {

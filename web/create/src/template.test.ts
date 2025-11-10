@@ -6,6 +6,7 @@ import { $ } from "bun";
 import { Config, postBuild } from "./config";
 import { stampTemplate } from "@conformal/stamp";
 import { toEnv } from "@conformal/create-plugin";
+import { z } from "zod";
 
 const TEST_CONFIG: Config = {
   proj_slug: "test",
@@ -16,6 +17,22 @@ const TEST_CONFIG: Config = {
 };
 
 const MINUTE = 60_000;
+
+const packageJsonSchema = z
+  .object({
+    catalog: z.optional(z.record(z.string(), z.string())),
+    dependencies: z.optional(z.record(z.string(), z.string())),
+    devDependencies: z.optional(z.record(z.string(), z.string())),
+    scripts: z.optional(
+      z
+        .object({
+          prepack: z.optional(z.string()),
+          postpack: z.optional(z.string()),
+        })
+        .passthrough(),
+    ),
+  })
+  .passthrough();
 
 describe("create-conformal template", () => {
   test(
@@ -31,15 +48,53 @@ describe("create-conformal template", () => {
             "..",
           );
 
-          const rewireDeps = async (dest: string) => {
-            // Note we use perl as a sed replacement because of https://github.com/oven-sh/bun/issues/13197,
-            // which makes sed unusable on macOS.
-            const perl_command = `s!"\\@conformal/([^"]+)": "[^"]+"!"\\@conformal/$1": "file://${tmpDir}/conformal-$1-0.0.0.tgz"!`;
-            await $`perl -pi -e ${perl_command} package.json`.cwd(dest);
+          type RewireDepsOptions = {
+            fixCatalog: boolean;
+          };
+          const rewireDeps = async (
+            dest: string,
+            { fixCatalog }: RewireDepsOptions = { fixCatalog: true },
+          ) => {
+            const rootPackageJson = packageJsonSchema.parse(
+              await Bun.file(`package.json`).json(),
+            );
 
-            // Replace the version with 0.0.0
-            await $`perl -pi -e 's!"version": "[^"]+"!"version": "0.0.0"!' package.json`.cwd(
-              dest,
+            const packageJson = packageJsonSchema.parse(
+              await Bun.file(`${dest}/package.json`).json(),
+            );
+
+            packageJson.version = "0.0.0";
+
+            const cleanupDict = (dict: Record<string, string>) => {
+              for (const [key, version] of Object.entries(dict)) {
+                if (key.startsWith("@conformal/")) {
+                  dict[key] =
+                    `file://${tmpDir}/conformal-${key.split("/")[1]}-0.0.0.tgz`;
+                }
+                if (version === "catalog:" && fixCatalog) {
+                  const catalogVersion = rootPackageJson.catalog?.[key];
+                  if (!catalogVersion) {
+                    throw new Error(
+                      `Catalog dependency ${key} not found in root package.json`,
+                    );
+                  }
+                  dict[key] = catalogVersion;
+                }
+              }
+            };
+            for (const dict of [
+              packageJson.dependencies,
+              packageJson.catalog,
+              packageJson.devDependencies,
+            ]) {
+              if (dict) {
+                cleanupDict(dict);
+              }
+            }
+
+            await Bun.write(
+              `${dest}/package.json`,
+              JSON.stringify(packageJson, null, 2),
             );
           };
 
@@ -76,18 +131,13 @@ describe("create-conformal template", () => {
             await rewireDeps(extractDir);
 
             // Remove any "prepack" and "postpack" scripts as these have already been run
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-            const packageJson = await Bun.file(
-              `${extractDir}/package.json`,
-            ).json();
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+            const packageJson = packageJsonSchema.parse(
+              await Bun.file(`${extractDir}/package.json`).json(),
+            );
             if (packageJson.scripts?.prepack) {
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
               delete packageJson.scripts.prepack;
             }
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             if (packageJson.scripts?.postpack) {
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
               delete packageJson.scripts.postpack;
             }
             await Bun.write(
@@ -118,12 +168,13 @@ describe("create-conformal template", () => {
           );
           await postBuild(TEST_CONFIG, env, tmpDir);
 
-          await rewireDeps(dest);
+          // We want to use the catalog from the template
+          await rewireDeps(dest, { fixCatalog: false });
 
           await $`bun install`.cwd(dest);
 
           // Add a synth target
-          await $`bun x conformal-scripts create-plugin --plug_type synth --plug_slug test_synth --vendor_name "Test Vendor" --plug_name "Test Synth"`.cwd(
+          await $`bun run create-plugin --plug_type synth --plug_slug test_synth --vendor_name "Test Vendor" --plug_name "Test Synth"`.cwd(
             dest,
           );
 

@@ -13,5 +13,11 @@
     "dev": "bun run gen-scripts && bun x --bun next dev",
     "build": "bun run gen-scripts && bun x --bun next build && bun x --bun next-image-export-optimizer"
   },
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "next": "catalog:",
+    "next-image-export-optimizer": "catalog:",
+    "nextra": "catalog:",
+    "nextra-theme-docs": "catalog:"
+  }
 }
