@@ -1,10 +1,12 @@
 import { $ } from "bun";
 import { z } from "zod";
 
-const packageJsonSchema = z.object({
-  catalog: z.optional(z.record(z.string(), z.string())),
-  dependencies: z.record(z.string(), z.string()),
-});
+const packageJsonSchema = z
+  .object({
+    catalog: z.optional(z.record(z.string(), z.string())),
+    dependencies: z.optional(z.record(z.string(), z.string())),
+  })
+  .passthrough();
 
 // Cleans any `workspace` and `catalog` protocols for publishing.
 // This mutates the package.json files in place.
@@ -25,10 +27,19 @@ export const cleanWorkspaceProtocols = async () => {
     const packageJson = packageJsonSchema.parse(
       await Bun.file(`${p}/package.json`).json(),
     );
+    if (!packageJson.dependencies) {
+      // No need to fix dependencies, since there aren't any!
+      continue;
+    }
     for (const [key, version] of Object.entries(packageJson.dependencies)) {
       // We demand exact versions in workspace cross-dependencies. This is enforced by changeset.
       if (version.startsWith("workspace:^")) {
         packageJson.dependencies[key] = version.replace("workspace:^", "^");
+        if (!packageJson.dependencies[key]) {
+          throw new Error(
+            `Full workspace version for ${key} not found in ${p}/package.json, but it is required. Got ${version} instead.`,
+          );
+        }
         continue;
       }
       if (version.startsWith("workspace:")) {
