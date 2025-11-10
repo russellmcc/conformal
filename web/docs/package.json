@@ -6,7 +6,7 @@
   "bugs": "https://github.com/russellmcc/conformal/issues",
   "license": "ISC",
   "scripts": {
-    "lint": "tsc && eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint": "tsc && eslint . --max-warnings 0",
     "check-format": "prettier -c .",
     "format": "prettier --write .",
     "gen-scripts": "bun ../scripts/src/selfDoc.ts > pages/docs/reference/scripts.md",
@@ -19,5 +19,10 @@
     "next-image-export-optimizer": "catalog:",
     "nextra": "catalog:",
     "nextra-theme-docs": "catalog:"
+  },
+  "devDependencies": {
+    "eslint-config-custom": "workspace:*",
+    "@next/eslint-plugin-next": "catalog:",
+    "@eslint/eslintrc": "catalog:"
   }
 }
