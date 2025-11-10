@@ -6,7 +6,7 @@
   "bugs": "https://github.com/russellmcc/conformal/issues",
   "license": "ISC",
   "scripts": {
-    "lint": "tsc && eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint": "tsc && eslint . --max-warnings 0",
     "check-format": "prettier --ignore-path .gitignore -c .",
     "format": "prettier --ignore-path .gitignore --write .",
     "validate": "echo 'dummy validation'"
@@ -21,6 +21,7 @@
     "bun-plugin-dts": "catalog:"
   },
   "devDependencies": {
-    "@morlay/bunpublish": "catalog:"
+    "@morlay/bunpublish": "catalog:",
+    "eslint-config-custom": "workspace:*"
   }
 }
