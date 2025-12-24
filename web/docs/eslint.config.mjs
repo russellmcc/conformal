@@ -25,6 +25,9 @@ export default defineConfig([
       // Some of the blog posts do ref crimes, disable for now.
       "react-hooks/refs": "off",
       "@typescript-eslint/triple-slash-reference": "off",
+      // We use a custom loader for next images to statically optimize them,
+      // but we load un-optimized SVGs with img tags.
+      "@next/next/no-img-element": "off",
     },
   },
 ]);
