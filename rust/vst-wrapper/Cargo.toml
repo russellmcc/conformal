@@ -1,6 +1,6 @@
 [package]
 name = "conformal_vst_wrapper"
-version = "0.3.8"
+version = "0.3.9"
 edition.workspace = true
 rust-version.workspace = true
 license = "ISC"

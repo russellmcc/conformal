@@ -1,5 +1,11 @@
 # @conformal/create-plugin
 
+## 0.8.1
+
+### Patch Changes
+
+- 3c1cdbf: Upgrade to vst3-rs 0.3.0
+
 ## 0.8.0
 
 ### Minor Changes
