@@ -145,17 +145,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
-name = "clang-sys"
-version = "1.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b023947811758c97c59bf9d1c188fd619ad4718dcaa767947df1cadb14f39f4"
-dependencies = [
- "glob",
- "libc",
- "libloading",
-]
-
-[[package]]
 name = "cocoa"
 version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -183,15 +172,6 @@ dependencies = [
  "core-graphics-types",
  "libc",
  "objc",
-]
-
-[[package]]
-name = "com-scrape"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5cd4a2b0452447ce166d01ff6f7f73454acdc89fa195a82f3c3dfca5f074ff42"
-dependencies = [
- "clang-sys",
 ]
 
 [[package]]
@@ -773,12 +753,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "glob"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
-
-[[package]]
 name = "gobject-sys"
 version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -994,16 +968,6 @@ name = "libc"
 version = "0.2.157"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "374af5f94e54fa97cf75e945cce8a6b201e88a1a07e688b47dfd2a59c66dbd86"
-
-[[package]]
-name = "libloading"
-version = "0.8.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4979f22fdb869068da03c9f7528f8297c6fd2606bc3a4affe42e6a823fdb8da4"
-dependencies = [
- "cfg-if",
- "windows-targets 0.52.6",
-]
 
 [[package]]
 name = "lock_api"
@@ -1966,21 +1930,11 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "vst3"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9cde7186f5d0d86facd20d4248ddaaf620e221c9523eb86fe4fb2e935b09cd2f"
-dependencies = [
- "com-scrape-types",
- "vst3-bindgen",
-]
-
-[[package]]
-name = "vst3-bindgen"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e11db21d4f35c24f570466200c05596a801f0dcf054b11b973c3a4fd646ede4e"
+checksum = "e31e3fe7a6f028ded8c5a9984cf283319e6dc63572c9b71da1d4ee9d71d3b6bf"
 dependencies = [
- "com-scrape",
+ "com-scrape-types",
 ]
 
 [[package]]
