@@ -8,4 +8,5 @@ export default {
     "4: Analysis of Roland single-transistor VCA",
   "5-adaa-for-ring-mod":
     "5: Continuous-time Convolution Anti-aliasing for Ring Modulation",
+  "6-iir-2-path": "6: Musical Applications of Recursive 2-path Filters",
 };
