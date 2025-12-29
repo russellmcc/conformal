@@ -1,5 +1,14 @@
 # @conformal/scripts
 
+## 0.8.3
+
+### Patch Changes
+
+- aa862f2: testing npm provenance
+- Updated dependencies [aa862f2]
+  - @conformal/create-plugin@0.8.2
+  - @conformal/stamp@0.4.1
+
 ## 0.8.2
 
 ### Patch Changes
