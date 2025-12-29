@@ -25,6 +25,6 @@
     "commander": "catalog:"
   },
   "devDependencies": {
-    "eslint-config-custom": "workspace:"
+    "eslint-config-custom": "workspace:*"
   }
 }
