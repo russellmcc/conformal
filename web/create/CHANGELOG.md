@@ -1,5 +1,12 @@
 # create-conformal
 
+## 0.8.1
+
+### Patch Changes
+
+- Updated dependencies [0990b96]
+  - @conformal/stamp@0.4.0
+
 ## 0.8.0
 
 ### Minor Changes

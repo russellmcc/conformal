@@ -1,6 +1,6 @@
 {
   "name": "create-conformal",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Project generator script for conformal projects",
   "homepage": "https://russellmcc.github.io/conformal",
   "bugs": "https://github.com/russellmcc/conformal/issues",
@@ -14,7 +14,7 @@
   "bin": "./src/index.ts",
   "type": "module",
   "dependencies": {
-    "@conformal/stamp": "workspace:^0.3.5",
+    "@conformal/stamp": "workspace:^0.4.0",
     "@conformal/create-plugin": "workspace:^0.8.0",
     "@commander-js/extra-typings": "catalog:",
     "commander": "catalog:"
