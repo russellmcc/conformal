@@ -1,5 +1,11 @@
 # @conformal/create-plugin
 
+## 0.8.2
+
+### Patch Changes
+
+- b1e1d42: testing npm provenance
+
 ## 0.8.1
 
 ### Patch Changes
