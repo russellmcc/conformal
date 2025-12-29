@@ -1,5 +1,12 @@
 # @conformal/scripts
 
+## 0.8.2
+
+### Patch Changes
+
+- Updated dependencies [0990b96]
+  - @conformal/stamp@0.4.0
+
 ## 0.8.1
 
 ### Patch Changes
