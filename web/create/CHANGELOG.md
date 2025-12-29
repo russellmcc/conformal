@@ -1,14 +1,5 @@
 # create-conformal
 
-## 0.8.2
-
-### Patch Changes
-
-- b1e1d42: testing npm provenance
-- Updated dependencies [b1e1d42]
-  - @conformal/create-plugin@0.8.2
-  - @conformal/stamp@0.4.1
-
 ## 0.8.1
 
 ### Patch Changes
