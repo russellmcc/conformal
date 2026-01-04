@@ -1,5 +1,11 @@
 # @conformal/plugin
 
+## 0.4.2
+
+### Patch Changes
+
+- 58471ca: Make sure readonly is correctly typed
+
 ## 0.4.1
 
 ### Patch Changes
