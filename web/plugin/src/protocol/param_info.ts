@@ -4,13 +4,13 @@ export const TypeSpecific = z.union([
   z.object({
     t: z.literal("numeric"),
     default: z.number(),
-    valid_range: z.tuple([z.number(), z.number()]),
+    valid_range: z.tuple([z.number(), z.number()]).readonly(),
     units: z.string(),
   }),
   z.object({
     t: z.literal("enum"),
     default: z.string(),
-    values: z.array(z.string()),
+    values: z.array(z.string()).readonly(),
   }),
   z.object({
     t: z.literal("switch"),
