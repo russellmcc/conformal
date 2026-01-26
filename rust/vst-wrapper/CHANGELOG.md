@@ -1,3 +1,9 @@
+## 0.3.10 (2026-01-26)
+
+### Fixes
+
+- Fix bug where height was always 400
+
 ## 0.3.9 (2025-12-27)
 
 ### Fixes
