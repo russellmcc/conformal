@@ -216,7 +216,6 @@ impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
             (*size).left = 0;
             (*size).right = self.borrow().initial_size.width;
             (*size).bottom = self.borrow().initial_size.height;
-            (*size).bottom = 400;
             vst3::Steinberg::kResultOk
         }
     }
