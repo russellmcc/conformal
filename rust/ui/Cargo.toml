@@ -13,19 +13,19 @@ workspace = true
 
 [dependencies]
 base64 = { workspace = true }
-conformal_component = { version = "0.3.6", path = "../component" }
-conformal_core = { version = "0.3.7", path = "../core" }
+conformal_component = { workspace = true }
+conformal_core = { workspace = true }
 wry = { workspace = true }
-conformal_preferences = { version = "0.3.6", path = "../preferences" }
+conformal_preferences = { workspace = true }
 serde = { workspace = true }
 serde_bytes = { workspace = true }
 rmp-serde = { workspace = true }
 mime_guess = { workspace = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-conformal_macos_bundle = { version = "0.3.5", path = "../macos-bundle" }
+conformal_macos_bundle = { workspace = true }
 
 [dev-dependencies]
-conformal_preferences = { version = "0.3.6", path = "../preferences", features = [
+conformal_preferences = { workspace = true, features = [
     "test-utils"
 ] }

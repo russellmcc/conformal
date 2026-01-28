@@ -13,14 +13,14 @@ homepage = "https://russellmcc.github.io/conformal"
 workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
-conformal_macos_bundle = { version = "0.3.5", path = "../macos-bundle" }
+conformal_macos_bundle = { workspace = true }
 
 [dependencies]
 vst3 = { workspace = true }
 serde = { workspace = true }
-conformal_component = { version = "0.3.6", path = "../component" }
-conformal_ui = { version = "0.3.7", path = "../ui" }
-conformal_core = { version = "0.3.7", path = "../core" }
+conformal_component = { workspace = true }
+conformal_ui = { workspace = true }
+conformal_core = { workspace = true }
 rmp-serde = { workspace = true }
 itertools = { workspace = true }
 
