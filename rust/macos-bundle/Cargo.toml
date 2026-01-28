@@ -12,5 +12,5 @@ homepage = "https://russellmcc.github.io/conformal"
 workspace = true
 
 [dependencies]
-process_path = "0.1.4"
-objc = "0.2.7"
+process_path = { workspace = true }
+objc = { workspace = true }

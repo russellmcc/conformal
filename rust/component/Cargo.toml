@@ -13,5 +13,5 @@ homepage = "https://russellmcc.github.io/conformal"
 workspace = true
 
 [dependencies]
-itertools = "0.13.0"
-fxhash = "0.2.1"
+itertools = { workspace = true }
+fxhash = { workspace = true }

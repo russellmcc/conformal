@@ -13,4 +13,4 @@ workspace = true
 
 [dependencies]
 conformal_component = { version = "0.3.6", path = "../component" }
-arrayvec = "0.7.6"
+arrayvec = { workspace = true }

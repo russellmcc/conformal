@@ -14,6 +14,22 @@ members = [
 rust-version = "1.90.0"
 edition = "2024"
 
+[workspace.dependencies]
+vst3 = "0.3.0"
+serde = { version = "1.0.193", features = ["derive"] }
+rmp-serde = "1.1.2"
+itertools = "0.13.0"
+assert_approx_eq = "1.1.0"
+process_path = "0.1.4"
+objc = "0.2.7"
+serde_json = "1.0.117"
+fxhash = "0.2.1"
+base64 = "0.22.1"
+wry = { version = "0.40.0", features = ["devtools"] }
+serde_bytes = "0.11.14"
+mime_guess = "2.0.4"
+arrayvec = "0.7.6"
+
 [workspace.lints.rust]
 nonstandard_style = "warn"
 rust_2018_idioms = "warn"
