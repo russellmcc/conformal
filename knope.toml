@@ -4,14 +4,18 @@ scopes = ["conformal_vst_wrapper"]
 changelog = "rust/vst-wrapper/CHANGELOG.md"
 
 [packages.conformal_macos_bundle]
-versioned_files = ["rust/macos-bundle/Cargo.toml", "Cargo.lock"]
+versioned_files = [
+    "rust/macos-bundle/Cargo.toml",
+    "Cargo.lock",
+    { path = "Cargo.toml", dependency = "conformal_macos_bundle" }
+]
 scopes = ["conformal_macos_bundle"]
 changelog = "rust/macos-bundle/CHANGELOG.md"
 
 [packages.conformal_preferences]
 versioned_files = [
     "rust/preferences/Cargo.toml",
-    { path = "rust/ui/Cargo.toml", dependency = "conformal_preferences" },
+    { path = "Cargo.toml", dependency = "conformal_preferences" },
     "Cargo.lock"
 ]
 scopes = ["conformal_preferences"]
@@ -19,11 +23,8 @@ changelog = "rust/preferences/CHANGELOG.md"
 
 [packages.conformal_component]
 versioned_files = [
-    { path = "rust/vst-wrapper/Cargo.toml", dependency = "conformal_component" },
+    { path = "Cargo.toml", dependency = "conformal_component" },
     "rust/component/Cargo.toml",
-    { path = "rust/ui/Cargo.toml", dependency = "conformal_component" },
-    { path = "rust/core/Cargo.toml", dependency = "conformal_component" },
-    { path = "rust/poly/Cargo.toml", dependency = "conformal_component" },
     "Cargo.lock"
 ]
 scopes = ["conformal_component"]
@@ -31,7 +32,7 @@ changelog = "rust/component/CHANGELOG.md"
 
 [packages.conformal_ui]
 versioned_files = [
-    { path = "rust/vst-wrapper/Cargo.toml", dependency = "conformal_ui" },
+    { path = "Cargo.toml", dependency = "conformal_ui" },
     "rust/ui/Cargo.toml",
     "Cargo.lock"
 ]
@@ -40,8 +41,7 @@ changelog = "rust/ui/CHANGELOG.md"
 
 [packages.conformal_core]
 versioned_files = [
-    { path = "rust/vst-wrapper/Cargo.toml", dependency = "conformal_core" },
-    { path = "rust/ui/Cargo.toml", dependency = "conformal_core" },
+    { path = "Cargo.toml", dependency = "conformal_core" },
     "rust/core/Cargo.toml",
     "Cargo.lock"
 ]

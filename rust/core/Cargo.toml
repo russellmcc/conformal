@@ -12,5 +12,5 @@ homepage = "https://russellmcc.github.io/conformal"
 workspace = true
 
 [dependencies]
-conformal_component = { version = "0.3.6", path = "../component" }
-serde = { version = "1.0.193", features = ["derive"] }
+conformal_component = { workspace = true }
+serde = { workspace = true }
