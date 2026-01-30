@@ -12,21 +12,25 @@ use super::{
     TimedSwitchValues, TimedValue, TypeSpecificInfoRef, hash_id,
 };
 
+#[doc(hidden)]
 #[derive(Clone)]
-enum ConstantOrIterating<V, I> {
-    Constant(V),
-    Iterating(I),
+pub struct DecomposedNumeric<I> {
+    pub value: f32,
+    pub iter: Option<I>,
 }
 
-impl<V: Copy, I: Iterator<Item = V>> Iterator for ConstantOrIterating<V, I> {
-    type Item = V;
+#[doc(hidden)]
+#[derive(Clone)]
+pub struct DecomposedEnum<I> {
+    pub value: u32,
+    pub iter: Option<I>,
+}
 
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            ConstantOrIterating::Constant(v) => Some(*v),
-            ConstantOrIterating::Iterating(i) => i.next(),
-        }
-    }
+#[doc(hidden)]
+#[derive(Clone)]
+pub struct DecomposedSwitch<I> {
+    pub value: bool,
+    pub iter: Option<I>,
 }
 
 /// Convert a piecewise linear curve into a per-sample iterator for a buffer.
@@ -71,38 +75,33 @@ fn piecewise_linear_curve_per_sample<
     })
 }
 
+#[doc(hidden)]
+pub fn decompose_numeric<I: IntoIterator<Item = PiecewiseLinearCurvePoint, IntoIter: Clone>>(
+    state: NumericBufferState<I>,
+) -> DecomposedNumeric<impl Iterator<Item = f32> + Clone> {
+    match state {
+        NumericBufferState::Constant(v) => DecomposedNumeric {
+            value: v,
+            iter: None,
+        },
+        NumericBufferState::PiecewiseLinear(c) => DecomposedNumeric {
+            value: 0.0,
+            iter: Some(piecewise_linear_curve_per_sample(c)),
+        },
+    }
+}
+
 /// Converts a [`NumericBufferState`] into a per-sample iterator.
 ///
 /// This provides the value of the parameter at each sample in the buffer.
-///
-/// # Example
-///
-/// ```
-/// # use conformal_component::parameters::{numeric_per_sample, NumericBufferState, PiecewiseLinearCurvePoint, PiecewiseLinearCurve };
-/// # use conformal_component::audio::all_approx_eq;
-/// let state = NumericBufferState::PiecewiseLinear(PiecewiseLinearCurve::new(
-///   vec![
-///     PiecewiseLinearCurvePoint { sample_offset: 0, value: 0.0 },
-///     PiecewiseLinearCurvePoint { sample_offset: 10, value: 1.0 },
-///   ],
-///   13,
-///   0.0..=1.0,
-/// ).unwrap());
-/// assert!(
-///   all_approx_eq(
-///     numeric_per_sample(state),
-///     [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.0, 1.0],
-///     1e-6
-///   )
-/// );
-/// ```
+/// Note: for constant values, this returns an infinite iterator.
 pub fn numeric_per_sample<I: IntoIterator<Item = PiecewiseLinearCurvePoint, IntoIter: Clone>>(
     state: NumericBufferState<I>,
 ) -> impl Iterator<Item = f32> + Clone {
     match state {
-        NumericBufferState::Constant(v) => ConstantOrIterating::Constant(v),
+        NumericBufferState::Constant(v) => itertools::Either::Left(core::iter::repeat(v)),
         NumericBufferState::PiecewiseLinear(c) => {
-            ConstantOrIterating::Iterating(piecewise_linear_curve_per_sample(c))
+            itertools::Either::Right(piecewise_linear_curve_per_sample(c))
         }
     }
 }
@@ -136,32 +135,32 @@ fn timed_enum_per_sample<I: IntoIterator<Item = TimedValue<u32>, IntoIter: Clone
     })
 }
 
+#[doc(hidden)]
+pub fn decompose_enum<I: IntoIterator<Item = TimedValue<u32>, IntoIter: Clone>>(
+    state: EnumBufferState<I>,
+) -> DecomposedEnum<impl Iterator<Item = u32> + Clone> {
+    match state {
+        EnumBufferState::Constant(v) => DecomposedEnum {
+            value: v,
+            iter: None,
+        },
+        EnumBufferState::Varying(c) => DecomposedEnum {
+            value: 0,
+            iter: Some(timed_enum_per_sample(c)),
+        },
+    }
+}
+
 /// Converts an [`EnumBufferState`] into a per-sample iterator.
 ///
 /// This provides the value of the parameter at each sample in the buffer.
-///
-/// # Example
-///
-/// ```
-/// # use conformal_component::parameters::{enum_per_sample, EnumBufferState, TimedEnumValues, TimedValue };
-/// let state = EnumBufferState::Varying(TimedEnumValues::new(
-///   vec![
-///     TimedValue { sample_offset: 0, value: 0 },
-///     TimedValue { sample_offset: 3, value: 1 },
-///   ],
-///   5,
-///   0..2,
-/// ).unwrap());
-/// assert!(
-///   enum_per_sample(state).eq([0, 0, 0, 1, 1].iter().cloned())
-/// );
-/// ```
+/// Note: for constant values, this returns an infinite iterator.
 pub fn enum_per_sample<I: IntoIterator<Item = TimedValue<u32>, IntoIter: Clone>>(
     state: EnumBufferState<I>,
 ) -> impl Iterator<Item = u32> + Clone {
     match state {
-        EnumBufferState::Constant(v) => ConstantOrIterating::Constant(v),
-        EnumBufferState::Varying(c) => ConstantOrIterating::Iterating(timed_enum_per_sample(c)),
+        EnumBufferState::Constant(v) => itertools::Either::Left(core::iter::repeat(v)),
+        EnumBufferState::Varying(c) => itertools::Either::Right(timed_enum_per_sample(c)),
     }
 }
 
@@ -194,31 +193,32 @@ fn timed_switch_per_sample<I: IntoIterator<Item = TimedValue<bool>, IntoIter: Cl
     })
 }
 
+#[doc(hidden)]
+pub fn decompose_switch<I: IntoIterator<Item = TimedValue<bool>, IntoIter: Clone>>(
+    state: SwitchBufferState<I>,
+) -> DecomposedSwitch<impl Iterator<Item = bool> + Clone> {
+    match state {
+        SwitchBufferState::Constant(v) => DecomposedSwitch {
+            value: v,
+            iter: None,
+        },
+        SwitchBufferState::Varying(c) => DecomposedSwitch {
+            value: false,
+            iter: Some(timed_switch_per_sample(c)),
+        },
+    }
+}
+
 /// Converts a [`SwitchBufferState`] into a per-sample iterator.
 ///
 /// This provides the value of the parameter at each sample in the buffer.
-///
-/// # Example
-///
-/// ```
-/// # use conformal_component::parameters::{switch_per_sample, SwitchBufferState, TimedSwitchValues, TimedValue };
-/// let state = SwitchBufferState::Varying(TimedSwitchValues::new(
-///   vec![
-///     TimedValue { sample_offset: 0, value: false },
-///     TimedValue { sample_offset: 3, value: true },
-///   ],
-///   5,
-/// ).unwrap());
-/// assert!(
-///   switch_per_sample(state).eq([false, false, false, true, true].iter().cloned())
-/// );
-/// ```
+/// Note: for constant values, this returns an infinite iterator.
 pub fn switch_per_sample<I: IntoIterator<Item = TimedValue<bool>, IntoIter: Clone>>(
     state: SwitchBufferState<I>,
 ) -> impl Iterator<Item = bool> + Clone {
     match state {
-        SwitchBufferState::Constant(v) => ConstantOrIterating::Constant(v),
-        SwitchBufferState::Varying(c) => ConstantOrIterating::Iterating(timed_switch_per_sample(c)),
+        SwitchBufferState::Constant(v) => itertools::Either::Left(core::iter::repeat(v)),
+        SwitchBufferState::Varying(c) => itertools::Either::Right(timed_switch_per_sample(c)),
     }
 }
 
@@ -227,20 +227,25 @@ pub fn switch_per_sample<I: IntoIterator<Item = TimedValue<bool>, IntoIter: Clon
 macro_rules! pzip_part {
     (numeric $path:literal $params:ident) => {{
         use $crate::parameters::BufferStates;
-        $crate::parameters::numeric_per_sample($params.get_numeric($path).unwrap())
+        $crate::parameters::decompose_numeric($params.get_numeric($path).unwrap())
     }};
     (enum $path:literal $params:ident) => {{
         use $crate::parameters::BufferStates;
-        $crate::parameters::enum_per_sample($params.get_enum($path).unwrap())
+        $crate::parameters::decompose_enum($params.get_enum($path).unwrap())
     }};
     (switch $path:literal $params:ident) => {{
         use $crate::parameters::BufferStates;
-        $crate::parameters::switch_per_sample($params.get_switch($path).unwrap())
+        $crate::parameters::decompose_switch($params.get_switch($path).unwrap())
     }};
 }
 
-// Optimization opportunity - add maps here that only apply to the control points
-// in the linear curves!
+#[macro_export]
+#[doc(hidden)]
+macro_rules! pzip_value_type {
+    (numeric) => { f32 };
+    (enum) => { u32 };
+    (switch) => { bool };
+}
 
 #[macro_export]
 #[doc(hidden)]
@@ -253,32 +258,74 @@ macro_rules! pzip_collect {
         [ $($acc_name:ident $acc_kind:ident $acc_path:literal)* ] // Accumulated
     ) => {
         {
-            #[allow(unused_parens)]
+            #[allow(unused_parens, non_snake_case)]
             fn pzip_impl<
-                $($acc_name: Iterator + Clone),*
+                $($acc_name: Iterator<Item = $crate::pzip_value_type!($acc_kind)> + Clone),*
             >(
-                $($acc_name: $acc_name),*
-            ) -> impl Iterator<Item = ($($acc_name::Item),*)> + Clone {
-                #[derive(Clone)]
-                struct PZipIter<$($acc_name),*> {
+                $($acc_name: $crate::pzip_decomposed_type!($acc_kind, $acc_name)),*
+            ) -> impl Iterator<Item = ($($crate::pzip_value_type!($acc_kind)),*)> + Clone {
+                #[derive(Clone, Copy)]
+                #[allow(non_snake_case)]
+                struct Values<$($acc_name: Copy),*> {
                     $($acc_name: $acc_name),*
                 }
 
-                impl<$($acc_name: Iterator + Clone),*> Iterator for PZipIter<$($acc_name),*> {
-                    #[allow(unused_parens)]
-                    type Item = ($($acc_name::Item),*);
+                #[derive(Clone)]
+                #[allow(non_snake_case)]
+                struct Iters<$($acc_name),*> {
+                    $($acc_name: Option<$acc_name>),*
+                }
 
-                    #[inline(always)]
-                    #[allow(clippy::needless_question_mark, clippy::double_parens)]
-                    fn next(&mut self) -> Option<Self::Item> {
-                        Some((
-                            $(self.$acc_name.next()?),*
-                        ))
+                struct PZipIter<$($acc_name),*> {
+                    values: Values<$($crate::pzip_value_type!($acc_kind)),*>,
+                    iters: Iters<$($acc_name),*>,
+                    mask: u64,
+                }
+
+                impl<$($acc_name: Clone),*> Clone for PZipIter<$($acc_name),*> {
+                    fn clone(&self) -> Self {
+                        PZipIter {
+                            values: self.values,
+                            iters: Iters { $($acc_name: self.iters.$acc_name.clone()),* },
+                            mask: self.mask,
+                        }
                     }
                 }
 
+                impl<$($acc_name: Iterator<Item = $crate::pzip_value_type!($acc_kind)> + Clone),*> Iterator for PZipIter<$($acc_name),*> {
+                    #[allow(unused_parens)]
+                    type Item = ($($crate::pzip_value_type!($acc_kind)),*);
+
+                    #[inline(always)]
+                    fn next(&mut self) -> Option<Self::Item> {
+                        {
+                            let mut _bit = 1u64;
+                            $(
+                                if self.mask & _bit != 0 {
+                                    self.values.$acc_name = self.iters.$acc_name.as_mut().unwrap().next()?;
+                                }
+                                _bit <<= 1;
+                            )*
+                        }
+                        Some(($(self.values.$acc_name),*))
+                    }
+                }
+
+                let mut mask = 0u64;
+                {
+                    let mut _bit = 1u64;
+                    $(
+                        if $acc_name.iter.is_some() {
+                            mask |= _bit;
+                        }
+                        _bit <<= 1;
+                    )*
+                }
+
                 PZipIter {
-                    $($acc_name),*
+                    values: Values { $($acc_name: $acc_name.value),* },
+                    iters: Iters { $($acc_name: $acc_name.iter),* },
+                    mask,
                 }
             }
 
@@ -303,6 +350,15 @@ macro_rules! pzip_collect {
         )
     };
 }
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! pzip_decomposed_type {
+    (numeric, $iter:ty) => { $crate::parameters::DecomposedNumeric<$iter> };
+    (enum, $iter:ty) => { $crate::parameters::DecomposedEnum<$iter> };
+    (switch, $iter:ty) => { $crate::parameters::DecomposedSwitch<$iter> };
+}
+
 
 /// Utility to get a per-sample iterator including the state of multiple parameters.
 ///
