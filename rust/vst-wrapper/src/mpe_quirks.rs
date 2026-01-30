@@ -283,21 +283,28 @@ fn update_for_events(events: impl Iterator<Item = Event>, quirks_state: &mut Sta
 
 fn param_event_iters_no_audio<S: States>(
     parameter: Parameter,
-    hashes: &[IdHash; 15],
     buffer_states: &S,
+    quirks_state: &State,
 ) -> impl Iterator<Item = Event> + Clone + use<S> {
+    let hashes = match parameter {
+        Parameter::Pitch => &quirks_state.hashes.pitch,
+        Parameter::Aftertouch => &quirks_state.hashes.aftertouch,
+        Parameter::Timbre => &quirks_state.hashes.timbre,
+    };
     let mut i = 0;
     interleave_events_for_channel(hashes.map(move |hash| {
         let c = i;
+        let current_value = quirks_state.channels[c][parameter];
         i += 1;
         buffer_states
             .numeric_by_hash(hash)
             .into_iter()
+            .filter(move |&v| !approx_eq(v, current_value, 1e-6))
             .map(move |v| Event {
                 sample_offset: 0,
                 data: EventData::ParamChange {
                     parameter,
-                    channel: c + 1,
+                    channel: c as i16 + 1,
                     value: v,
                 },
             })
@@ -306,26 +313,36 @@ fn param_event_iters_no_audio<S: States>(
 
 fn param_event_iters<'a, S: BufferStates + Clone>(
     parameter: Parameter,
-    hashes: &[IdHash; 15],
     buffer_states: &'a S,
+    quirks_state: &State,
 ) -> impl Iterator<Item = Event> + Clone + use<'a, S> {
+    let hashes = match parameter {
+        Parameter::Pitch => &quirks_state.hashes.pitch,
+        Parameter::Aftertouch => &quirks_state.hashes.aftertouch,
+        Parameter::Timbre => &quirks_state.hashes.timbre,
+    };
     let mut i = 0;
     interleave_events_for_channel(hashes.map(move |hash| {
         let c = i;
+        let current_value = quirks_state.channels[c][parameter];
         i += 1;
         buffer_states
             .numeric_by_hash(hash)
             .into_iter()
             .flat_map(move |numeric| match numeric {
                 parameters::NumericBufferState::Constant(v) => {
-                    itertools::Either::Left(std::iter::once(Event {
-                        sample_offset: 0,
-                        data: EventData::ParamChange {
-                            parameter,
-                            channel: c + 1,
-                            value: v,
-                        },
-                    }))
+                    if approx_eq(v, current_value, 1e-6) {
+                        itertools::Either::Left(None.into_iter())
+                    } else {
+                        itertools::Either::Left(Some(Event {
+                            sample_offset: 0,
+                            data: EventData::ParamChange {
+                                parameter,
+                                channel: c as i16 + 1,
+                                value: v,
+                            },
+                        }).into_iter())
+                    }
                 }
                 parameters::NumericBufferState::PiecewiseLinear(piecewise_linear_curve) => {
                     itertools::Either::Right(piecewise_linear_curve.into_iter().map(move |point| {
@@ -333,7 +350,7 @@ fn param_event_iters<'a, S: BufferStates + Clone>(
                             sample_offset: point.sample_offset,
                             data: EventData::ParamChange {
                                 parameter,
-                                channel: c + 1,
+                                channel: c as i16 + 1,
                                 value: point.value,
                             },
                         }
@@ -349,13 +366,13 @@ fn all_param_event_iters_no_audio<
     S: States + Clone,
 >(
     events: I,
-    hashes: &Hashes,
     buffer_states: &'a S,
+    quirks_state: &State,
 ) -> impl Iterator<Item = Event> + Clone + use<'a, I, S> {
-    let pitch = param_event_iters_no_audio(Parameter::Pitch, &hashes.pitch, buffer_states);
+    let pitch = param_event_iters_no_audio(Parameter::Pitch, buffer_states, quirks_state);
     let aftertouch =
-        param_event_iters_no_audio(Parameter::Aftertouch, &hashes.aftertouch, buffer_states);
-    let timbre = param_event_iters_no_audio(Parameter::Timbre, &hashes.timbre, buffer_states);
+        param_event_iters_no_audio(Parameter::Aftertouch, buffer_states, quirks_state);
+    let timbre = param_event_iters_no_audio(Parameter::Timbre, buffer_states, quirks_state);
     interleave_events(
         events.map(|e| Event {
             sample_offset: 0,
@@ -371,12 +388,12 @@ fn all_param_event_iters_audio<
     S: BufferStates + Clone,
 >(
     events: I,
-    hashes: &Hashes,
     buffer_states: &'a S,
+    quirks_state: &State,
 ) -> impl Iterator<Item = Event> + Clone + use<'a, I, S> {
-    let pitch = param_event_iters(Parameter::Pitch, &hashes.pitch, buffer_states);
-    let aftertouch = param_event_iters(Parameter::Aftertouch, &hashes.aftertouch, buffer_states);
-    let timbre = param_event_iters(Parameter::Timbre, &hashes.timbre, buffer_states);
+    let pitch = param_event_iters(Parameter::Pitch, buffer_states, quirks_state);
+    let aftertouch = param_event_iters(Parameter::Aftertouch, buffer_states, quirks_state);
+    let timbre = param_event_iters(Parameter::Timbre, buffer_states, quirks_state);
     interleave_events(
         events.map(|e| Event {
             sample_offset: e.sample_offset,
@@ -392,7 +409,7 @@ pub fn add_mpe_quirk_events_no_audio<'a>(
     buffer_states: &'a (impl States + Clone),
 ) -> impl Iterator<Item = events::Data> + Clone {
     with_mpe_events(
-        all_param_event_iters_no_audio(events, &quirks_state.hashes, buffer_states),
+        all_param_event_iters_no_audio(events, buffer_states, &quirks_state),
         quirks_state,
     )
     .map(|e| e.data)
@@ -404,7 +421,7 @@ pub fn update_mpe_quirk_events_no_audio(
     buffer_states: &(impl States + Clone),
 ) {
     update_for_events(
-        all_param_event_iters_no_audio(events, &quirks_state.hashes, buffer_states),
+        all_param_event_iters_no_audio(events, buffer_states, quirks_state),
         quirks_state,
     );
 }
@@ -417,7 +434,11 @@ pub fn add_mpe_quirk_events_buffer<'a>(
 ) -> Events<impl Iterator<Item = events::Event> + Clone> {
     events::Events::new(
         with_mpe_events(
-            all_param_event_iters_audio(events.into_iter(), &quirks_state.hashes, buffer_states),
+            all_param_event_iters_audio(
+                events.into_iter(),
+                buffer_states,
+                &quirks_state,
+            ),
             quirks_state,
         ),
         buffer_size,
@@ -431,7 +452,11 @@ pub fn update_mpe_quirk_events_buffer(
     buffer_states: &(impl BufferStates + Clone),
 ) {
     update_for_events(
-        all_param_event_iters_audio(events.into_iter(), &quirks_state.hashes, buffer_states),
+        all_param_event_iters_audio(
+            events.into_iter(),
+            buffer_states,
+            quirks_state,
+        ),
         quirks_state,
     );
 }
