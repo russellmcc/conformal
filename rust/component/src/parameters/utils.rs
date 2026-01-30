@@ -226,21 +226,83 @@ pub fn switch_per_sample<I: IntoIterator<Item = TimedValue<bool>, IntoIter: Clon
 #[doc(hidden)]
 macro_rules! pzip_part {
     (numeric $path:literal $params:ident) => {{
-        use conformal_component::parameters::BufferStates;
-        conformal_component::parameters::numeric_per_sample($params.get_numeric($path).unwrap())
+        use $crate::parameters::BufferStates;
+        $crate::parameters::numeric_per_sample($params.get_numeric($path).unwrap())
     }};
     (enum $path:literal $params:ident) => {{
-        use conformal_component::parameters::BufferStates;
-        conformal_component::parameters::enum_per_sample($params.get_enum($path).unwrap())
+        use $crate::parameters::BufferStates;
+        $crate::parameters::enum_per_sample($params.get_enum($path).unwrap())
     }};
     (switch $path:literal $params:ident) => {{
-        use conformal_component::parameters::BufferStates;
-        conformal_component::parameters::switch_per_sample($params.get_switch($path).unwrap())
+        use $crate::parameters::BufferStates;
+        $crate::parameters::switch_per_sample($params.get_switch($path).unwrap())
     }};
 }
 
 // Optimization opportunity - add maps here that only apply to the control points
 // in the linear curves!
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! pzip_collect {
+    // Base case: Generate the struct and function
+    (
+        $params:ident,
+        [], // No more inputs
+        [ $($names:ident,)* ], // Remaining names
+        [ $($acc_name:ident $acc_kind:ident $acc_path:literal)* ] // Accumulated
+    ) => {
+        {
+            #[allow(unused_parens)]
+            fn pzip_impl<
+                $($acc_name: Iterator + Clone),*
+            >(
+                $($acc_name: $acc_name),*
+            ) -> impl Iterator<Item = ($($acc_name::Item),*)> + Clone {
+                #[derive(Clone)]
+                struct PZipIter<$($acc_name),*> {
+                    $($acc_name: $acc_name),*
+                }
+
+                impl<$($acc_name: Iterator + Clone),*> Iterator for PZipIter<$($acc_name),*> {
+                    #[allow(unused_parens)]
+                    type Item = ($($acc_name::Item),*);
+
+                    #[inline(always)]
+                    #[allow(clippy::needless_question_mark, clippy::double_parens)]
+                    fn next(&mut self) -> Option<Self::Item> {
+                        Some((
+                            $(self.$acc_name.next()?),*
+                        ))
+                    }
+                }
+
+                PZipIter {
+                    $($acc_name),*
+                }
+            }
+
+            pzip_impl(
+                $( $crate::pzip_part!($acc_kind $acc_path $params) ),*
+            )
+        }
+    };
+
+    // Recursive step
+    (
+        $params:ident,
+        [ $k:ident $p:literal $(, $rest_k:ident $rest_p:literal)* ],
+        [ $next_name:ident, $($rest_names:ident,)* ],
+        [ $($acc:tt)* ]
+    ) => {
+        $crate::pzip_collect!(
+            $params,
+            [ $($rest_k $rest_p),* ],
+            [ $($rest_names,)* ],
+            [ $($acc)* $next_name $k $p ]
+        )
+    };
+}
 
 /// Utility to get a per-sample iterator including the state of multiple parameters.
 ///
@@ -301,10 +363,11 @@ macro_rules! pzip_part {
 #[macro_export]
 macro_rules! pzip {
     ($params:ident[$($kind:ident $path:literal),+]) => {
-        conformal_component::itertools::izip!(
-            $(
-                conformal_component::pzip_part!($kind $path $params),
-            )+
+        $crate::pzip_collect!(
+            $params,
+            [ $($kind $path),+ ],
+            [ P0, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20, P21, P22, P23, P24, P25, P26, P27, P28, P29, P30, P31, P32, P33, P34, P35, P36, P37, P38, P39, P40, P41, P42, P43, P44, P45, P46, P47, P48, P49, P50, P51, P52, P53, P54, P55, P56, P57, P58, P59, P60, P61, P62, P63, P64, P65, P66, P67, P68, P69, P70, P71, P72, P73, P74, P75, P76, P77, P78, P79, P80, P81, P82, P83, P84, P85, P86, P87, P88, P89, P90, P91, P92, P93, P94, P95, P96, P97, P98, P99, P100, P101, P102, P103, P104, P105, P106, P107, P108, P109, P110, P111, P112, P113, P114, P115, P116, P117, P118, P119, P120, P121, P122, P123, P124, P125, P126, P127, P128, P129, P130, P131, P132, P133, P134, P135, P136, P137, P138, P139, P140, P141, P142, P143, P144, P145, P146, P147, P148, P149, P150, P151, P152, P153, P154, P155, P156, P157, P158, P159, P160, P161, P162, P163, P164, P165, P166, P167, P168, P169, P170, P171, P172, P173, P174, P175, P176, P177, P178, P179, P180, P181, P182, P183, P184, P185, P186, P187, P188, P189, P190, P191, P192, P193, P194, P195, P196, P197, P198, P199, P200, P201, P202, P203, P204, P205, P206, P207, P208, P209, P210, P211, P212, P213, P214, P215, P216, P217, P218, P219, P220, P221, P222, P223, P224, P225, P226, P227, P228, P229, P230, P231, P232, P233, P234, P235, P236, P237, P238, P239, P240, P241, P242, P243, P244, P245, P246, P247, P248, P249, P250, P251, P252, P253, P254, P255, ],
+            []
         )
     };
 }
