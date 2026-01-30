@@ -124,6 +124,8 @@ struct Event {
 struct InterleavedEventIter<A: Iterator<Item: Clone> + Clone, B: Iterator<Item: Clone> + Clone> {
     a: Peekable<A>,
     b: Peekable<B>,
+    next_offset_a: Option<usize>,
+    next_offset_b: Option<usize>,
 }
 
 impl<A: Iterator<Item = Event> + Clone, B: Iterator<Item = Event> + Clone> Iterator
@@ -132,16 +134,28 @@ impl<A: Iterator<Item = Event> + Clone, B: Iterator<Item = Event> + Clone> Itera
     type Item = Event;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match (self.a.peek(), self.b.peek()) {
-            (Some(a), Some(b)) => {
-                if a.sample_offset <= b.sample_offset {
-                    self.a.next()
+        match (self.next_offset_a, self.next_offset_b) {
+            (Some(a_offset), Some(b_offset)) => {
+                if a_offset <= b_offset {
+                    let res = self.a.next();
+                    self.next_offset_a = self.a.peek().map(|e| e.sample_offset);
+                    res
                 } else {
-                    self.b.next()
+                    let res = self.b.next();
+                    self.next_offset_b = self.b.peek().map(|e| e.sample_offset);
+                    res
                 }
             }
-            (Some(_), None) => self.a.next(),
-            (None, Some(_)) => self.b.next(),
+            (Some(_), None) => {
+                let res = self.a.next();
+                self.next_offset_a = self.a.peek().map(|e| e.sample_offset);
+                res
+            }
+            (None, Some(_)) => {
+                let res = self.b.next();
+                self.next_offset_b = self.b.peek().map(|e| e.sample_offset);
+                res
+            }
             (None, None) => None,
         }
     }
@@ -151,35 +165,60 @@ fn interleave_events<'a>(
     a: impl Iterator<Item = Event> + Clone + 'a,
     b: impl Iterator<Item = Event> + Clone + 'a,
 ) -> impl Iterator<Item = Event> + Clone {
+    let mut a = a.peekable();
+    let mut b = b.peekable();
+    let next_offset_a = a.peek().map(|e| e.sample_offset);
+    let next_offset_b = b.peek().map(|e| e.sample_offset);
+
     InterleavedEventIter {
-        a: a.peekable(),
-        b: b.peekable(),
+        a,
+        b,
+        next_offset_a,
+        next_offset_b,
     }
 }
 
 #[derive(Clone)]
 struct ChannelInterleavedEventIter<I: Iterator<Item: Clone> + Clone> {
     channels: [Peekable<I>; 15],
+    next_offsets: [Option<usize>; 15],
 }
 
 impl<I: Iterator<Item = Event> + Clone> Iterator for ChannelInterleavedEventIter<I> {
     type Item = Event;
 
     fn next(&mut self) -> Option<Self::Item> {
-        (0..15)
-            .map(|c_idx| self.channels[c_idx].peek().map(|e| e.sample_offset))
-            .enumerate()
-            .filter_map(|(i, sample_offset)| sample_offset.map(|sample_offset| (i, sample_offset)))
-            .min_by_key(|(_, sample_offset)| *sample_offset)
-            .and_then(|(i, _)| self.channels[i].next())
+        let mut min_idx = None;
+        let mut min_offset = usize::MAX;
+
+        for (i, offset) in self.next_offsets.iter().enumerate() {
+            if let Some(offset) = *offset {
+                if offset < min_offset {
+                    min_offset = offset;
+                    min_idx = Some(i);
+                }
+            }
+        }
+
+        if let Some(idx) = min_idx {
+            let event = self.channels[idx].next();
+            self.next_offsets[idx] = self.channels[idx].peek().map(|e| e.sample_offset);
+            event
+        } else {
+            None
+        }
     }
 }
 
 fn interleave_events_for_channel(
     channels: [impl Iterator<Item = Event> + Clone; 15],
 ) -> impl Iterator<Item = Event> + Clone {
+    let mut channels = channels.map(std::iter::Iterator::peekable);
+    let next_offsets = std::array::from_fn(|i| channels[i].peek().map(|e| e.sample_offset));
+
     ChannelInterleavedEventIter {
-        channels: channels.map(std::iter::Iterator::peekable),
+        channels,
+        next_offsets,
     }
 }
 
