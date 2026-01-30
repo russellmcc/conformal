@@ -12,7 +12,6 @@ use super::{
     TimedSwitchValues, TimedValue, TypeSpecificInfoRef, hash_id,
 };
 
-
 /// Convert a piecewise linear curve into a per-sample iterator for a buffer.
 fn piecewise_linear_curve_per_sample<
     I: IntoIterator<Item = PiecewiseLinearCurvePoint, IntoIter: Clone>,
@@ -61,9 +60,7 @@ pub fn decompose_numeric<I: IntoIterator<Item = PiecewiseLinearCurvePoint, IntoI
 ) -> (f32, Option<impl Iterator<Item = f32> + Clone>) {
     match state {
         NumericBufferState::Constant(v) => (v, None),
-        NumericBufferState::PiecewiseLinear(c) => {
-            (0.0, Some(piecewise_linear_curve_per_sample(c)))
-        }
+        NumericBufferState::PiecewiseLinear(c) => (0.0, Some(piecewise_linear_curve_per_sample(c))),
     }
 }
 
@@ -206,9 +203,15 @@ macro_rules! pzip_part {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! pzip_value_type {
-    (numeric) => { f32 };
-    (enum) => { u32 };
-    (switch) => { bool };
+    (numeric) => {
+        f32
+    };
+    (enum) => {
+        u32
+    };
+    (switch) => {
+        bool
+    };
 }
 
 #[macro_export]
@@ -314,8 +317,6 @@ macro_rules! pzip_collect {
         )
     };
 }
-
-
 
 /// Utility to get a per-sample iterator including the state of multiple parameters.
 ///
