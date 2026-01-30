@@ -12,26 +12,6 @@ use super::{
     TimedSwitchValues, TimedValue, TypeSpecificInfoRef, hash_id,
 };
 
-#[doc(hidden)]
-#[derive(Clone)]
-pub struct DecomposedNumeric<I> {
-    pub value: f32,
-    pub iter: Option<I>,
-}
-
-#[doc(hidden)]
-#[derive(Clone)]
-pub struct DecomposedEnum<I> {
-    pub value: u32,
-    pub iter: Option<I>,
-}
-
-#[doc(hidden)]
-#[derive(Clone)]
-pub struct DecomposedSwitch<I> {
-    pub value: bool,
-    pub iter: Option<I>,
-}
 
 /// Convert a piecewise linear curve into a per-sample iterator for a buffer.
 fn piecewise_linear_curve_per_sample<
@@ -78,16 +58,12 @@ fn piecewise_linear_curve_per_sample<
 #[doc(hidden)]
 pub fn decompose_numeric<I: IntoIterator<Item = PiecewiseLinearCurvePoint, IntoIter: Clone>>(
     state: NumericBufferState<I>,
-) -> DecomposedNumeric<impl Iterator<Item = f32> + Clone> {
+) -> (f32, Option<impl Iterator<Item = f32> + Clone>) {
     match state {
-        NumericBufferState::Constant(v) => DecomposedNumeric {
-            value: v,
-            iter: None,
-        },
-        NumericBufferState::PiecewiseLinear(c) => DecomposedNumeric {
-            value: 0.0,
-            iter: Some(piecewise_linear_curve_per_sample(c)),
-        },
+        NumericBufferState::Constant(v) => (v, None),
+        NumericBufferState::PiecewiseLinear(c) => {
+            (0.0, Some(piecewise_linear_curve_per_sample(c)))
+        }
     }
 }
 
@@ -138,16 +114,10 @@ fn timed_enum_per_sample<I: IntoIterator<Item = TimedValue<u32>, IntoIter: Clone
 #[doc(hidden)]
 pub fn decompose_enum<I: IntoIterator<Item = TimedValue<u32>, IntoIter: Clone>>(
     state: EnumBufferState<I>,
-) -> DecomposedEnum<impl Iterator<Item = u32> + Clone> {
+) -> (u32, Option<impl Iterator<Item = u32> + Clone>) {
     match state {
-        EnumBufferState::Constant(v) => DecomposedEnum {
-            value: v,
-            iter: None,
-        },
-        EnumBufferState::Varying(c) => DecomposedEnum {
-            value: 0,
-            iter: Some(timed_enum_per_sample(c)),
-        },
+        EnumBufferState::Constant(v) => (v, None),
+        EnumBufferState::Varying(c) => (0, Some(timed_enum_per_sample(c))),
     }
 }
 
@@ -196,16 +166,10 @@ fn timed_switch_per_sample<I: IntoIterator<Item = TimedValue<bool>, IntoIter: Cl
 #[doc(hidden)]
 pub fn decompose_switch<I: IntoIterator<Item = TimedValue<bool>, IntoIter: Clone>>(
     state: SwitchBufferState<I>,
-) -> DecomposedSwitch<impl Iterator<Item = bool> + Clone> {
+) -> (bool, Option<impl Iterator<Item = bool> + Clone>) {
     match state {
-        SwitchBufferState::Constant(v) => DecomposedSwitch {
-            value: v,
-            iter: None,
-        },
-        SwitchBufferState::Varying(c) => DecomposedSwitch {
-            value: false,
-            iter: Some(timed_switch_per_sample(c)),
-        },
+        SwitchBufferState::Constant(v) => (v, None),
+        SwitchBufferState::Varying(c) => (false, Some(timed_switch_per_sample(c))),
     }
 }
 
@@ -262,7 +226,7 @@ macro_rules! pzip_collect {
             fn pzip_impl<
                 $($acc_name: Iterator<Item = $crate::pzip_value_type!($acc_kind)> + Clone),*
             >(
-                $($acc_name: $crate::pzip_decomposed_type!($acc_kind, $acc_name)),*
+                $($acc_name: ($crate::pzip_value_type!($acc_kind), Option<$acc_name>)),*
             ) -> impl Iterator<Item = ($($crate::pzip_value_type!($acc_kind)),*)> + Clone {
                 #[derive(Clone, Copy)]
                 #[allow(non_snake_case)]
@@ -315,7 +279,7 @@ macro_rules! pzip_collect {
                 {
                     let mut _bit = 1u64;
                     $(
-                        if $acc_name.iter.is_some() {
+                        if $acc_name.1.is_some() {
                             mask |= _bit;
                         }
                         _bit <<= 1;
@@ -323,8 +287,8 @@ macro_rules! pzip_collect {
                 }
 
                 PZipIter {
-                    values: Values { $($acc_name: $acc_name.value),* },
-                    iters: Iters { $($acc_name: $acc_name.iter),* },
+                    values: Values { $($acc_name: $acc_name.0),* },
+                    iters: Iters { $($acc_name: $acc_name.1),* },
                     mask,
                 }
             }
@@ -351,13 +315,6 @@ macro_rules! pzip_collect {
     };
 }
 
-#[macro_export]
-#[doc(hidden)]
-macro_rules! pzip_decomposed_type {
-    (numeric, $iter:ty) => { $crate::parameters::DecomposedNumeric<$iter> };
-    (enum, $iter:ty) => { $crate::parameters::DecomposedEnum<$iter> };
-    (switch, $iter:ty) => { $crate::parameters::DecomposedSwitch<$iter> };
-}
 
 
 /// Utility to get a per-sample iterator including the state of multiple parameters.
