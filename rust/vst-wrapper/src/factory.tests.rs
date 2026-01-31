@@ -2,9 +2,7 @@ use super::Factory;
 use crate::{ClassInfo, Info};
 use crate::{HostInfo, SynthClass};
 use conformal_component::audio::BufferMut;
-use conformal_component::events::{Data, Event, Events};
-use conformal_component::parameters::{BufferStates, States};
-use conformal_component::synth::Synth;
+use conformal_component::synth::{HandleEventsContext, ProcessContext, Synth};
 use conformal_component::{Component, ProcessingEnvironment, Processor};
 use vst3::Steinberg::Vst::{IComponent, IComponentTrait};
 use vst3::Steinberg::{IPluginFactory2Trait, IPluginFactoryTrait};
@@ -22,20 +20,11 @@ impl Processor for DummySynth {
 }
 
 impl Synth for DummySynth {
-    fn handle_events<E: IntoIterator<Item = Data>, P: States>(
-        &mut self,
-        _events: E,
-        _parameters: P,
-    ) {
+    fn handle_events(&mut self, _context: impl HandleEventsContext) {
         unimplemented!()
     }
 
-    fn process<E: IntoIterator<Item = Event>, P: BufferStates, O: BufferMut>(
-        &mut self,
-        _events: Events<E>,
-        _parameters: P,
-        _output: &mut O,
-    ) {
+    fn process(&mut self, _context: &impl ProcessContext, _output: &mut impl BufferMut) {
         unimplemented!()
     }
 }

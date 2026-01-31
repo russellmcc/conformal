@@ -138,29 +138,25 @@ pub const CONTROLLER_PARAMETERS: [InfoRef<'static, &'static str>; 6] = [
     TIMBRE_INFO,
 ];
 
-/// A trait for synthesizers
-///
-/// A synthesizer is a processor that creates audio from a series of _events_,
-/// such as Note On, or Note Off.
-pub trait Synth: Processor {
-    /// Handle parameter changes and events without processing any data.
-    /// Must not allocate or block.
+/// A trait for metadata during an audio processing call
+pub trait HandleEventsContext {
+    /// The events to handle
+    fn events(&self) -> impl Iterator<Item = events::Data> + Clone;
+
+    /// Parameter state
     ///
     /// Note that `parameters` will include [`CONTROLLER_PARAMETERS`] related to controller state
     /// (e.g. pitch bend, mod wheel, etc.) above, in addition to all the parameters
     /// returned by `crate::Component::parameter_infos`.
-    fn handle_events<E: Iterator<Item = events::Data> + Clone, P: parameters::States>(
-        &mut self,
-        events: E,
-        parameters: P,
-    );
+    fn parameters(&self) -> impl parameters::States;
+}
 
-    /// Process a buffer of events into a buffer of audio. Must not allocate or block.
-    ///
-    /// Note that `events` will be sorted by `sample_offset`
-    ///
-    /// `output` will be received in an undetermined state and must
-    /// be filled with audio by the processor during this call.
+/// A trait for metadata during an audio processing call
+pub trait ProcessContext {
+    /// The events for this processing call
+    fn events(&self) -> Events<impl Iterator<Item = Event> + Clone>;
+
+    /// Parameter states for this call
     ///
     /// Note that `parameters` will include [`CONTROLLER_PARAMETERS`] related to controller state
     /// (e.g. pitch bend, mod wheel, etc.) above, in addition to all the parameters
@@ -169,6 +165,24 @@ pub trait Synth: Processor {
     /// In order to consume the parameters, you can use the [`crate::pzip`] macro
     /// to convert the parameters into an iterator of tuples that represent
     /// the state of the parameters at each sample.
+    fn parameters(&self) -> impl BufferStates;
+}
+
+/// A trait for synthesizers
+///
+/// A synthesizer is a processor that creates audio from a series of _events_,
+/// such as Note On, or Note Off.
+pub trait Synth: Processor {
+    /// Handle parameter changes and events without processing any data.
+    /// Must not allocate or block.
+    fn handle_events(&mut self, context: impl HandleEventsContext);
+
+    /// Process a buffer of events into a buffer of audio. Must not allocate or block.
+    ///
+    /// Note that `events` will be sorted by `sample_offset`
+    ///
+    /// `output` will be received in an undetermined state and must
+    /// be filled with audio by the processor during this call.
     ///
     /// The sample rate of the audio was provided in `environment.sampling_rate`
     /// in the call to `crate::Component::create_processor`.
@@ -176,10 +190,5 @@ pub trait Synth: Processor {
     /// Note that it's guaranteed that `output` will be no longer than
     /// `environment.max_samples_per_process_call` provided in the call to
     /// `crate::Component::create_processor`.
-    fn process<E: Iterator<Item = Event> + Clone, P: BufferStates, O: BufferMut>(
-        &mut self,
-        events: Events<E>,
-        parameters: P,
-        output: &mut O,
-    );
+    fn process(&mut self, context: &impl ProcessContext, output: &mut impl BufferMut);
 }

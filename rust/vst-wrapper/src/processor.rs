@@ -143,7 +143,7 @@ trait ActiveProcessor<P> {
 
     fn handle_events<
         E: Iterator<Item = conformal_component::events::Data> + Clone,
-        Parameters: conformal_component::parameters::States,
+        Parameters: conformal_component::parameters::States + Clone,
     >(
         &self,
         processor: &mut P,
@@ -610,6 +610,30 @@ impl ProcessorCategory for EffectProcessorCategory {
     }
 }
 
+struct EffectProcessContext<P> {
+    parameters: P,
+}
+
+impl<P: BufferStates + Clone> conformal_component::effect::ProcessContext
+    for EffectProcessContext<P>
+{
+    fn parameters(&self) -> impl BufferStates {
+        self.parameters.clone()
+    }
+}
+
+struct EffectHandleParametersContext<P> {
+    parameters: P,
+}
+
+impl<P: conformal_component::parameters::States + Clone>
+    conformal_component::effect::HandleParametersContext for EffectHandleParametersContext<P>
+{
+    fn parameters(&self) -> impl conformal_component::parameters::States {
+        self.parameters.clone()
+    }
+}
+
 struct EffectProcessBuffer<'a, P> {
     processor: &'a mut P,
     input: UnsafeBufferFromRaw,
@@ -617,12 +641,14 @@ struct EffectProcessBuffer<'a, P> {
 }
 
 impl<P: Effect> ProcessBuffer for EffectProcessBuffer<'_, P> {
-    fn process<E: IntoIterator<Item = Event> + Clone, Parameters: BufferStates>(
+    fn process<E: IntoIterator<Item = Event> + Clone, Parameters: BufferStates + Clone>(
         &mut self,
         _e: Events<E>,
         p: Parameters,
     ) {
-        self.processor.process(p, &self.input, &mut self.output);
+        let context = EffectProcessContext { parameters: p };
+        self.processor
+            .process(&context, &self.input, &mut self.output);
     }
 }
 
@@ -665,14 +691,15 @@ impl<P: Effect> ActiveProcessor<P> for ActiveEffectProcessor {
 
     fn handle_events<
         E: IntoIterator<Item = conformal_component::events::Data> + Clone,
-        Parameters: conformal_component::parameters::States,
+        Parameters: conformal_component::parameters::States + Clone,
     >(
         &self,
         processor: &mut P,
         _e: E,
         p: Parameters,
     ) {
-        processor.handle_parameters(p);
+        let context = EffectHandleParametersContext { parameters: p };
+        processor.handle_parameters(context);
     }
 
     fn audio_enabled(&self) -> bool {
@@ -1201,22 +1228,64 @@ pub const NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID: vst3::Steinberg::Vst::NoteExpressi
 
 mod events;
 
+struct SynthProcessContext<E, P> {
+    events: Events<E>,
+    parameters: P,
+}
+
+impl<E: Iterator<Item = Event> + Clone, P: BufferStates + Clone>
+    conformal_component::synth::ProcessContext for SynthProcessContext<E, P>
+{
+    fn events(&self) -> Events<impl Iterator<Item = Event> + Clone> {
+        self.events.clone()
+    }
+    fn parameters(&self) -> impl BufferStates {
+        self.parameters.clone()
+    }
+}
+
+struct SynthHandleEventsContext<E, P> {
+    events: E,
+    parameters: P,
+}
+
+impl<
+    E: Iterator<Item = conformal_component::events::Data> + Clone,
+    P: conformal_component::parameters::States + Clone,
+> conformal_component::synth::HandleEventsContext for SynthHandleEventsContext<E, P>
+{
+    fn events(&self) -> impl Iterator<Item = conformal_component::events::Data> + Clone {
+        self.events.clone()
+    }
+    fn parameters(&self) -> impl conformal_component::parameters::States {
+        self.parameters.clone()
+    }
+}
+
 struct SynthProcessBuffer<'a, P> {
     synth: &'a mut P,
     output: UnsafeMutBufferFromRaw,
 }
 
 trait ProcessBuffer {
-    fn process<E: Iterator<Item = Event> + Clone, P: BufferStates>(&mut self, e: Events<E>, p: P);
+    fn process<E: Iterator<Item = Event> + Clone, P: BufferStates + Clone>(
+        &mut self,
+        e: Events<E>,
+        p: P,
+    );
 }
 
 impl<P: Synth> ProcessBuffer for SynthProcessBuffer<'_, P> {
-    fn process<E: Iterator<Item = Event> + Clone, Parameters: BufferStates>(
+    fn process<E: Iterator<Item = Event> + Clone, Parameters: BufferStates + Clone>(
         &mut self,
         e: Events<E>,
         p: Parameters,
     ) {
-        self.synth.process(e, p, &mut self.output);
+        let context = SynthProcessContext {
+            events: e,
+            parameters: p,
+        };
+        self.synth.process(&context, &mut self.output);
     }
 }
 
@@ -1374,14 +1443,18 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
 
     fn handle_events<
         E: Iterator<Item = conformal_component::events::Data> + Clone,
-        Parameters: conformal_component::parameters::States,
+        Parameters: conformal_component::parameters::States + Clone,
     >(
         &self,
         processor: &mut P,
         e: E,
         p: Parameters,
     ) {
-        processor.handle_events(e, p);
+        let context = SynthHandleEventsContext {
+            events: e,
+            parameters: p,
+        };
+        processor.handle_events(context);
     }
 
     fn audio_enabled(&self) -> bool {
@@ -1675,10 +1748,10 @@ mod tests {
     use conformal_component;
     use conformal_component::audio::{BufferMut, channels, channels_mut};
     use conformal_component::events::{
-        Data, Event, Events, NoteData, NoteExpression, NoteExpressionData, NoteID,
+        Data, Event, NoteData, NoteExpression, NoteExpressionData, NoteID,
     };
     use conformal_component::parameters::{
-        BufferStates, Flags, InfoRef, States, StaticInfoRef, TypeSpecificInfoRef,
+        BufferStates, Flags, InfoRef, StaticInfoRef, TypeSpecificInfoRef,
     };
     use conformal_component::parameters::{enum_per_sample, numeric_per_sample, switch_per_sample};
     use conformal_component::{
@@ -1778,12 +1851,8 @@ mod tests {
     }
 
     impl<'a> Synth for FakeSynth<'a> {
-        fn handle_events<E: IntoIterator<Item = Data>, P: States>(
-            &mut self,
-            events: E,
-            _parameters: P,
-        ) {
-            for event in events {
+        fn handle_events(&mut self, context: impl conformal_component::synth::HandleEventsContext) {
+            for event in context.events() {
                 match event {
                     Data::NoteOn { data } => {
                         self.notes.insert(data.id);
@@ -1798,12 +1867,13 @@ mod tests {
             }
         }
 
-        fn process<E: Iterator<Item = Event>, P: BufferStates, O: BufferMut>(
+        fn process(
             &mut self,
-            events: Events<E>,
-            parameters: P,
-            output: &mut O,
+            context: &impl conformal_component::synth::ProcessContext,
+            output: &mut impl BufferMut,
         ) {
+            let events = context.events();
+            let parameters = context.parameters();
             let mut events_iter = events.into_iter();
             let mut next_event = events_iter.next();
 
@@ -1926,22 +1996,19 @@ mod tests {
     }
 
     impl Effect for FakeEffect {
-        fn handle_parameters<P: conformal_component::parameters::States>(
+        fn handle_parameters(
             &mut self,
-            _parameters: P,
+            _context: impl conformal_component::effect::HandleParametersContext,
         ) {
         }
 
-        fn process<
-            P: conformal_component::parameters::BufferStates,
-            I: conformal_component::audio::Buffer,
-            O: conformal_component::audio::BufferMut,
-        >(
+        fn process(
             &mut self,
-            parameters: P,
-            input: &I,
-            output: &mut O,
+            context: &impl conformal_component::effect::ProcessContext,
+            input: &impl conformal_component::audio::Buffer,
+            output: &mut impl conformal_component::audio::BufferMut,
         ) {
+            let parameters = context.parameters();
             let mult_iter = numeric_per_sample(parameters.get_numeric(NUMERIC_ID).unwrap());
             let enum_iter = enum_per_sample(parameters.get_enum(ENUM_ID).unwrap());
             let switch_iter = switch_per_sample(parameters.get_switch(SWITCH_ID).unwrap());
@@ -4322,18 +4389,16 @@ mod tests {
     }
 
     impl Synth for IncompatibleSynth {
-        fn handle_events<E: IntoIterator<Item = Data>, P: States>(
+        fn handle_events(
             &mut self,
-            _events: E,
-            _parameters: P,
+            _context: impl conformal_component::synth::HandleEventsContext,
         ) {
         }
 
-        fn process<E: IntoIterator<Item = Event>, P: BufferStates, O: BufferMut>(
+        fn process(
             &mut self,
-            _events: Events<E>,
-            _parameters: P,
-            _output: &mut O,
+            _context: &impl conformal_component::synth::ProcessContext,
+            _output: &mut impl BufferMut,
         ) {
         }
     }
@@ -4403,18 +4468,16 @@ mod tests {
     }
 
     impl Synth for NewerSynth {
-        fn handle_events<E: IntoIterator<Item = Data>, P: States>(
+        fn handle_events(
             &mut self,
-            _events: E,
-            _parameters: P,
+            _context: impl conformal_component::synth::HandleEventsContext,
         ) {
         }
 
-        fn process<E: IntoIterator<Item = Event>, P: BufferStates, O: BufferMut>(
+        fn process(
             &mut self,
-            _events: Events<E>,
-            _parameters: P,
-            _output: &mut O,
+            _context: &impl conformal_component::synth::ProcessContext,
+            _output: &mut impl BufferMut,
         ) {
         }
     }

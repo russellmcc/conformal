@@ -1,6 +1,6 @@
 use conformal_component::audio::{Buffer, BufferMut, channels, channels_mut};
-use conformal_component::effect::Effect as EffectTrait;
-use conformal_component::parameters::{self, BufferStates, Flags, InfoRef, TypeSpecificInfoRef};
+use conformal_component::effect::{Effect as EffectTrait, HandleParametersContext, ProcessContext};
+use conformal_component::parameters::{self, Flags, InfoRef, TypeSpecificInfoRef};
 use conformal_component::pzip;
 use conformal_component::{Component as ComponentTrait, ProcessingEnvironment, Processor};
 
@@ -36,13 +36,14 @@ impl Processor for Effect {
 }
 
 impl EffectTrait for Effect {
-    fn handle_parameters<P: parameters::States>(&mut self, _: P) {}
-    fn process<P: BufferStates, I: Buffer, O: BufferMut>(
+    fn handle_parameters(&mut self, _context: impl HandleParametersContext) {}
+    fn process(
         &mut self,
-        parameters: P,
-        input: &I,
-        output: &mut O,
+        context: &impl ProcessContext,
+        input: &impl Buffer,
+        output: &mut impl BufferMut,
     ) {
+        let parameters = context.parameters();
         for (input_channel, output_channel) in channels(input).zip(channels_mut(output)) {
             for ((input_sample, output_sample), (gain, bypass)) in input_channel
                 .iter()

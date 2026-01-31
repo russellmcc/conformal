@@ -1,7 +1,24 @@
 //! Abstractions for processors that effect audio.
 
+use crate::Processor;
 use crate::audio::{Buffer, BufferMut};
-use crate::{Processor, parameters, parameters::BufferStates};
+use crate::parameters::{BufferStates, States};
+
+/// A trait for metadata during an audio processing call
+pub trait HandleParametersContext {
+    /// The parameters to handle
+    fn parameters(&self) -> impl States;
+}
+
+/// A trait for metadata during an audio processing call
+pub trait ProcessContext {
+    /// Parameter states for this call
+    ///
+    /// In order to consume the parameters, you can use the [`crate::pzip`] macro
+    /// to convert the parameters into an iterator of tuples that represent
+    /// the state of the parameters at each sample.
+    fn parameters(&self) -> impl BufferStates;
+}
 
 /// A trait for audio effects
 ///
@@ -12,7 +29,7 @@ pub trait Effect: Processor {
     /// Handle parameter changes without processing any audio data.
     ///
     /// Must not allocate or block.
-    fn handle_parameters<P: parameters::States>(&mut self, parameters: P);
+    fn handle_parameters(&mut self, context: impl HandleParametersContext);
 
     /// Actually process audio data.
     ///
@@ -27,20 +44,16 @@ pub trait Effect: Processor {
     /// information about the state of the parameters throughout the buffer
     /// being processed.
     ///
-    /// In order to consume the parameters, you can use the [`crate::pzip`] macro
-    /// to convert the parameters into an iterator of tuples that represent
-    /// the state of the parameters at each sample.
-    ///
     /// The sample rate of the audio was provided in `environment.sampling_rate`
     /// in the call to `crate::Component::create_processor`.
     ///
     /// Note that it's guaranteed that `output` will be no longer than
     /// `environment.max_samples_per_process_call` provided in the call to
     /// `crate::Component::create_processor`.
-    fn process<P: BufferStates, I: Buffer, O: BufferMut>(
+    fn process(
         &mut self,
-        parameters: P,
-        input: &I,
-        output: &mut O,
+        context: &impl ProcessContext,
+        input: &impl Buffer,
+        output: &mut impl BufferMut,
     );
 }
