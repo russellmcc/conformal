@@ -322,13 +322,14 @@ fn should_include_parameter_in_snapshot(id: &str) -> bool {
 /// }
 ///
 /// impl EffectTrait for Effect {
-///     fn handle_parameters<P: parameters::States>(&mut self, _: P) {}
-///     fn process<P: BufferStates, I: Buffer, O: BufferMut>(
+///     fn handle_parameters(&mut self, _context: impl conformal_component::effect::HandleParametersContext) {}
+///     fn process(
 ///         &mut self,
-///         parameters: P,
-///         input: &I,
-///         output: &mut O,
+///         context: &impl conformal_component::effect::ProcessContext,
+///         input: &impl Buffer,
+///         output: &mut impl BufferMut,
 ///     ) {
+///         let parameters = context.parameters();
 ///         for (input_channel, output_channel) in channels(input).zip(channels_mut(output)) {
 ///             for ((input_sample, output_sample), (gain, bypass)) in input_channel
 ///                 .iter()

@@ -1,7 +1,7 @@
 use conformal_component::audio::BufferMut;
-use conformal_component::events::{self, Event, Events, NoteData};
-use conformal_component::parameters::{self, BufferStates, Flags, InfoRef, TypeSpecificInfoRef};
-use conformal_component::synth::Synth as SynthTrait;
+use conformal_component::events::NoteData;
+use conformal_component::parameters::{self, Flags, InfoRef, TypeSpecificInfoRef};
+use conformal_component::synth::{HandleEventsContext, ProcessContext, Synth as SynthTrait};
 use conformal_component::{Component as ComponentTrait, ProcessingEnvironment, Processor, pzip};
 use conformal_poly::{self, EventData, Poly, Voice as VoiceTrait};
 use itertools::izip;
@@ -52,20 +52,13 @@ impl Processor for Synth {
 }
 
 impl SynthTrait for Synth {
-    fn handle_events<E: Iterator<Item = events::Data> + Clone, P: parameters::States>(
-        &mut self,
-        events: E,
-        _parameters: P,
-    ) {
-        self.poly.handle_events(events);
+    fn handle_events(&mut self, context: impl HandleEventsContext) {
+        self.poly.handle_events(context.events());
     }
 
-    fn process<E: Iterator<Item = Event> + Clone, P: BufferStates, O: BufferMut>(
-        &mut self,
-        events: Events<E>,
-        parameters: P,
-        output: &mut O,
-    ) {
+    fn process(&mut self, context: &impl ProcessContext, output: &mut impl BufferMut) {
+        let events = context.events();
+        let parameters = context.parameters();
         self.poly
             .process(events.into_iter(), &parameters, &Default::default(), output);
     }

@@ -1367,6 +1367,7 @@ mod tests {
     use std::cell::RefCell;
     use std::rc;
 
+    use conformal_component::synth::{HandleEventsContext, ProcessContext};
     use vst3::Class;
     use vst3::Steinberg::Vst::{
         IAudioProcessorTrait, IComponentHandler, IComponentHandlerTrait, IComponentTrait,
@@ -1386,10 +1387,7 @@ mod tests {
     use crate::{dummy_host, from_utf16_buffer, to_utf16};
     use assert_approx_eq::assert_approx_eq;
     use conformal_component::audio::BufferMut;
-    use conformal_component::events::{Data, Event, Events};
-    use conformal_component::parameters::{
-        self, BufferStates, Flags, States, StaticInfoRef, hash_id,
-    };
+    use conformal_component::parameters::{self, Flags, StaticInfoRef, hash_id};
     use conformal_component::{
         Component, ProcessingEnvironment, Processor,
         parameters::{InfoRef, TypeSpecificInfoRef},
@@ -1409,21 +1407,9 @@ mod tests {
     }
 
     impl Synth for DummySynth {
-        fn handle_events<E: IntoIterator<Item = Data>, P: States>(
-            &mut self,
-            _events: E,
-            _parameters: P,
-        ) {
-        }
+        fn handle_events(&mut self, _context: impl HandleEventsContext) {}
 
-        fn process<E: IntoIterator<Item = Event>, P: BufferStates, O: BufferMut>(
-            &mut self,
-            _events: Events<E>,
-            _parameters: P,
-            _output: &mut O,
-        ) {
-            unimplemented!()
-        }
+        fn process(&mut self, _context: &impl ProcessContext, _output: &mut impl BufferMut) {}
     }
 
     static DEFAULT_NUMERIC: f32 = 2.0;
