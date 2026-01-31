@@ -124,6 +124,8 @@ struct Event {
 struct InterleavedEventIter<A: Iterator<Item: Clone> + Clone, B: Iterator<Item: Clone> + Clone> {
     a: Peekable<A>,
     b: Peekable<B>,
+    next_offset_a: Option<usize>,
+    next_offset_b: Option<usize>,
 }
 
 impl<A: Iterator<Item = Event> + Clone, B: Iterator<Item = Event> + Clone> Iterator
@@ -132,16 +134,28 @@ impl<A: Iterator<Item = Event> + Clone, B: Iterator<Item = Event> + Clone> Itera
     type Item = Event;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match (self.a.peek(), self.b.peek()) {
-            (Some(a), Some(b)) => {
-                if a.sample_offset <= b.sample_offset {
-                    self.a.next()
+        match (self.next_offset_a, self.next_offset_b) {
+            (Some(a_offset), Some(b_offset)) => {
+                if a_offset <= b_offset {
+                    let res = self.a.next();
+                    self.next_offset_a = self.a.peek().map(|e| e.sample_offset);
+                    res
                 } else {
-                    self.b.next()
+                    let res = self.b.next();
+                    self.next_offset_b = self.b.peek().map(|e| e.sample_offset);
+                    res
                 }
             }
-            (Some(_), None) => self.a.next(),
-            (None, Some(_)) => self.b.next(),
+            (Some(_), None) => {
+                let res = self.a.next();
+                self.next_offset_a = self.a.peek().map(|e| e.sample_offset);
+                res
+            }
+            (None, Some(_)) => {
+                let res = self.b.next();
+                self.next_offset_b = self.b.peek().map(|e| e.sample_offset);
+                res
+            }
             (None, None) => None,
         }
     }
@@ -151,35 +165,60 @@ fn interleave_events<'a>(
     a: impl Iterator<Item = Event> + Clone + 'a,
     b: impl Iterator<Item = Event> + Clone + 'a,
 ) -> impl Iterator<Item = Event> + Clone {
+    let mut a = a.peekable();
+    let mut b = b.peekable();
+    let next_offset_a = a.peek().map(|e| e.sample_offset);
+    let next_offset_b = b.peek().map(|e| e.sample_offset);
+
     InterleavedEventIter {
-        a: a.peekable(),
-        b: b.peekable(),
+        a,
+        b,
+        next_offset_a,
+        next_offset_b,
     }
 }
 
 #[derive(Clone)]
 struct ChannelInterleavedEventIter<I: Iterator<Item: Clone> + Clone> {
     channels: [Peekable<I>; 15],
+    next_offsets: [Option<usize>; 15],
 }
 
 impl<I: Iterator<Item = Event> + Clone> Iterator for ChannelInterleavedEventIter<I> {
     type Item = Event;
 
     fn next(&mut self) -> Option<Self::Item> {
-        (0..15)
-            .map(|c_idx| self.channels[c_idx].peek().map(|e| e.sample_offset))
-            .enumerate()
-            .filter_map(|(i, sample_offset)| sample_offset.map(|sample_offset| (i, sample_offset)))
-            .min_by_key(|(_, sample_offset)| *sample_offset)
-            .and_then(|(i, _)| self.channels[i].next())
+        let mut min_idx = None;
+        let mut min_offset = usize::MAX;
+
+        for (i, offset) in self.next_offsets.iter().enumerate() {
+            if let Some(offset) = *offset
+                && offset < min_offset
+            {
+                min_offset = offset;
+                min_idx = Some(i);
+            }
+        }
+
+        if let Some(idx) = min_idx {
+            let event = self.channels[idx].next();
+            self.next_offsets[idx] = self.channels[idx].peek().map(|e| e.sample_offset);
+            event
+        } else {
+            None
+        }
     }
 }
 
 fn interleave_events_for_channel(
     channels: [impl Iterator<Item = Event> + Clone; 15],
 ) -> impl Iterator<Item = Event> + Clone {
+    let mut channels = channels.map(std::iter::Iterator::peekable);
+    let next_offsets = std::array::from_fn(|i| channels[i].peek().map(|e| e.sample_offset));
+
     ChannelInterleavedEventIter {
-        channels: channels.map(std::iter::Iterator::peekable),
+        channels,
+        next_offsets,
     }
 }
 
@@ -244,16 +283,23 @@ fn update_for_events(events: impl Iterator<Item = Event>, quirks_state: &mut Sta
 
 fn param_event_iters_no_audio<S: States>(
     parameter: Parameter,
-    hashes: &[IdHash; 15],
     buffer_states: &S,
+    quirks_state: &State,
 ) -> impl Iterator<Item = Event> + Clone + use<S> {
-    let mut i = 0;
+    let hashes = match parameter {
+        Parameter::Pitch => &quirks_state.hashes.pitch,
+        Parameter::Aftertouch => &quirks_state.hashes.aftertouch,
+        Parameter::Timbre => &quirks_state.hashes.timbre,
+    };
+    let mut i: i16 = 0;
     interleave_events_for_channel(hashes.map(move |hash| {
         let c = i;
+        let current_value = quirks_state.channels[c as usize][parameter];
         i += 1;
         buffer_states
             .numeric_by_hash(hash)
             .into_iter()
+            .filter(move |&v| !approx_eq(v, current_value, 1e-6))
             .map(move |v| Event {
                 sample_offset: 0,
                 data: EventData::ParamChange {
@@ -267,26 +313,39 @@ fn param_event_iters_no_audio<S: States>(
 
 fn param_event_iters<'a, S: BufferStates + Clone>(
     parameter: Parameter,
-    hashes: &[IdHash; 15],
     buffer_states: &'a S,
+    quirks_state: &State,
 ) -> impl Iterator<Item = Event> + Clone + use<'a, S> {
-    let mut i = 0;
+    let hashes = match parameter {
+        Parameter::Pitch => &quirks_state.hashes.pitch,
+        Parameter::Aftertouch => &quirks_state.hashes.aftertouch,
+        Parameter::Timbre => &quirks_state.hashes.timbre,
+    };
+    let mut i: i16 = 0;
     interleave_events_for_channel(hashes.map(move |hash| {
         let c = i;
+        let current_value = quirks_state.channels[c as usize][parameter];
         i += 1;
         buffer_states
             .numeric_by_hash(hash)
             .into_iter()
             .flat_map(move |numeric| match numeric {
                 parameters::NumericBufferState::Constant(v) => {
-                    itertools::Either::Left(std::iter::once(Event {
-                        sample_offset: 0,
-                        data: EventData::ParamChange {
-                            parameter,
-                            channel: c + 1,
-                            value: v,
-                        },
-                    }))
+                    if approx_eq(v, current_value, 1e-6) {
+                        itertools::Either::Left(None.into_iter())
+                    } else {
+                        itertools::Either::Left(
+                            Some(Event {
+                                sample_offset: 0,
+                                data: EventData::ParamChange {
+                                    parameter,
+                                    channel: c + 1,
+                                    value: v,
+                                },
+                            })
+                            .into_iter(),
+                        )
+                    }
                 }
                 parameters::NumericBufferState::PiecewiseLinear(piecewise_linear_curve) => {
                     itertools::Either::Right(piecewise_linear_curve.into_iter().map(move |point| {
@@ -310,13 +369,12 @@ fn all_param_event_iters_no_audio<
     S: States + Clone,
 >(
     events: I,
-    hashes: &Hashes,
     buffer_states: &'a S,
+    quirks_state: &State,
 ) -> impl Iterator<Item = Event> + Clone + use<'a, I, S> {
-    let pitch = param_event_iters_no_audio(Parameter::Pitch, &hashes.pitch, buffer_states);
-    let aftertouch =
-        param_event_iters_no_audio(Parameter::Aftertouch, &hashes.aftertouch, buffer_states);
-    let timbre = param_event_iters_no_audio(Parameter::Timbre, &hashes.timbre, buffer_states);
+    let pitch = param_event_iters_no_audio(Parameter::Pitch, buffer_states, quirks_state);
+    let aftertouch = param_event_iters_no_audio(Parameter::Aftertouch, buffer_states, quirks_state);
+    let timbre = param_event_iters_no_audio(Parameter::Timbre, buffer_states, quirks_state);
     interleave_events(
         events.map(|e| Event {
             sample_offset: 0,
@@ -332,12 +390,12 @@ fn all_param_event_iters_audio<
     S: BufferStates + Clone,
 >(
     events: I,
-    hashes: &Hashes,
     buffer_states: &'a S,
+    quirks_state: &State,
 ) -> impl Iterator<Item = Event> + Clone + use<'a, I, S> {
-    let pitch = param_event_iters(Parameter::Pitch, &hashes.pitch, buffer_states);
-    let aftertouch = param_event_iters(Parameter::Aftertouch, &hashes.aftertouch, buffer_states);
-    let timbre = param_event_iters(Parameter::Timbre, &hashes.timbre, buffer_states);
+    let pitch = param_event_iters(Parameter::Pitch, buffer_states, quirks_state);
+    let aftertouch = param_event_iters(Parameter::Aftertouch, buffer_states, quirks_state);
+    let timbre = param_event_iters(Parameter::Timbre, buffer_states, quirks_state);
     interleave_events(
         events.map(|e| Event {
             sample_offset: e.sample_offset,
@@ -353,7 +411,7 @@ pub fn add_mpe_quirk_events_no_audio<'a>(
     buffer_states: &'a (impl States + Clone),
 ) -> impl Iterator<Item = events::Data> + Clone {
     with_mpe_events(
-        all_param_event_iters_no_audio(events, &quirks_state.hashes, buffer_states),
+        all_param_event_iters_no_audio(events, buffer_states, &quirks_state),
         quirks_state,
     )
     .map(|e| e.data)
@@ -365,7 +423,7 @@ pub fn update_mpe_quirk_events_no_audio(
     buffer_states: &(impl States + Clone),
 ) {
     update_for_events(
-        all_param_event_iters_no_audio(events, &quirks_state.hashes, buffer_states),
+        all_param_event_iters_no_audio(events, buffer_states, quirks_state),
         quirks_state,
     );
 }
@@ -378,7 +436,7 @@ pub fn add_mpe_quirk_events_buffer<'a>(
 ) -> Events<impl Iterator<Item = events::Event> + Clone> {
     events::Events::new(
         with_mpe_events(
-            all_param_event_iters_audio(events.into_iter(), &quirks_state.hashes, buffer_states),
+            all_param_event_iters_audio(events.into_iter(), buffer_states, &quirks_state),
             quirks_state,
         ),
         buffer_size,
@@ -392,7 +450,7 @@ pub fn update_mpe_quirk_events_buffer(
     buffer_states: &(impl BufferStates + Clone),
 ) {
     update_for_events(
-        all_param_event_iters_audio(events.into_iter(), &quirks_state.hashes, buffer_states),
+        all_param_event_iters_audio(events.into_iter(), buffer_states, quirks_state),
         quirks_state,
     );
 }
