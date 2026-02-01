@@ -1,10 +1,15 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     hash::BuildHasher,
     ops::{Range, RangeInclusive},
 };
 
-use crate::{audio::approx_eq, synth::CONTROLLER_PARAMETERS};
+use crate::{
+    audio::approx_eq,
+    synth::{
+        NumericGlobalExpression, SwitchGlobalExpression, SynthParamBufferStates, SynthParamStates,
+    },
+};
 
 use super::{
     BufferState, BufferStates, EnumBufferState, IdHash, InfoRef, InternalValue, NumericBufferState,
@@ -447,70 +452,6 @@ pub fn override_defaults<'a, S: AsRef<str> + 'a, H: BuildHasher>(
         .collect()
 }
 
-/// Helper function to get a map of synth param values based on the default values from a list of `Info`s.
-///
-/// This is similar to [`override_defaults`], but it also includes the controller parameters
-/// that are common to all synths. ([`crate::synth::CONTROLLER_PARAMETERS`]).
-///
-/// Thus, this is more appropriate to use if you plan to pass the parameters to a synth.
-///
-/// # Examples
-///
-/// ```
-/// # use conformal_component::parameters::{StaticInfoRef, InternalValue, TypeSpecificInfoRef, override_synth_defaults};
-/// # use conformal_component::synth::MOD_WHEEL_PARAMETER;
-/// # use std::collections::HashMap;
-/// let infos = vec![
-///   StaticInfoRef {
-///     title: "Numeric",
-///     short_title: "Numeric",
-///     unique_id: "numeric",
-///     flags: Default::default(),
-///     type_specific: TypeSpecificInfoRef::Numeric {
-///       default: 0.0,
-///       valid_range: 0.0..=1.0,
-///       units: None,
-///     },
-///   },
-/// ];
-///
-/// // Without overrides, we'll get the default value.
-/// assert_eq!(
-///   override_synth_defaults(infos.iter().cloned(), &HashMap::new()).get("numeric"),
-///   Some(&InternalValue::Numeric(0.0)),
-/// );
-///
-/// // Note that control parameters are included in the result.
-/// assert_eq!(
-///   override_synth_defaults(infos.iter().cloned(), &HashMap::new()).get(MOD_WHEEL_PARAMETER),
-///   Some(&InternalValue::Numeric(0.0)),
-/// );
-///
-/// // If we override the default value of a parameter, we'll get that instead.
-/// assert_eq!(
-///   override_synth_defaults(
-///     infos.iter().cloned(),
-///     &vec![("numeric", InternalValue::Numeric(0.5))].into_iter().collect::<HashMap<_, _>>()
-///   ).get("numeric"),
-///   Some(&InternalValue::Numeric(0.5)),
-/// );
-///
-/// // We can also override control parameters
-/// assert_eq!(
-///   override_synth_defaults(
-///     infos.iter().cloned(),
-///     &vec![(MOD_WHEEL_PARAMETER, InternalValue::Numeric(0.5))].into_iter().collect::<HashMap<_, _>>()
-///   ).get(MOD_WHEEL_PARAMETER),
-///   Some(&InternalValue::Numeric(0.5)),
-/// );
-/// ```
-pub fn override_synth_defaults<'a, 'b: 'a, H: BuildHasher>(
-    infos: impl IntoIterator<Item = InfoRef<'a, &'b str>> + 'a,
-    overrides: &HashMap<&'_ str, InternalValue, H>,
-) -> HashMap<String, InternalValue> {
-    override_defaults(infos.into_iter().chain(CONTROLLER_PARAMETERS), overrides)
-}
-
 /// A simple implementation of [`States`] that is backed by a [`HashMap`].
 ///
 /// This is useful for testing or other places when you want to pass a [`States`]
@@ -538,7 +479,7 @@ impl StatesMap {
     /// except for the ones that are overridden by the `override`s.
     ///
     /// Note that if you want to pass this into a synth, you should use
-    /// [`Self::new_override_synth_defaults`] instead.
+    /// [`SynthStatesMap::new_override_defaults`] instead.
     ///
     /// `overrides` work exactly as in [`override_defaults`].
     ///
@@ -610,19 +551,35 @@ impl StatesMap {
     ) -> Self {
         Self::new_override_defaults(infos, &Default::default())
     }
+}
 
-    /// Create a new [`StatesMap`] to pass to a synth from a list of `Info`s and `override`s.
+impl States for StatesMap {
+    fn get_by_hash(&self, id_hash: IdHash) -> Option<InternalValue> {
+        self.map.get(&id_hash).copied()
+    }
+}
+
+/// A simple implementation of [`SynthParamStates`] that is backed by a [`HashMap`].
+///
+/// This is useful for testing or other places when you want to pass a [`SynthParamStates`]
+/// to a component outside of a Conformal wrapper.
+#[derive(Clone, Debug, Default)]
+pub struct SynthStatesMap {
+    states: StatesMap,
+    numeric_expressions: HashMap<NumericGlobalExpression, f32>,
+    switch_expressions: HashMap<SwitchGlobalExpression, bool>,
+}
+
+impl SynthStatesMap {
+    /// Create a new [`SynthStatesMap`] to pass to a synth from a list of `Info`s and `override`s.
     ///
-    /// This is similar to [`Self::new_override_defaults`], but it also includes the controller parameters
-    /// that are common to all synths. ([`crate::synth::CONTROLLER_PARAMETERS`]).
-    ///
-    /// Thus, this is more appropriate to use if you plan to pass the parameters to a synth.
+    /// This is similar to [`StatesMap::new_override_defaults`], but it also includes expression controllers.
     ///
     /// # Examples
     ///
     /// ```
-    /// # use conformal_component::parameters::{StaticInfoRef, InternalValue, TypeSpecificInfoRef, StatesMap, States};
-    /// # use conformal_component::synth::{MOD_WHEEL_PARAMETER, PITCH_BEND_PARAMETER};
+    /// # use conformal_component::parameters::{StaticInfoRef, InternalValue, TypeSpecificInfoRef, SynthStatesMap, States};
+    /// # use conformal_component::synth::{SynthParamStates, NumericGlobalExpression};
     /// let infos = vec![
     ///   StaticInfoRef {
     ///     title: "Numeric",
@@ -640,44 +597,44 @@ impl StatesMap {
     /// let overrides = vec![
     ///   // You can override declared parameters
     ///   ("numeric", InternalValue::Numeric(0.5)),
-    ///   // Or you can override control parameters
-    ///   (MOD_WHEEL_PARAMETER, InternalValue::Numeric(0.2)),
     /// ].into_iter().collect();
-    /// let states = StatesMap::new_override_synth_defaults(infos.iter().cloned(), &overrides);
+    /// let numeric_expression_overrides = vec![
+    ///   // Or you can override control parameters
+    ///   (NumericGlobalExpression::ModWheel, 0.2),
+    /// ].into_iter().collect();
+    /// let states = SynthStatesMap::new_override_defaults(infos.iter().cloned(), &overrides, &numeric_expression_overrides, &Default::default());
     ///
     /// // Overridden parameters get the values you passed in
     /// assert_eq!(states.get_numeric("numeric"), Some(0.5));
-    /// assert_eq!(states.get_numeric(MOD_WHEEL_PARAMETER), Some(0.2));
+    /// assert_eq!(states.get_numeric_global_expression(NumericGlobalExpression::ModWheel), 0.2);
     ///
     /// // Other parameters get their default values
-    /// assert_eq!(states.get_numeric(PITCH_BEND_PARAMETER), Some(0.0));
+    /// assert_eq!(states.get_numeric_global_expression(NumericGlobalExpression::PitchBend), 0.0);
     /// ```
-    pub fn new_override_synth_defaults<'a, 'b: 'a>(
+    pub fn new_override_defaults<'a, 'b: 'a>(
         infos: impl IntoIterator<Item = InfoRef<'a, &'b str>> + 'a,
         overrides: &HashMap<&'_ str, InternalValue>,
+        numeric_expression_overrides: &HashMap<NumericGlobalExpression, f32>,
+        switch_expression_overrides: &HashMap<SwitchGlobalExpression, bool>,
     ) -> Self {
         Self {
-            map: override_synth_defaults(infos, overrides)
-                .into_iter()
-                .map(|(k, v)| (hash_id(&k), v))
-                .collect(),
+            states: StatesMap::from(override_defaults(infos, overrides)),
+            numeric_expressions: numeric_expression_overrides.clone(),
+            switch_expressions: switch_expression_overrides.clone(),
         }
     }
 
-    /// Create a new [`StatesMap`] to pass to a synth from a list of `Info`s.
+    /// Create a new [`SynthStatesMap`] to pass to a synth from a list of `Info`s.
     ///
     /// Each parameter in `Info`s will be set to its default value.
     ///
-    /// This is similar to [`Self::new_defaults`], but it also includes the controller parameters
-    /// that are common to all synths. ([`crate::synth::CONTROLLER_PARAMETERS`]).
-    ///
-    /// Thus, this is more appropriate to use if you plan to pass the parameters to a synth.
+    /// This is similar to [`StatesMap::new_defaults`], but it also includes expression controllers.
     ///
     /// # Examples
     ///
     /// ```
-    /// # use conformal_component::parameters::{StaticInfoRef, InternalValue, TypeSpecificInfoRef, StatesMap, States};
-    /// # use conformal_component::synth::{MOD_WHEEL_PARAMETER};
+    /// # use conformal_component::parameters::{StaticInfoRef, InternalValue, TypeSpecificInfoRef, SynthStatesMap, States};
+    /// # use conformal_component::synth::{SynthParamStates, NumericGlobalExpression};
     /// let infos = vec![
     ///   StaticInfoRef {
     ///     title: "Numeric",
@@ -692,22 +649,42 @@ impl StatesMap {
     ///   },
     /// ];
     ///
-    /// let states = StatesMap::new_synth_defaults(infos.iter().cloned());
+    /// let states = SynthStatesMap::new_defaults(infos.iter().cloned());
     /// assert_eq!(states.get_numeric("numeric"), Some(0.0));
     ///
     /// // Controller parameters will also be included
-    /// assert_eq!(states.get_numeric(MOD_WHEEL_PARAMETER), Some(0.0));
+    /// assert_eq!(states.get_numeric_global_expression(NumericGlobalExpression::ModWheel), 0.0);
     /// ```
-    pub fn new_synth_defaults<'a, 'b: 'a>(
+    pub fn new_defaults<'a, 'b: 'a>(
         infos: impl IntoIterator<Item = InfoRef<'a, &'b str>> + 'a,
     ) -> Self {
-        Self::new_override_synth_defaults(infos, &Default::default())
+        Self::new_override_defaults(
+            infos,
+            &Default::default(),
+            &Default::default(),
+            &Default::default(),
+        )
     }
 }
 
-impl States for StatesMap {
+impl States for SynthStatesMap {
     fn get_by_hash(&self, id_hash: IdHash) -> Option<InternalValue> {
-        self.map.get(&id_hash).copied()
+        self.states.get_by_hash(id_hash)
+    }
+}
+
+impl SynthParamStates for SynthStatesMap {
+    fn get_numeric_global_expression(&self, expression: NumericGlobalExpression) -> f32 {
+        self.numeric_expressions
+            .get(&expression)
+            .copied()
+            .unwrap_or_default()
+    }
+    fn get_switch_global_expression(&self, expression: SwitchGlobalExpression) -> bool {
+        self.switch_expressions
+            .get(&expression)
+            .copied()
+            .unwrap_or_default()
     }
 }
 
@@ -746,6 +723,26 @@ impl<S: States> BufferStates for ConstantBufferStates<S> {
             >::Constant(s))),
             None => None,
         }
+    }
+}
+
+impl<S: SynthParamStates> SynthParamBufferStates for ConstantBufferStates<S> {
+    fn get_numeric_global_expression(
+        &self,
+        expression: NumericGlobalExpression,
+    ) -> NumericBufferState<impl Iterator<Item = PiecewiseLinearCurvePoint> + Clone> {
+        NumericBufferState::<std::iter::Empty<PiecewiseLinearCurvePoint>>::Constant(
+            self.s.get_numeric_global_expression(expression),
+        )
+    }
+
+    fn get_switch_global_expression(
+        &self,
+        expression: SwitchGlobalExpression,
+    ) -> SwitchBufferState<impl Iterator<Item = TimedValue<bool>> + Clone> {
+        SwitchBufferState::<std::iter::Empty<TimedValue<bool>>>::Constant(
+            self.s.get_switch_global_expression(expression),
+        )
     }
 }
 
@@ -834,19 +831,20 @@ impl ConstantBufferStates<StatesMap> {
     ) -> Self {
         Self::new_override_defaults(infos, &Default::default())
     }
+}
 
+impl ConstantBufferStates<SynthStatesMap> {
     /// Create a new [`ConstantBufferStates`] object to pass to a synth from a list of `Info`s and `override`s.
     ///
-    /// This is similar to [`Self::new_override_defaults`], but it also includes the controller parameters
-    /// that are common to all synths. ([`crate::synth::CONTROLLER_PARAMETERS`]).
+    /// This is similar to [`Self::new_override_defaults`], but it also includes expression controllers.
     ///
-    /// Thus, this is more appropriate to use if you plan to pass the parameters to a synth.
     ///
     /// # Examples
     ///
     /// ```
-    /// # use conformal_component::parameters::{StaticInfoRef, InternalValue, TypeSpecificInfoRef, ConstantBufferStates, BufferStates, NumericBufferState};
-    /// # use conformal_component::synth::{MOD_WHEEL_PARAMETER, PITCH_BEND_PARAMETER};
+    /// # use conformal_component::parameters::{StaticInfoRef, InternalValue, TypeSpecificInfoRef, ConstantBufferStates, BufferStates, NumericBufferState, SynthStatesMap};
+    /// # use conformal_component::synth::{SynthParamBufferStates, NumericGlobalExpression};
+    ///
     /// let infos = vec![
     ///   StaticInfoRef {
     ///     title: "Numeric",
@@ -863,49 +861,56 @@ impl ConstantBufferStates<StatesMap> {
     /// let overrides = vec![
     ///   // You can override declared parameters
     ///   ("numeric", InternalValue::Numeric(0.5)),
-    ///   // Or you can override control parameters
-    ///   (MOD_WHEEL_PARAMETER, InternalValue::Numeric(0.2)),
     /// ].into_iter().collect();
     ///
-    /// let buffer_states = ConstantBufferStates::new_override_synth_defaults(infos, &overrides);
+    /// // and you can override control parameters
+    /// let expression_overrides = vec![
+    ///   (NumericGlobalExpression::ModWheel, 0.2),
+    /// ].into_iter().collect();
+    ///
+    /// let buffer_states = ConstantBufferStates::new_override_synth_defaults(infos, &overrides, &expression_overrides, &Default::default());
     ///
     /// // Overridden parameters get the values you passed in
     /// match buffer_states.get_numeric("numeric") {
     ///   Some(NumericBufferState::Constant(0.5)) => (),
     ///   _ => panic!("Expected constant value of 0.5"),
     /// };
-    /// match buffer_states.get_numeric(MOD_WHEEL_PARAMETER) {
-    ///   Some(NumericBufferState::Constant(0.2)) => (),
+    /// match buffer_states.get_numeric_global_expression(NumericGlobalExpression::ModWheel) {
+    ///   NumericBufferState::Constant(0.2) => (),
     ///   _ => panic!("Expected constant value of 0.2"),
     /// };
     ///
     /// // Other parameters get their default values
-    /// match buffer_states.get_numeric(PITCH_BEND_PARAMETER) {
-    ///   Some(NumericBufferState::Constant(0.0)) => (),
+    /// match buffer_states.get_numeric_global_expression(NumericGlobalExpression::PitchBend) {
+    ///   NumericBufferState::Constant(0.0) => (),
     ///   _ => panic!("Expected constant value of 0.0"),
     /// };
     /// ```
     pub fn new_override_synth_defaults<'a, 'b: 'a>(
         infos: impl IntoIterator<Item = InfoRef<'a, &'b str>> + 'a,
         overrides: &HashMap<&'_ str, InternalValue>,
+        numeric_expression_overrides: &HashMap<NumericGlobalExpression, f32>,
+        switch_expression_overrides: &HashMap<SwitchGlobalExpression, bool>,
     ) -> Self {
-        Self::new(StatesMap::new_override_synth_defaults(infos, overrides))
+        Self::new(SynthStatesMap::new_override_defaults(
+            infos,
+            overrides,
+            numeric_expression_overrides,
+            switch_expression_overrides,
+        ))
     }
 
     /// Create a new [`ConstantBufferStates`] object to pass to a synth from a list of `Info`s.
     ///
     /// Each parameter in `Info`s will be set to its default value for the whole buffer.
     ///
-    /// This is similar to [`Self::new_defaults`], but it also includes the controller parameters
-    /// that are common to all synths. ([`crate::synth::CONTROLLER_PARAMETERS`]).
-    ///
-    /// Thus, this is more appropriate to use if you plan to pass the parameters to a synth.
+    /// This is similar to [`Self::new_defaults`], but it also includes expression controllers.
     ///
     /// # Examples
     ///
     /// ```
-    /// # use conformal_component::parameters::{StaticInfoRef, InternalValue, TypeSpecificInfoRef, ConstantBufferStates, BufferStates, NumericBufferState};
-    /// # use conformal_component::synth::{MOD_WHEEL_PARAMETER};
+    /// # use conformal_component::parameters::{StaticInfoRef, InternalValue, TypeSpecificInfoRef, ConstantBufferStates, BufferStates, NumericBufferState, SynthStatesMap};
+    /// # use conformal_component::synth::{SynthParamBufferStates, NumericGlobalExpression};
     /// let infos = vec![
     ///   StaticInfoRef {
     ///     title: "Numeric",
@@ -925,35 +930,49 @@ impl ConstantBufferStates<StatesMap> {
     ///   Some(NumericBufferState::Constant(0.0)) => (),
     ///   _ => panic!("Expected constant value of 0.0"),
     /// };
-    /// match buffer_states.get_numeric(MOD_WHEEL_PARAMETER) {
-    ///   Some(NumericBufferState::Constant(0.0)) => (),
+    /// match buffer_states.get_numeric_global_expression(NumericGlobalExpression::ModWheel) {
+    ///   NumericBufferState::Constant(0.0) => (),
     ///   _ => panic!("Expected constant value of 0.0"),
     /// };
     /// ```
     pub fn new_synth_defaults<'a, 'b: 'a>(
         infos: impl IntoIterator<Item = InfoRef<'a, &'b str>> + 'a,
     ) -> Self {
-        Self::new_override_synth_defaults(infos, &Default::default())
+        Self::new_override_synth_defaults(
+            infos,
+            &Default::default(),
+            &Default::default(),
+            &Default::default(),
+        )
     }
+}
+
+#[derive(Clone, Debug)]
+struct RampedNumeric {
+    start: f32,
+    end: f32,
+    range: RangeInclusive<f32>,
+}
+
+#[derive(Clone, Debug)]
+struct RampedEnum {
+    start: u32,
+    end: u32,
+    range: Range<u32>,
+}
+
+#[derive(Clone, Debug)]
+struct RampedSwitch {
+    start: bool,
+    end: bool,
 }
 
 #[derive(Clone, Debug)]
 enum RampedState {
     Constant(InternalValue),
-    RampedNumeric {
-        start: f32,
-        end: f32,
-        range: RangeInclusive<f32>,
-    },
-    RampedEnum {
-        start: u32,
-        end: u32,
-        range: Range<u32>,
-    },
-    RampedSwitch {
-        start: bool,
-        end: bool,
-    },
+    Numeric(RampedNumeric),
+    Enum(RampedEnum),
+    Switch(RampedSwitch),
 }
 
 /// A simple implementation of a [`BufferStates`] that allows
@@ -973,26 +992,84 @@ fn ramped_numeric(start: f32, end: f32, range: RangeInclusive<f32>) -> RampedSta
     if approx_eq(start, end, 1e-6) {
         RampedState::Constant(InternalValue::Numeric(start))
     } else {
-        RampedState::RampedNumeric { start, end, range }
+        RampedState::Numeric(RampedNumeric { start, end, range })
     }
 }
-fn ramped_enum(start: u32, end: u32, num_vaules: usize) -> RampedState {
+
+fn ramped_enum(start: u32, end: u32, num_values: usize) -> RampedState {
     if start == end {
         RampedState::Constant(InternalValue::Enum(start))
     } else {
-        RampedState::RampedEnum {
+        RampedState::Enum(RampedEnum {
             start,
             end,
-            range: 0..u32::try_from(num_vaules).unwrap(),
-        }
+            range: 0..u32::try_from(num_values).unwrap(),
+        })
     }
 }
+
 fn ramped_switch(start: bool, end: bool) -> RampedState {
     if start == end {
         RampedState::Constant(InternalValue::Switch(start))
     } else {
-        RampedState::RampedSwitch { start, end }
+        RampedState::Switch(RampedSwitch { start, end })
     }
+}
+
+fn ramp_for_numeric(
+    default: f32,
+    valid_range: RangeInclusive<f32>,
+    start_override: Option<InternalValue>,
+    end_override: Option<InternalValue>,
+) -> RampedState {
+    let start = match start_override {
+        Some(InternalValue::Numeric(v)) => v,
+        None => default,
+        _ => panic!(),
+    };
+    let end = match end_override {
+        Some(InternalValue::Numeric(v)) => v,
+        None => default,
+        _ => panic!(),
+    };
+    ramped_numeric(start, end, valid_range)
+}
+
+fn ramp_for_enum(
+    default: u32,
+    num_values: usize,
+    start_override: Option<InternalValue>,
+    end_override: Option<InternalValue>,
+) -> RampedState {
+    let start = match start_override {
+        Some(InternalValue::Enum(v)) => v,
+        None => default,
+        _ => panic!(),
+    };
+    let end = match end_override {
+        Some(InternalValue::Enum(v)) => v,
+        None => default,
+        _ => panic!(),
+    };
+    ramped_enum(start, end, num_values)
+}
+
+fn ramp_for_switch(
+    default: bool,
+    start_override: Option<InternalValue>,
+    end_override: Option<InternalValue>,
+) -> RampedState {
+    let start = match start_override {
+        Some(InternalValue::Switch(v)) => v,
+        None => default,
+        _ => panic!(),
+    };
+    let end = match end_override {
+        Some(InternalValue::Switch(v)) => v,
+        None => default,
+        _ => panic!(),
+    };
+    ramped_switch(start, end)
 }
 
 impl RampedStatesMap {
@@ -1001,7 +1078,7 @@ impl RampedStatesMap {
     ///
     /// These overrides work the same way as in [`override_defaults`].
     ///
-    /// Note that if you want to pass this into a synth, you should use [`Self::new_synth`] instead.
+    /// Note for a synth, you should use [`SynthRampedStatesMap::new`] instead.
     ///
     /// # Examples
     /// ```
@@ -1048,154 +1125,35 @@ impl RampedStatesMap {
             .into_iter()
             .map(|info| {
                 let id = hash_id(info.unique_id);
-                let value = match (
-                    info.type_specific,
-                    start_overrides.get(info.unique_id),
-                    end_overrides.get(info.unique_id),
-                ) {
-                    (
-                        TypeSpecificInfoRef::Numeric { valid_range, .. },
-                        Some(InternalValue::Numeric(start)),
-                        Some(InternalValue::Numeric(end)),
-                    ) => ramped_numeric(*start, *end, valid_range),
-                    (
-                        TypeSpecificInfoRef::Numeric {
-                            default,
-                            valid_range,
-                            ..
-                        },
-                        None,
-                        Some(InternalValue::Numeric(end)),
-                    ) => ramped_numeric(default, *end, valid_range),
-                    (
-                        TypeSpecificInfoRef::Numeric {
-                            default,
-                            valid_range,
-                            ..
-                        },
-                        Some(InternalValue::Numeric(start)),
-                        None,
-                    ) => ramped_numeric(*start, default, valid_range),
-                    (TypeSpecificInfoRef::Numeric { default, .. }, None, None) => {
-                        RampedState::Constant(InternalValue::Numeric(default))
+                let start_override = start_overrides.get(info.unique_id);
+                let end_override = end_overrides.get(info.unique_id);
+                let value = match info.type_specific {
+                    TypeSpecificInfoRef::Numeric {
+                        default,
+                        valid_range,
+                        ..
+                    } => ramp_for_numeric(
+                        default,
+                        valid_range,
+                        start_override.copied(),
+                        end_override.copied(),
+                    ),
+                    TypeSpecificInfoRef::Enum {
+                        default, values, ..
+                    } => ramp_for_enum(
+                        default,
+                        values.len(),
+                        start_override.copied(),
+                        end_override.copied(),
+                    ),
+                    TypeSpecificInfoRef::Switch { default } => {
+                        ramp_for_switch(default, start_override.copied(), end_override.copied())
                     }
-                    (
-                        TypeSpecificInfoRef::Enum { values, .. },
-                        Some(InternalValue::Enum(start)),
-                        Some(InternalValue::Enum(end)),
-                    ) => ramped_enum(*start, *end, values.len()),
-                    (
-                        TypeSpecificInfoRef::Enum {
-                            default, values, ..
-                        },
-                        None,
-                        Some(InternalValue::Enum(end)),
-                    ) => ramped_enum(default, *end, values.len()),
-                    (
-                        TypeSpecificInfoRef::Enum {
-                            default, values, ..
-                        },
-                        Some(InternalValue::Enum(start)),
-                        None,
-                    ) => ramped_enum(*start, default, values.len()),
-                    (TypeSpecificInfoRef::Enum { default, .. }, None, None) => {
-                        RampedState::Constant(InternalValue::Enum(default))
-                    }
-                    (
-                        TypeSpecificInfoRef::Switch { .. },
-                        Some(InternalValue::Switch(start)),
-                        Some(InternalValue::Switch(end)),
-                    ) => ramped_switch(*start, *end),
-                    (
-                        TypeSpecificInfoRef::Switch { default },
-                        None,
-                        Some(InternalValue::Switch(end)),
-                    ) => ramped_switch(default, *end),
-                    (
-                        TypeSpecificInfoRef::Switch { default },
-                        Some(InternalValue::Switch(start)),
-                        None,
-                    ) => ramped_switch(*start, default),
-                    (TypeSpecificInfoRef::Switch { default }, None, None) => {
-                        RampedState::Constant(InternalValue::Switch(default))
-                    }
-                    _ => panic!(),
                 };
                 (id, value)
             })
             .collect();
         Self { buffer_size, map }
-    }
-
-    /// Create a new [`RampedStatesMap`] for synths from a list of `Info`s and `override`s.
-    ///
-    /// This is similar to [`Self::new`], but it also includes the controller parameters
-    /// that are common to all synths. ([`crate::synth::CONTROLLER_PARAMETERS`]).
-    ///
-    /// Thus, this is more appropriate to use if you plan to pass the parameters to a synth.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use conformal_component::parameters::{StaticInfoRef, InternalValue, TypeSpecificInfoRef, RampedStatesMap, NumericBufferState, BufferStates};
-    /// # use conformal_component::synth::{MOD_WHEEL_PARAMETER, PITCH_BEND_PARAMETER};
-    /// let infos = vec![
-    ///   StaticInfoRef {
-    ///     title: "Numeric",
-    ///     short_title: "Numeric",
-    ///     unique_id: "numeric",
-    ///     flags: Default::default(),
-    ///     type_specific: TypeSpecificInfoRef::Numeric {
-    ///       default: 0.0,
-    ///       valid_range: 0.0..=1.0,
-    ///       units: None,
-    ///     },
-    ///   },
-    /// ];
-    ///
-    /// let start_overrides = vec![(MOD_WHEEL_PARAMETER, InternalValue::Numeric(1.0))].into_iter().collect();
-    /// let end_overrides = vec![("numeric", InternalValue::Numeric(0.5))].into_iter().collect();
-    /// let states = RampedStatesMap::new_synth(
-    ///   infos.iter().cloned(),
-    ///   &start_overrides,
-    ///   &end_overrides,
-    ///   10
-    /// );
-    ///
-    /// // If we only overrode a value at the beginning or end
-    /// // it should be ramped
-    /// match states.get_numeric("numeric") {
-    ///   Some(NumericBufferState::PiecewiseLinear(_)) => (),
-    ///   _ => panic!("Expected a ramped value"),
-    /// };
-    /// match states.get_numeric(MOD_WHEEL_PARAMETER) {
-    ///   Some(NumericBufferState::PiecewiseLinear(_)) => (),
-    ///   _ => panic!("Expected a ramped value"),
-    /// };
-    ///
-    /// // Params left at default should be constants
-    /// match states.get_numeric(PITCH_BEND_PARAMETER) {
-    ///   Some(NumericBufferState::Constant(0.0)) => (),
-    ///   _ => panic!("Expected a constant value"),
-    /// };
-    /// ```
-    ///
-    /// # Panics
-    ///
-    /// Panics if `start_overrides` or `end_overrides` do not match the type of the parameter
-    /// specified in `infos`.
-    pub fn new_synth<'a, 'b: 'a>(
-        infos: impl IntoIterator<Item = InfoRef<'a, &'b str>> + 'a,
-        start_overrides: &HashMap<&'_ str, InternalValue>,
-        end_overrides: &HashMap<&'_ str, InternalValue>,
-        buffer_size: usize,
-    ) -> Self {
-        Self::new(
-            infos.into_iter().chain(CONTROLLER_PARAMETERS),
-            start_overrides,
-            end_overrides,
-            buffer_size,
-        )
     }
 
     /// Helper to make a `RampedStatesMap` with all parameters constant.
@@ -1238,59 +1196,6 @@ impl RampedStatesMap {
         overrides: &HashMap<&'_ str, InternalValue>,
     ) -> Self {
         Self::new(infos, overrides, overrides, 0)
-    }
-
-    /// Create a new [`RampedStatesMap`] for synths with all parameters constant.
-    ///
-    /// This is useful for _performance_ testing because while the parameters
-    /// are constant at run-time, the `RampedStatesMap` has the ability to
-    /// ramp between values, so consumers cannot be specialized to handle constant
-    /// values only
-    ///
-    /// This is similar to [`Self::new_const`], but it also includes the controller parameters
-    /// that are common to all synths. ([`crate::synth::CONTROLLER_PARAMETERS`]).
-    ///
-    /// Thus, this is more appropriate to use if you plan to pass the parameters to a synth.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use conformal_component::parameters::{StaticInfoRef, InternalValue, TypeSpecificInfoRef, RampedStatesMap, NumericBufferState, BufferStates};
-    /// # use conformal_component::synth::{MOD_WHEEL_PARAMETER};
-    ///
-    /// let infos = vec![
-    ///   StaticInfoRef {
-    ///     title: "Numeric",
-    ///     short_title: "Numeric",
-    ///     unique_id: "numeric",
-    ///     flags: Default::default(),
-    ///     type_specific: TypeSpecificInfoRef::Numeric {
-    ///       default: 0.0,
-    ///       valid_range: 0.0..=1.0,
-    ///       units: None,
-    ///     },
-    ///   },
-    /// ];
-    /// let overrides = vec![("numeric", InternalValue::Numeric(0.5))].into_iter().collect();
-    /// let states = RampedStatesMap::new_const_synth(infos.iter().cloned(), &overrides);
-    ///
-    /// // Overridden parameters get the values you passed in
-    /// match states.get_numeric("numeric") {
-    ///   Some(NumericBufferState::Constant(0.5)) => (),
-    ///   _ => panic!("Expected constant value of 0.5"),
-    /// };
-    ///
-    /// // Controller parameters will also be included
-    /// match states.get_numeric(MOD_WHEEL_PARAMETER) {
-    ///   Some(NumericBufferState::Constant(0.0)) => (),
-    ///   _ => panic!("Expected constant value of 0.0"),
-    /// };
-    /// ```
-    pub fn new_const_synth<'a, 'b: 'a>(
-        infos: impl IntoIterator<Item = InfoRef<'a, &'b str>> + 'a,
-        overrides: &HashMap<&'_ str, InternalValue>,
-    ) -> Self {
-        Self::new_synth(infos, overrides, overrides, 0)
     }
 }
 
@@ -1361,21 +1266,23 @@ impl BufferStates for RampedStatesMap {
                     Some(BufferState::Switch(SwitchBufferState::Constant(*s)))
                 }
             },
-            RampedState::RampedNumeric { start, end, range } => Some(BufferState::Numeric(
-                NumericBufferState::PiecewiseLinear(PiecewiseLinearCurve::new(
-                    ramp_numeric(*start, *end, self.buffer_size),
-                    self.buffer_size,
-                    range.clone(),
-                )?),
-            )),
-            RampedState::RampedEnum { start, end, range } => Some(BufferState::Enum(
+            RampedState::Numeric(RampedNumeric { start, end, range }) => {
+                Some(BufferState::Numeric(NumericBufferState::PiecewiseLinear(
+                    PiecewiseLinearCurve::new(
+                        ramp_numeric(*start, *end, self.buffer_size),
+                        self.buffer_size,
+                        range.clone(),
+                    )?,
+                )))
+            }
+            RampedState::Enum(RampedEnum { start, end, range }) => Some(BufferState::Enum(
                 EnumBufferState::Varying(TimedEnumValues::new(
                     ramp_enum(*start, *end, self.buffer_size),
                     self.buffer_size,
                     range.clone(),
                 )?),
             )),
-            RampedState::RampedSwitch { start, end } => Some(BufferState::Switch(
+            RampedState::Switch(RampedSwitch { start, end }) => Some(BufferState::Switch(
                 SwitchBufferState::Varying(TimedSwitchValues::new(
                     ramp_switch(*start, *end, self.buffer_size),
                     self.buffer_size,
@@ -1385,6 +1292,316 @@ impl BufferStates for RampedStatesMap {
     }
 }
 
+fn valid_range_for_numeric_global_expression(
+    expression: NumericGlobalExpression,
+) -> RangeInclusive<f32> {
+    match expression {
+        NumericGlobalExpression::PitchBend => -1.0..=1.0,
+        NumericGlobalExpression::Timbre
+        | NumericGlobalExpression::Aftertouch
+        | NumericGlobalExpression::ExpressionPedal
+        | NumericGlobalExpression::ModWheel => 0.0..=1.0,
+    }
+}
+
+fn ramp_numeric_expressions(
+    start_overrides: &HashMap<NumericGlobalExpression, f32>,
+    end_overrides: &HashMap<NumericGlobalExpression, f32>,
+) -> HashMap<NumericGlobalExpression, RampedState> {
+    let all_expressions = start_overrides
+        .keys()
+        .chain(end_overrides.keys())
+        .collect::<HashSet<_>>();
+    all_expressions
+        .into_iter()
+        .map(|expression| {
+            (
+                *expression,
+                ramp_for_numeric(
+                    Default::default(),
+                    valid_range_for_numeric_global_expression(*expression),
+                    start_overrides
+                        .get(expression)
+                        .copied()
+                        .map(InternalValue::Numeric),
+                    end_overrides
+                        .get(expression)
+                        .copied()
+                        .map(InternalValue::Numeric),
+                ),
+            )
+        })
+        .collect()
+}
+
+fn ramp_switch_expressions(
+    start_overrides: &HashMap<SwitchGlobalExpression, bool>,
+    end_overrides: &HashMap<SwitchGlobalExpression, bool>,
+) -> HashMap<SwitchGlobalExpression, RampedState> {
+    let all_expressions = start_overrides
+        .keys()
+        .chain(end_overrides.keys())
+        .collect::<HashSet<_>>();
+    all_expressions
+        .into_iter()
+        .map(|expression| {
+            (
+                *expression,
+                ramp_for_switch(
+                    Default::default(),
+                    start_overrides
+                        .get(expression)
+                        .copied()
+                        .map(InternalValue::Switch),
+                    end_overrides
+                        .get(expression)
+                        .copied()
+                        .map(InternalValue::Switch),
+                ),
+            )
+        })
+        .collect()
+}
+
+/// A simple implementation of a [`SynthParamBufferStates`] that allows
+/// for parameters to change between the start and end of a buffer.
+///
+/// This is similar to [`RampedStatesMap`], but it also includes the expression controller parameters
+/// needed for synths.
+///
+/// Each parameter can be either constant or ramped between two values.
+///
+/// For numeric parameters, the ramp is linear, for other parameter types
+/// the value changes half-way through the buffer.
+pub struct SynthRampedStatesMap {
+    states: RampedStatesMap,
+    numeric_expressions: HashMap<NumericGlobalExpression, RampedState>,
+    switch_expressions: HashMap<SwitchGlobalExpression, RampedState>,
+}
+
+impl SynthRampedStatesMap {
+    /// Create a new [`SynthRampedStatesMap`] for synths from a list of `Info`s and `override`s.
+    ///
+    /// This is similar to [`RampedStatesMap::new`], but it also includes the expression controller parameters.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use conformal_component::parameters::{StaticInfoRef, InternalValue, TypeSpecificInfoRef, SynthRampedStatesMap, NumericBufferState, BufferStates};
+    /// # use conformal_component::synth::{SynthParamBufferStates, NumericGlobalExpression};
+    /// let infos = vec![
+    ///   StaticInfoRef {
+    ///     title: "Numeric",
+    ///     short_title: "Numeric",
+    ///     unique_id: "numeric",
+    ///     flags: Default::default(),
+    ///     type_specific: TypeSpecificInfoRef::Numeric {
+    ///       default: 0.0,
+    ///       valid_range: 0.0..=1.0,
+    ///       units: None,
+    ///     },
+    ///   },
+    /// ];
+    ///
+    /// let start_expression_overrides = vec![(NumericGlobalExpression::ModWheel, 1.0)].into_iter().collect();
+    /// let end_param_overrides = vec![("numeric", InternalValue::Numeric(0.5))].into_iter().collect();
+    /// let states = SynthRampedStatesMap::new(
+    ///   infos.iter().cloned(),
+    ///   &Default::default(),
+    ///   &end_param_overrides,
+    ///   &start_expression_overrides,
+    ///   &Default::default(),
+    ///   &Default::default(),
+    ///   &Default::default(),
+    ///   10
+    /// );
+    ///
+    /// // If we only overrode a value at the beginning or end
+    /// // it should be ramped
+    /// match states.get_numeric("numeric") {
+    ///   Some(NumericBufferState::PiecewiseLinear(_)) => (),
+    ///   _ => panic!("Expected a ramped value"),
+    /// };
+    /// match states.get_numeric_global_expression(NumericGlobalExpression::ModWheel) {
+    ///   NumericBufferState::PiecewiseLinear(_) => (),
+    ///   _ => panic!("Expected a ramped value"),
+    /// };
+    ///
+    /// // Params left at default should be constants
+    /// match states.get_numeric_global_expression(NumericGlobalExpression::PitchBend) {
+    ///   NumericBufferState::Constant(0.0) => (),
+    ///   _ => panic!("Expected a constant value"),
+    /// };
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if `start_overrides` or `end_overrides` do not match the type of the parameter
+    /// specified in `infos`.
+    pub fn new<'a, 'b: 'a>(
+        infos: impl IntoIterator<Item = InfoRef<'a, &'b str>> + 'a,
+        start_overrides: &HashMap<&'_ str, InternalValue>,
+        end_overrides: &HashMap<&'_ str, InternalValue>,
+        start_numeric_expression_overrides: &HashMap<NumericGlobalExpression, f32>,
+        end_numeric_expression_overrides: &HashMap<NumericGlobalExpression, f32>,
+        start_switch_expression_overrides: &HashMap<SwitchGlobalExpression, bool>,
+        end_switch_expression_overrides: &HashMap<SwitchGlobalExpression, bool>,
+        buffer_size: usize,
+    ) -> Self {
+        Self {
+            states: RampedStatesMap::new(
+                infos.into_iter(),
+                start_overrides,
+                end_overrides,
+                buffer_size,
+            ),
+            numeric_expressions: ramp_numeric_expressions(
+                start_numeric_expression_overrides,
+                end_numeric_expression_overrides,
+            ),
+            switch_expressions: ramp_switch_expressions(
+                start_switch_expression_overrides,
+                end_switch_expression_overrides,
+            ),
+        }
+    }
+
+    /// Create a new [`SynthRampedStatesMap`] for synths with all parameters constant.
+    ///
+    /// This is useful for _performance_ testing because while the parameters
+    /// are constant at run-time, the `SynthRampedStatesMap` has the ability to
+    /// ramp between values, so consumers cannot be specialized to handle constant
+    /// values only
+    ///
+    /// This is similar to [`RampedStatesMap::new_const`], but it also includes the expression controller parameters.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use conformal_component::parameters::{StaticInfoRef, InternalValue, TypeSpecificInfoRef, SynthRampedStatesMap, NumericBufferState, BufferStates};
+    /// # use conformal_component::synth::{SynthParamBufferStates, NumericGlobalExpression};
+    ///
+    /// let infos = vec![
+    ///   StaticInfoRef {
+    ///     title: "Numeric",
+    ///     short_title: "Numeric",
+    ///     unique_id: "numeric",
+    ///     flags: Default::default(),
+    ///     type_specific: TypeSpecificInfoRef::Numeric {
+    ///       default: 0.0,
+    ///       valid_range: 0.0..=1.0,
+    ///       units: None,
+    ///     },
+    ///   },
+    /// ];
+    /// let overrides = vec![("numeric", InternalValue::Numeric(0.5))].into_iter().collect();
+    /// let states = SynthRampedStatesMap::new_const(infos.iter().cloned(), &overrides, &Default::default(), &Default::default());
+    ///
+    /// // Overridden parameters get the values you passed in
+    /// match states.get_numeric("numeric") {
+    ///   Some(NumericBufferState::Constant(0.5)) => (),
+    ///   _ => panic!("Expected constant value of 0.5"),
+    /// };
+    ///
+    /// // Controller parameters will also be included
+    /// match states.get_numeric_global_expression(NumericGlobalExpression::ModWheel) {
+    ///   NumericBufferState::Constant(0.0) => (),
+    ///   _ => panic!("Expected constant value of 0.0"),
+    /// };
+    /// ```
+    pub fn new_const<'a, 'b: 'a>(
+        infos: impl IntoIterator<Item = InfoRef<'a, &'b str>> + 'a,
+        overrides: &HashMap<&'_ str, InternalValue>,
+        numeric_expression_overrides: &HashMap<NumericGlobalExpression, f32>,
+        switch_expression_overrides: &HashMap<SwitchGlobalExpression, bool>,
+    ) -> Self {
+        Self::new(
+            infos,
+            overrides,
+            overrides,
+            numeric_expression_overrides,
+            numeric_expression_overrides,
+            switch_expression_overrides,
+            switch_expression_overrides,
+            0,
+        )
+    }
+}
+
+impl BufferStates for SynthRampedStatesMap {
+    fn get_by_hash(
+        &self,
+        id_hash: IdHash,
+    ) -> std::option::Option<
+        BufferState<
+            impl Iterator<Item = PiecewiseLinearCurvePoint> + Clone,
+            impl Iterator<Item = TimedValue<u32>> + Clone,
+            impl Iterator<Item = TimedValue<bool>> + Clone,
+        >,
+    > {
+        self.states.get_by_hash(id_hash)
+    }
+}
+
+impl SynthParamBufferStates for SynthRampedStatesMap {
+    fn get_numeric_global_expression(
+        &self,
+        expression: NumericGlobalExpression,
+    ) -> NumericBufferState<impl Iterator<Item = PiecewiseLinearCurvePoint> + Clone> {
+        match self.numeric_expressions.get(&expression) {
+            Some(RampedState::Constant(InternalValue::Numeric(v))) => {
+                NumericBufferState::Constant(*v)
+            }
+            Some(RampedState::Numeric(RampedNumeric { start, end, range })) => {
+                let curve = PiecewiseLinearCurve::new(
+                    ramp_numeric(*start, *end, self.states.buffer_size),
+                    self.states.buffer_size,
+                    range.clone(),
+                );
+                if let Some(curve) = curve {
+                    NumericBufferState::PiecewiseLinear(curve)
+                } else {
+                    panic!(
+                        "{start} -> {end} is not a valid ramp for {expression:?} (range: {range:?})"
+                    );
+                }
+            }
+
+            None => NumericBufferState::Constant(Default::default()),
+            _ => unreachable!(
+                "internal invariant violation: expected a numeric global expression to be either constant or ramped numeric"
+            ),
+        }
+    }
+
+    fn get_switch_global_expression(
+        &self,
+        expression: SwitchGlobalExpression,
+    ) -> SwitchBufferState<impl Iterator<Item = TimedValue<bool>> + Clone> {
+        match self.switch_expressions.get(&expression) {
+            Some(RampedState::Constant(InternalValue::Switch(v))) => {
+                SwitchBufferState::Constant(*v)
+            }
+            Some(RampedState::Switch(RampedSwitch { start, end })) => {
+                let values = TimedSwitchValues::new(
+                    ramp_switch(*start, *end, self.states.buffer_size),
+                    self.states.buffer_size,
+                );
+                if let Some(values) = values {
+                    SwitchBufferState::Varying(values)
+                } else {
+                    unreachable!(
+                        "TimedSwitchValues invariant violated when ramping {expression:?} from {start} to {end}"
+                    )
+                }
+            }
+            None => SwitchBufferState::Constant(Default::default()),
+            _ => unreachable!(
+                "internal invariant violation: expected a switch global expression to be either constant or ramped switch"
+            ),
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use crate::audio::all_approx_eq;

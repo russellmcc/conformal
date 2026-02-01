@@ -4,139 +4,75 @@ use crate::{
     Processor,
     audio::BufferMut,
     events::{self, Event, Events},
-    parameters::{self, BufferStates, Flags, InfoRef, TypeSpecificInfoRef},
-};
-
-/// The parameter ID of the pitch bend parameter. See [`CONTROLLER_PARAMETERS`] for more.
-///
-/// This is the global version of the [`crate::events::NoteExpression::PitchBend`] note expression event.
-/// Notes should be shifted by the value of this controller plus the per-note pitch bend expression.
-pub const PITCH_BEND_PARAMETER: &str = "pitch_bend";
-
-/// The parameter ID of the mod wheel parameter. See [`CONTROLLER_PARAMETERS`] for more.
-pub const MOD_WHEEL_PARAMETER: &str = "mod_wheel";
-
-/// The parameter ID of the expression pedal parameter. See [`CONTROLLER_PARAMETERS`] for more.
-pub const EXPRESSION_PARAMETER: &str = "expression_pedal";
-
-/// The parameter ID of the sustain pedal parameter. See [`CONTROLLER_PARAMETERS`] for more.
-pub const SUSTAIN_PARAMETER: &str = "sustain_pedal";
-
-/// The parameter ID of the aftertouch parameter. See [`CONTROLLER_PARAMETERS`] for more.
-///
-/// Aftertouch is a pressure sensor sent by some controllers.
-///
-/// This is the global version of the [`crate::events::NoteExpression::Aftertouch`] note expression event.
-/// This controller parameter should affect all notes,
-/// while the note expression event affects a single note. Note that hosts are free
-/// to use a combination of this global controller with per-note controllers. This means
-/// plug-ins must combine this global controller with the per-note controller to get the total
-/// expression value.
-pub const AFTERTOUCH_PARAMETER: &str = "aftertouch";
-
-/// The parameter ID of the timbre parameter. See [`CONTROLLER_PARAMETERS`] for more.
-///
-/// Generally the timbre controller will be some sort of vertical motion, and
-/// is the global version of the [`crate::events::NoteExpression::Timbre`] note expression event.
-///
-/// This controller parameter should affect all notes,
-/// while the note expression event affects a single note. Note that hosts are free
-/// to use a combination of this global controller with per-note controllers. This means
-/// plug-ins must combine this global controller with the per-note controller to get the total
-/// expression value.
-pub const TIMBRE_PARAMETER: &str = "timbre";
-
-/// Parameter info for the pitch bend parameter. See [`CONTROLLER_PARAMETERS`] for more.
-pub const PITCH_BEND_INFO: InfoRef<'static, &'static str> = InfoRef {
-    title: "Pitch Bend",
-    short_title: "Bend",
-    unique_id: PITCH_BEND_PARAMETER,
-    flags: Flags { automatable: false },
-    type_specific: TypeSpecificInfoRef::Numeric {
-        default: 0.0,
-        valid_range: -1.0..=1.0,
-        units: None,
+    parameters::{
+        self, NumericBufferState, PiecewiseLinearCurvePoint, SwitchBufferState, TimedValue,
     },
 };
 
-/// Parameter info for the mod wheel parameter. See [`CONTROLLER_PARAMETERS`] for more.
-pub const MOD_WHEEL_INFO: InfoRef<'static, &'static str> = InfoRef {
-    title: "Mod Wheel",
-    short_title: "Mod",
-    unique_id: MOD_WHEEL_PARAMETER,
-    flags: Flags { automatable: false },
-    type_specific: TypeSpecificInfoRef::Numeric {
-        default: 0.0,
-        valid_range: 0.0..=1.0,
-        units: None,
-    },
-};
+/// Numeric expression controllers available on each synth.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum NumericGlobalExpression {
+    /// The global pitch bend.
+    ///
+    /// This ranges from -1.0 to 1.0, and represents the current state of the
+    /// pitch bend controller. How to interpret this value in semitones
+    /// precisely is up to each synth.
+    ///
+    /// Note that there is also a per-note pitch bend expression parameter,
+    /// this should be combined with the global pitch bend to get the total
+    /// amount of bend for each note.
+    PitchBend,
 
-/// Parameter info for the expression pedal parameter. See [`CONTROLLER_PARAMETERS`] for more.
-pub const EXPRESSION_INFO: InfoRef<'static, &'static str> = InfoRef {
-    title: "Expression",
-    short_title: "Expr",
-    unique_id: EXPRESSION_PARAMETER,
-    flags: Flags { automatable: false },
-    type_specific: TypeSpecificInfoRef::Numeric {
-        default: 0.0,
-        valid_range: 0.0..=1.0,
-        units: None,
-    },
-};
+    /// The mod wheel.
+    ///
+    /// This ranges from 0.0 to 1.0, and represents the current state of the
+    /// mod wheel.
+    ModWheel,
 
-/// Parameter info for the sustain pedal parameter. See [`CONTROLLER_PARAMETERS`] for more.
-pub const SUSTAIN_INFO: InfoRef<'static, &'static str> = InfoRef {
-    title: "Sustain Pedal",
-    short_title: "Sus",
-    unique_id: SUSTAIN_PARAMETER,
-    flags: Flags { automatable: false },
-    type_specific: TypeSpecificInfoRef::Switch { default: false },
-};
+    /// The expression pedal.
+    ///
+    /// This ranges from 0.0 to 1.0, and represents the current state of the
+    /// expression pedal.
+    ExpressionPedal,
 
-/// Parameter info for the aftertouch parameter. See [`CONTROLLER_PARAMETERS`] for more.
-pub const AFTERTOUCH_INFO: InfoRef<'static, &'static str> = InfoRef {
-    title: "Aftertouch",
-    short_title: "Aftertouch",
-    unique_id: AFTERTOUCH_PARAMETER,
-    flags: Flags { automatable: false },
-    type_specific: TypeSpecificInfoRef::Numeric {
-        default: 0.0,
-        valid_range: 0.0..=1.0,
-        units: None,
-    },
-};
+    /// Aftertouch, or "pressure" in some DAW UIs.
+    ///
+    /// This ranges from 0.0 to 1.0, and represents the current state of the
+    /// global aftertouch.
+    ///
+    /// Note that there is also a per-note aftertouch expression parameter,
+    /// this should be combined with the global aftertouch to get the total
+    /// amount of aftertouch for each note.
+    Aftertouch,
 
-/// Parameter info for the timbre parameter. See [`CONTROLLER_PARAMETERS`] for more.
-pub const TIMBRE_INFO: InfoRef<'static, &'static str> = InfoRef {
-    title: "Timbre",
-    short_title: "Timbre",
-    unique_id: TIMBRE_PARAMETER,
-    flags: Flags { automatable: false },
-    type_specific: TypeSpecificInfoRef::Numeric {
-        default: 0.0,
-        valid_range: 0.0..=1.0,
-        units: None,
-    },
-};
+    /// Timbre, or "slide" in some DAW UIs.
+    ///
+    /// This ranges from 0.0 to 1.0, and represents the current state of the
+    /// global timbre control.
+    ///
+    /// Note that there is also a per-note timbre expression parameter,
+    /// this should be combined with the global timbre to get the total
+    /// amount of timbre for each note.
+    Timbre,
+}
 
-/// This represents a set of "controller parameters" that are common to
-/// all synths.
-///
-/// These parameters will not appear in audio software as
-/// automatable parameters, but they will be filled in with the current
-/// value of the corresponding controllers.
-///
-/// Note that synths will receive these regardless of what they returned
-/// from `crate::Component::parameter_infos`.
-pub const CONTROLLER_PARAMETERS: [InfoRef<'static, &'static str>; 6] = [
-    PITCH_BEND_INFO,
-    MOD_WHEEL_INFO,
-    EXPRESSION_INFO,
-    SUSTAIN_INFO,
-    AFTERTOUCH_INFO,
-    TIMBRE_INFO,
-];
+/// Switch expression controllers available on each synth.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum SwitchGlobalExpression {
+    /// The sustain pedal.
+    ///
+    /// This represents the current state of the sustain pedal controller.
+    SustainPedal,
+}
+
+/// Extention to the [`parameters::States`] trait for synths.
+pub trait SynthParamStates: parameters::States {
+    /// Get the current value of a numeric global expression controller.
+    fn get_numeric_global_expression(&self, expression: NumericGlobalExpression) -> f32;
+
+    /// Get the current value of a switch global expression controller.
+    fn get_switch_global_expression(&self, expression: SwitchGlobalExpression) -> bool;
+}
 
 /// A trait for metadata during an audio processing call
 pub trait HandleEventsContext {
@@ -148,7 +84,22 @@ pub trait HandleEventsContext {
     /// Note that `parameters` will include [`CONTROLLER_PARAMETERS`] related to controller state
     /// (e.g. pitch bend, mod wheel, etc.) above, in addition to all the parameters
     /// returned by `crate::Component::parameter_infos`.
-    fn parameters(&self) -> impl parameters::States;
+    fn parameters(&self) -> impl SynthParamStates;
+}
+
+/// Extension to the [`parameters::BufferStates`] trait for synths.
+pub trait SynthParamBufferStates: parameters::BufferStates {
+    /// Get the current value of a numeric global expression controller.
+    fn get_numeric_global_expression(
+        &self,
+        expression: NumericGlobalExpression,
+    ) -> NumericBufferState<impl Iterator<Item = PiecewiseLinearCurvePoint> + Clone>;
+
+    /// Get the current value of a switch global expression controller.
+    fn get_switch_global_expression(
+        &self,
+        expression: SwitchGlobalExpression,
+    ) -> SwitchBufferState<impl Iterator<Item = TimedValue<bool>> + Clone>;
 }
 
 /// A trait for metadata during an audio processing call
@@ -165,7 +116,7 @@ pub trait ProcessContext {
     /// In order to consume the parameters, you can use the [`crate::pzip`] macro
     /// to convert the parameters into an iterator of tuples that represent
     /// the state of the parameters at each sample.
-    fn parameters(&self) -> impl BufferStates;
+    fn parameters(&self) -> impl SynthParamBufferStates;
 }
 
 /// A trait for synthesizers
