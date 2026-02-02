@@ -1381,8 +1381,6 @@ trait InternalProcessHelper<H> {
     ) -> vst3::Steinberg::tresult;
 }
 
-// TODO replace vst3::ComRef::from_raw((*data).inputParameterChanges)
-
 impl<H: ProcessBuffer, I: Iterator<Item = conformal_component::events::Event> + Clone>
     InternalProcessHelper<H> for Events<I>
 {
