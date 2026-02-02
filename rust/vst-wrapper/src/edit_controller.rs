@@ -3,6 +3,10 @@
 // that are unnecessary in newer versions.
 #![allow(clippy::unnecessary_cast)]
 
+use crate::parameters::{
+    AFTERTOUCH_PARAMETER, CONTROLLER_PARAMETERS, EXPRESSION_PEDAL_PARAMETER, MOD_WHEEL_PARAMETER,
+    PITCH_BEND_PARAMETER, SUSTAIN_PARAMETER, TIMBRE_PARAMETER,
+};
 use std::{
     cell::RefCell,
     collections::{HashMap, hash_map},
@@ -10,13 +14,7 @@ use std::{
     rc,
 };
 
-use conformal_component::{
-    parameters::{self, InfoRef, TypeSpecificInfo, TypeSpecificInfoRef},
-    synth::{
-        AFTERTOUCH_PARAMETER, CONTROLLER_PARAMETERS, EXPRESSION_PARAMETER, MOD_WHEEL_PARAMETER,
-        PITCH_BEND_PARAMETER, SUSTAIN_PARAMETER, TIMBRE_PARAMETER,
-    },
-};
+use conformal_component::parameters::{self, InfoRef, TypeSpecificInfo, TypeSpecificInfoRef};
 use conformal_core::parameters::serialization::{DeserializationError, ReadInfoRef};
 use conformal_core::parameters::store;
 
@@ -475,7 +473,9 @@ impl IPluginBaseTrait for EditController {
                     assert!(parameter_infos.len() < i32::MAX as usize);
                     let component_parameters = parameters
                         .iter()
-                        .filter(|(id, _)| crate::should_include_parameter_in_snapshot(id))
+                        .filter(|(id, _)| {
+                            crate::parameters::should_include_parameter_in_snapshot(id)
+                        })
                         .map(|(id, info)| (id.clone(), info.clone()))
                         .collect();
                     let s = State::Initialized(Initialized {
@@ -1104,7 +1104,7 @@ impl IMidiMappingTrait for EditController {
                             Some(MOD_WHEEL_PARAMETER)
                         }
                         Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlExpression) => {
-                            Some(EXPRESSION_PARAMETER)
+                            Some(EXPRESSION_PEDAL_PARAMETER)
                         }
                         Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlSustainOnOff) => {
                             Some(SUSTAIN_PARAMETER)
@@ -1380,6 +1380,10 @@ mod tests {
     use super::GetStore;
     use crate::HostInfo;
     use crate::fake_ibstream::Stream;
+    use crate::parameters::{
+        AFTERTOUCH_PARAMETER, EXPRESSION_PEDAL_PARAMETER, MOD_WHEEL_PARAMETER,
+        PITCH_BEND_PARAMETER, SUSTAIN_PARAMETER,
+    };
     use crate::processor::test_utils::{
         ParameterValueQueueImpl, ParameterValueQueuePoint, mock_no_audio_process_data, setup_proc,
     };
@@ -2989,23 +2993,23 @@ mod tests {
             };
             check_assignment(
                 vst3::Steinberg::Vst::ControllerNumbers_::kPitchBend,
-                conformal_component::synth::PITCH_BEND_PARAMETER,
+                PITCH_BEND_PARAMETER,
             );
             check_assignment(
                 vst3::Steinberg::Vst::ControllerNumbers_::kCtrlModWheel,
-                conformal_component::synth::MOD_WHEEL_PARAMETER,
+                MOD_WHEEL_PARAMETER,
             );
             check_assignment(
                 vst3::Steinberg::Vst::ControllerNumbers_::kCtrlExpression,
-                conformal_component::synth::EXPRESSION_PARAMETER,
+                EXPRESSION_PEDAL_PARAMETER,
             );
             check_assignment(
                 vst3::Steinberg::Vst::ControllerNumbers_::kCtrlSustainOnOff,
-                conformal_component::synth::SUSTAIN_PARAMETER,
+                SUSTAIN_PARAMETER,
             );
             check_assignment(
                 vst3::Steinberg::Vst::ControllerNumbers_::kAfterTouch,
-                conformal_component::synth::AFTERTOUCH_PARAMETER,
+                AFTERTOUCH_PARAMETER,
             );
             {
                 // due to mpe quirks we should have _some_ mapping to aftertouch
@@ -3023,7 +3027,7 @@ mod tests {
 
             let store = ec.get_store().unwrap();
             assert_eq!(
-                store.get(conformal_component::synth::PITCH_BEND_PARAMETER),
+                store.get(PITCH_BEND_PARAMETER),
                 Some(parameters::Value::Numeric(0.0))
             );
         }

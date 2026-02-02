@@ -11,7 +11,7 @@ use conformal_component::audio::{Buffer, BufferMut, ChannelLayout};
 use conformal_component::effect::Effect;
 use conformal_component::events::{Event, Events};
 use conformal_component::parameters::BufferStates;
-use conformal_component::synth::{CONTROLLER_PARAMETERS, Synth};
+use conformal_component::synth::{Synth, SynthParamBufferStates, SynthParamStates};
 use conformal_component::{
     Component, ProcessingEnvironment, ProcessingMode, Processor as ProcessorT,
 };
@@ -141,15 +141,14 @@ trait ActiveProcessor<P> {
         data: *mut vst3::Steinberg::Vst::ProcessData,
     ) -> Option<Self::ProcessBuffer<'a>>;
 
-    fn handle_events<
-        E: Iterator<Item = conformal_component::events::Data> + Clone,
-        Parameters: conformal_component::parameters::States + Clone,
-    >(
+    unsafe fn handle_events(
         &self,
         processor: &mut P,
-        e: E,
-        p: Parameters,
-    );
+        e: Option<impl Iterator<Item = conformal_component::events::Data> + Clone>,
+        params: &mut parameters::ProcessingStore,
+        mpe_quirks: Option<&mut mpe_quirks::State>,
+        vst_parameters: Option<ComRef<'_, vst3::Steinberg::Vst::IParameterChanges>>,
+    ) -> vst3::Steinberg::tresult;
 }
 
 trait ProcessorCategory {
@@ -385,10 +384,13 @@ impl ProcessorCategory for SynthProcessorCategory {
         &self,
         host_info: &HostInfo,
     ) -> impl Iterator<Item = conformal_component::parameters::Info> + Clone {
-        CONTROLLER_PARAMETERS.iter().map(Into::into).chain(
-            mpe_quirks::parameters()
-                .filter(|_| mpe_quirks::should_support(host_info) == Support::SupportQuirks),
-        )
+        crate::parameters::CONTROLLER_PARAMETERS
+            .iter()
+            .map(Into::into)
+            .chain(
+                mpe_quirks::parameters()
+                    .filter(|_| mpe_quirks::should_support(host_info) == Support::SupportQuirks),
+            )
     }
 }
 
@@ -641,14 +643,35 @@ struct EffectProcessBuffer<'a, P> {
 }
 
 impl<P: Effect> ProcessBuffer for EffectProcessBuffer<'_, P> {
-    fn process<E: IntoIterator<Item = Event> + Clone, Parameters: BufferStates + Clone>(
+    unsafe fn process(
         &mut self,
-        _e: Events<E>,
-        p: Parameters,
-    ) {
-        let context = EffectProcessContext { parameters: p };
-        self.processor
-            .process(&context, &self.input, &mut self.output);
+        _e: Events<impl Iterator<Item = Event> + Clone>,
+        store: &mut parameters::ProcessingStore,
+        num_frames: usize,
+        _mpe_quirks: Option<&mut mpe_quirks::State>,
+        vst_parameters: Option<ComRef<'_, vst3::Steinberg::Vst::IParameterChanges>>,
+    ) -> i32 {
+        if let Some(vst_parameters) = vst_parameters {
+            if let Some(buffer_states) =
+                unsafe { parameters::param_changes_from_vst3(vst_parameters, store, num_frames) }
+            {
+                let context = EffectProcessContext {
+                    parameters: buffer_states,
+                };
+                self.processor
+                    .process(&context, &self.input, &mut self.output);
+                vst3::Steinberg::kResultOk
+            } else {
+                vst3::Steinberg::kInvalidArgument
+            }
+        } else {
+            let context = EffectProcessContext {
+                parameters: parameters::existing_buffer_states_from_store(store),
+            };
+            self.processor
+                .process(&context, &self.input, &mut self.output);
+            vst3::Steinberg::kResultOk
+        }
     }
 }
 
@@ -689,23 +712,39 @@ impl<P: Effect> ActiveProcessor<P> for ActiveEffectProcessor {
         }
     }
 
-    fn handle_events<
-        E: IntoIterator<Item = conformal_component::events::Data> + Clone,
-        Parameters: conformal_component::parameters::States + Clone,
-    >(
-        &self,
-        processor: &mut P,
-        _e: E,
-        p: Parameters,
-    ) {
-        let context = EffectHandleParametersContext { parameters: p };
-        processor.handle_parameters(context);
-    }
-
     fn audio_enabled(&self) -> bool {
         match self {
             ActiveEffectProcessor::AudioEnabled(_) => true,
             ActiveEffectProcessor::AudioDisabled => false,
+        }
+    }
+
+    unsafe fn handle_events(
+        &self,
+        processor: &mut P,
+        _e: Option<impl Iterator<Item = conformal_component::events::Data> + Clone>,
+        params: &mut parameters::ProcessingStore,
+        _mpe_quirks: Option<&mut mpe_quirks::State>,
+        vst_parameters: Option<ComRef<'_, vst3::Steinberg::Vst::IParameterChanges>>,
+    ) -> vst3::Steinberg::tresult {
+        if let Some(vst_parameters) = vst_parameters {
+            if let Some((change_status, param_states)) =
+                unsafe { parameters::no_audio_param_changes_from_vst3(vst_parameters, params) }
+            {
+                if change_status == parameters::ChangesStatus::Changes {
+                    let context = EffectHandleParametersContext {
+                        parameters: param_states,
+                    };
+                    processor.handle_parameters(context);
+                    vst3::Steinberg::kResultOk
+                } else {
+                    vst3::Steinberg::kResultOk
+                }
+            } else {
+                vst3::Steinberg::kInvalidArgument
+            }
+        } else {
+            vst3::Steinberg::kResultOk
         }
     }
 }
@@ -1233,13 +1272,13 @@ struct SynthProcessContext<E, P> {
     parameters: P,
 }
 
-impl<E: Iterator<Item = Event> + Clone, P: BufferStates + Clone>
+impl<E: Iterator<Item = Event> + Clone, P: SynthParamBufferStates + Clone>
     conformal_component::synth::ProcessContext for SynthProcessContext<E, P>
 {
     fn events(&self) -> Events<impl Iterator<Item = Event> + Clone> {
         self.events.clone()
     }
-    fn parameters(&self) -> impl BufferStates {
+    fn parameters(&self) -> impl SynthParamBufferStates {
         self.parameters.clone()
     }
 }
@@ -1249,15 +1288,13 @@ struct SynthHandleEventsContext<E, P> {
     parameters: P,
 }
 
-impl<
-    E: Iterator<Item = conformal_component::events::Data> + Clone,
-    P: conformal_component::parameters::States + Clone,
-> conformal_component::synth::HandleEventsContext for SynthHandleEventsContext<E, P>
+impl<E: Iterator<Item = conformal_component::events::Data> + Clone, P: SynthParamStates + Clone>
+    conformal_component::synth::HandleEventsContext for SynthHandleEventsContext<E, P>
 {
     fn events(&self) -> impl Iterator<Item = conformal_component::events::Data> + Clone {
         self.events.clone()
     }
-    fn parameters(&self) -> impl conformal_component::parameters::States {
+    fn parameters(&self) -> impl SynthParamStates {
         self.parameters.clone()
     }
 }
@@ -1268,24 +1305,68 @@ struct SynthProcessBuffer<'a, P> {
 }
 
 trait ProcessBuffer {
-    fn process<E: Iterator<Item = Event> + Clone, P: BufferStates + Clone>(
+    unsafe fn process(
         &mut self,
-        e: Events<E>,
-        p: P,
-    );
+        e: Events<impl Iterator<Item = Event> + Clone>,
+        store: &mut parameters::ProcessingStore,
+        num_frames: usize,
+        mpe_quirks: Option<&mut mpe_quirks::State>,
+        vst_parameters: Option<ComRef<'_, vst3::Steinberg::Vst::IParameterChanges>>,
+    ) -> i32;
 }
 
 impl<P: Synth> ProcessBuffer for SynthProcessBuffer<'_, P> {
-    fn process<E: Iterator<Item = Event> + Clone, Parameters: BufferStates + Clone>(
+    unsafe fn process(
         &mut self,
-        e: Events<E>,
-        p: Parameters,
-    ) {
-        let context = SynthProcessContext {
-            events: e,
-            parameters: p,
-        };
-        self.synth.process(&context, &mut self.output);
+        e: Events<impl Iterator<Item = Event> + Clone>,
+        store: &mut parameters::ProcessingStore,
+        num_frames: usize,
+        mpe_quirks: Option<&mut mpe_quirks::State>,
+        vst_parameters: Option<ComRef<'_, vst3::Steinberg::Vst::IParameterChanges>>,
+    ) -> vst3::Steinberg::tresult {
+        if let Some(vst_parameters) = vst_parameters {
+            if let Some(buffer_states) = unsafe {
+                parameters::synth_param_changes_from_vst3(vst_parameters, store, num_frames)
+            } {
+                if let Some(mpe_quirks) = mpe_quirks {
+                    let buffer_states_clone = buffer_states.clone();
+                    {
+                        let events = add_mpe_quirk_events_buffer(
+                            e.clone().into_iter(),
+                            mpe_quirks.clone(),
+                            &buffer_states_clone,
+                            num_frames,
+                        );
+                        let context = SynthProcessContext {
+                            events,
+                            parameters: buffer_states,
+                        };
+                        self.synth.process(&context, &mut self.output);
+                    }
+                    update_mpe_quirk_events_buffer(e.into_iter(), mpe_quirks, &buffer_states_clone);
+                } else {
+                    let context = SynthProcessContext {
+                        events: e,
+                        parameters: buffer_states,
+                    };
+                    self.synth.process(&context, &mut self.output);
+                }
+                vst3::Steinberg::kResultOk
+            } else {
+                vst3::Steinberg::kInvalidArgument
+            }
+        } else {
+            let buffer_states = parameters::existing_synth_param_buffer_states_from_store(store);
+            let context = SynthProcessContext {
+                events: e.clone(),
+                parameters: buffer_states.clone(),
+            };
+            self.synth.process(&context, &mut self.output);
+            if let Some(mpe_quirks) = mpe_quirks {
+                update_mpe_quirk_events_buffer(e.into_iter(), mpe_quirks, &buffer_states);
+            }
+            vst3::Steinberg::kResultOk
+        }
     }
 }
 
@@ -1312,39 +1393,13 @@ impl<H: ProcessBuffer, I: Iterator<Item = conformal_component::events::Event> + 
         num_frames: usize,
     ) -> vst3::Steinberg::tresult {
         unsafe {
-            if let Some(com_changes) = vst3::ComRef::from_raw((*data).inputParameterChanges) {
-                if let Some(buffer_states) =
-                    parameters::param_changes_from_vst3(com_changes, params, num_frames)
-                {
-                    if let Some(mpe_quirks) = mpe_quirks {
-                        let buffer_states_clone = buffer_states.clone();
-                        let events = add_mpe_quirk_events_buffer(
-                            self.clone().into_iter(),
-                            mpe_quirks.clone(),
-                            &buffer_states_clone,
-                            num_frames,
-                        );
-                        helper.process(events, buffer_states.clone());
-                        update_mpe_quirk_events_buffer(
-                            self.into_iter(),
-                            mpe_quirks,
-                            &buffer_states,
-                        );
-                    } else {
-                        helper.process(self, buffer_states);
-                    }
-                    vst3::Steinberg::kResultOk
-                } else {
-                    vst3::Steinberg::kInvalidArgument
-                }
-            } else {
-                let buffer_states = parameters::ExistingBufferStates::new(params);
-                helper.process(self.clone(), buffer_states.clone());
-                if let Some(mpe_quirks) = mpe_quirks {
-                    update_mpe_quirk_events_buffer(self.into_iter(), mpe_quirks, &buffer_states);
-                }
-                vst3::Steinberg::kResultOk
-            }
+            helper.process(
+                self,
+                params,
+                num_frames,
+                mpe_quirks,
+                vst3::ComRef::from_raw((*data).inputParameterChanges),
+            )
         }
     }
 }
@@ -1371,42 +1426,13 @@ impl<
         _: usize,
     ) -> vst3::Steinberg::tresult {
         unsafe {
-            if let Some(param_changes) = ComRef::from_raw((*data).inputParameterChanges) {
-                if let Some((change_status, param_states)) =
-                    parameters::no_audio_param_changes_from_vst3(param_changes, params)
-                {
-                    if change_status == parameters::ChangesStatus::Changes || !helper.events_empty {
-                        if let Some(mpe_quirks) = mpe_quirks {
-                            let param_states_clone = param_states.clone();
-                            let events = add_mpe_quirk_events_no_audio(
-                                self.clone(),
-                                mpe_quirks.clone(),
-                                &param_states_clone,
-                            );
-                            helper.active_processor.handle_events(
-                                helper.processor,
-                                events,
-                                param_states.clone(),
-                            );
-                            update_mpe_quirk_events_no_audio(self, mpe_quirks, &param_states);
-                        } else {
-                            helper.active_processor.handle_events(
-                                helper.processor,
-                                self,
-                                param_states,
-                            );
-                        }
-                    }
-                    return vst3::Steinberg::kResultOk;
-                }
-                return vst3::Steinberg::kInvalidArgument;
-            }
-            if !helper.events_empty {
-                helper
-                    .active_processor
-                    .handle_events(helper.processor, self, &*params);
-            }
-            vst3::Steinberg::kResultOk
+            helper.active_processor.handle_events(
+                helper.processor,
+                (!helper.events_empty).then_some(self),
+                params,
+                mpe_quirks,
+                vst3::ComRef::from_raw((*data).inputParameterChanges),
+            )
         }
     }
 }
@@ -1441,26 +1467,90 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
         }
     }
 
-    fn handle_events<
-        E: Iterator<Item = conformal_component::events::Data> + Clone,
-        Parameters: conformal_component::parameters::States + Clone,
-    >(
-        &self,
-        processor: &mut P,
-        e: E,
-        p: Parameters,
-    ) {
-        let context = SynthHandleEventsContext {
-            events: e,
-            parameters: p,
-        };
-        processor.handle_events(context);
-    }
-
     fn audio_enabled(&self) -> bool {
         match self {
             ActiveSynthProcessor::AudioEnabled(_) => true,
             ActiveSynthProcessor::AudioDisabled => false,
+        }
+    }
+
+    unsafe fn handle_events(
+        &self,
+        processor: &mut P,
+        e: Option<impl Iterator<Item = conformal_component::events::Data> + Clone>,
+        params: &mut parameters::ProcessingStore,
+        mpe_quirks: Option<&mut mpe_quirks::State>,
+        vst_parameters: Option<ComRef<'_, vst3::Steinberg::Vst::IParameterChanges>>,
+    ) -> vst3::Steinberg::tresult {
+        if let Some(vst_parameters) = vst_parameters {
+            if let Some((change_status, param_states)) = unsafe {
+                parameters::no_audio_synth_param_changes_from_vst3(vst_parameters, params)
+            } {
+                if change_status == parameters::ChangesStatus::Changes || e.is_some() {
+                    if let Some(mpe_quirks) = mpe_quirks {
+                        let param_states_clone = param_states.clone();
+                        if let Some(e) = e {
+                            {
+                                let context = SynthHandleEventsContext {
+                                    events: add_mpe_quirk_events_no_audio(
+                                        e.clone(),
+                                        mpe_quirks.clone(),
+                                        &param_states_clone,
+                                    ),
+                                    parameters: param_states,
+                                };
+                                processor.handle_events(context);
+                            }
+                            update_mpe_quirk_events_no_audio(e, mpe_quirks, &param_states_clone);
+                        } else {
+                            {
+                                let context = SynthHandleEventsContext {
+                                    events: add_mpe_quirk_events_no_audio(
+                                        std::iter::empty(),
+                                        mpe_quirks.clone(),
+                                        &param_states_clone,
+                                    ),
+                                    parameters: param_states,
+                                };
+                                processor.handle_events(context);
+                            }
+                            update_mpe_quirk_events_no_audio(
+                                std::iter::empty(),
+                                mpe_quirks,
+                                &param_states_clone,
+                            );
+                        }
+                    } else if let Some(e) = e {
+                        let context = SynthHandleEventsContext {
+                            events: e,
+                            parameters: param_states,
+                        };
+                        processor.handle_events(context);
+                    } else {
+                        let context = SynthHandleEventsContext {
+                            events: std::iter::empty(),
+                            parameters: param_states,
+                        };
+                        processor.handle_events(context);
+                    }
+                }
+                vst3::Steinberg::kResultOk
+            } else {
+                vst3::Steinberg::kInvalidArgument
+            }
+        } else {
+            if let Some(e) = e {
+                let param_states = unsafe { parameters::existing_synth_params(params) };
+                let context = SynthHandleEventsContext {
+                    events: e.clone(),
+                    parameters: param_states.clone(),
+                };
+                processor.handle_events(context);
+                if let Some(mpe_quirks) = mpe_quirks {
+                    update_mpe_quirk_events_no_audio(e, mpe_quirks, &param_states);
+                }
+            }
+            vst3::Steinberg::kResultOk
         }
     }
 }
@@ -1726,7 +1816,7 @@ mod tests {
     use std::collections::HashSet;
 
     use conformal_component::effect::Effect;
-    use conformal_component::synth::PITCH_BEND_PARAMETER;
+    use conformal_component::synth::{NumericGlobalExpression, SynthParamBufferStates};
     use vst3::ComWrapper;
     use vst3::Steinberg::{
         IBStreamTrait, IPluginBaseTrait,
@@ -1880,8 +1970,9 @@ mod tests {
             let mult_iter = numeric_per_sample(parameters.get_numeric(NUMERIC_ID).unwrap());
             let enum_iter = enum_per_sample(parameters.get_enum(ENUM_ID).unwrap());
             let switch_iter = switch_per_sample(parameters.get_switch(SWITCH_ID).unwrap());
-            let global_pitch_bend_iter =
-                numeric_per_sample(parameters.get_numeric(PITCH_BEND_PARAMETER).unwrap());
+            let global_pitch_bend_iter = numeric_per_sample(
+                parameters.get_numeric_global_expression(NumericGlobalExpression::PitchBend),
+            );
 
             for ((((frame_index, mult), enum_mult), switch_mult), global_pich_bend) in (0..output
                 .num_frames())
@@ -4121,7 +4212,7 @@ mod tests {
                             },
                             // Test that pitch bend parameter is _not_ saved
                             ParameterValueQueueImpl {
-                                param_id: PITCH_BEND_PARAMETER.to_string(),
+                                param_id: crate::parameters::PITCH_BEND_PARAMETER.to_string(),
                                 points: vec![ParameterValueQueuePoint {
                                     sample_offset: 0,
                                     value: 1.0,

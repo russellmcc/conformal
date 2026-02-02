@@ -1,7 +1,6 @@
 #![doc = include_str!("../docs_boilerplate.md")]
 #![doc = include_str!("../README.md")]
 
-use conformal_component::parameters::UNIQUE_ID_INTERNAL_PREFIX;
 pub use conformal_ui::Size as UiSize;
 use core::slice;
 
@@ -251,13 +250,6 @@ fn from_utf16_buffer(buffer: &[u16]) -> Option<String> {
     }
     let utf16_slice = unsafe { slice::from_raw_parts(buffer.as_ptr().cast(), len) };
     String::from_utf16(utf16_slice).ok()
-}
-
-fn should_include_parameter_in_snapshot(id: &str) -> bool {
-    !id.starts_with(UNIQUE_ID_INTERNAL_PREFIX)
-        && !conformal_component::synth::CONTROLLER_PARAMETERS
-            .iter()
-            .any(|p| id == p.unique_id)
 }
 
 /// Create a VST3-compatible plug-in entry point.

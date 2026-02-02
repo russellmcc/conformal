@@ -6,7 +6,7 @@ use conformal_component::{
     ProcessingEnvironment,
     audio::{BufferMut, channels_mut},
     events::{Data, Event as CEvent, NoteData},
-    parameters,
+    synth,
 };
 
 fn add_in_place(x: &[f32], y: &mut [f32]) {
@@ -187,7 +187,7 @@ pub trait Voice {
     fn process(
         &mut self,
         events: impl IntoIterator<Item = Event>,
-        params: &impl parameters::BufferStates,
+        params: &impl synth::SynthParamBufferStates,
         note_expressions: NoteExpressionCurve<impl Iterator<Item = NoteExpressionPoint> + Clone>,
         data: Self::SharedData<'_>,
         output: &mut [f32],
@@ -285,7 +285,7 @@ impl<V: Voice> Poly<V> {
     pub fn process(
         &mut self,
         events: impl Iterator<Item = CEvent> + Clone,
-        params: &impl parameters::BufferStates,
+        params: &impl synth::SynthParamBufferStates,
         shared_data: &V::SharedData<'_>,
         output: &mut impl BufferMut,
     ) {

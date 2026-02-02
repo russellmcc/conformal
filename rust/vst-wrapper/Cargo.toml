@@ -23,6 +23,7 @@ conformal_ui = { workspace = true }
 conformal_core = { workspace = true }
 rmp-serde = { workspace = true }
 itertools = { workspace = true }
+const_format = { workspace = true }
 
 [dev-dependencies]
 assert_approx_eq = { workspace = true }
