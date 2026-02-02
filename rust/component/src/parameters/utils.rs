@@ -6,10 +6,21 @@ use std::{
 
 use crate::{
     audio::approx_eq,
+    events::NoteID,
     synth::{
-        NumericGlobalExpression, SwitchGlobalExpression, SynthParamBufferStates, SynthParamStates,
+        NumericGlobalExpression, NumericPerNoteExpression, SwitchGlobalExpression,
+        SynthParamBufferStates, SynthParamStates,
     },
 };
+
+fn valid_range_for_per_note_expression(
+    expression: NumericPerNoteExpression,
+) -> RangeInclusive<f32> {
+    match expression {
+        NumericPerNoteExpression::PitchBend => -128.0..=128.0,
+        NumericPerNoteExpression::Timbre | NumericPerNoteExpression::Aftertouch => 0.0..=1.0,
+    }
+}
 
 use super::{
     BufferState, BufferStates, EnumBufferState, IdHash, InfoRef, InternalValue, NumericBufferState,
@@ -622,6 +633,7 @@ pub struct SynthStatesMap {
     states: StatesMap,
     numeric_expressions: HashMap<NumericGlobalExpression, f32>,
     switch_expressions: HashMap<SwitchGlobalExpression, bool>,
+    per_note_expressions: HashMap<(NumericPerNoteExpression, NoteID), f32>,
 }
 
 impl SynthStatesMap {
@@ -675,6 +687,62 @@ impl SynthStatesMap {
             states: StatesMap::from(override_defaults(infos, overrides)),
             numeric_expressions: numeric_expression_overrides.clone(),
             switch_expressions: switch_expression_overrides.clone(),
+            per_note_expressions: Default::default(),
+        }
+    }
+
+    /// Create a new [`SynthStatesMap`] with per-note expression overrides.
+    ///
+    /// This is similar to [`Self::new_override_defaults`], but also allows specifying
+    /// per-note expression values for specific notes.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use conformal_component::parameters::{StaticInfoRef, InternalValue, TypeSpecificInfoRef, SynthStatesMap, States};
+    /// # use conformal_component::synth::{SynthParamStates, NumericGlobalExpression, NumericPerNoteExpression};
+    /// # use conformal_component::events::{NoteID, NoteIDInternals};
+    /// let infos = vec![
+    ///   StaticInfoRef {
+    ///     title: "Numeric",
+    ///     short_title: "Numeric",
+    ///     unique_id: "numeric",
+    ///     flags: Default::default(),
+    ///     type_specific: TypeSpecificInfoRef::Numeric {
+    ///       default: 0.0,
+    ///       valid_range: 0.0..=1.0,
+    ///       units: None,
+    ///     },
+    ///   },
+    /// ];
+    ///
+    /// let note_id = NoteID { internals: NoteIDInternals::NoteIDFromPitch(60) };
+    /// let per_note_overrides = vec![
+    ///   ((NumericPerNoteExpression::PitchBend, note_id), 1.5),
+    /// ].into_iter().collect();
+    ///
+    /// let states = SynthStatesMap::new_with_per_note(
+    ///   infos.iter().cloned(),
+    ///   &Default::default(),
+    ///   &Default::default(),
+    ///   &Default::default(),
+    ///   &per_note_overrides,
+    /// );
+    ///
+    /// assert_eq!(states.get_numeric_expression_for_note(NumericPerNoteExpression::PitchBend, note_id), 1.5);
+    /// ```
+    pub fn new_with_per_note<'a, 'b: 'a>(
+        infos: impl IntoIterator<Item = InfoRef<'a, &'b str>> + 'a,
+        overrides: &HashMap<&'_ str, InternalValue>,
+        numeric_expression_overrides: &HashMap<NumericGlobalExpression, f32>,
+        switch_expression_overrides: &HashMap<SwitchGlobalExpression, bool>,
+        per_note_expression_overrides: &HashMap<(NumericPerNoteExpression, NoteID), f32>,
+    ) -> Self {
+        Self {
+            states: StatesMap::from(override_defaults(infos, overrides)),
+            numeric_expressions: numeric_expression_overrides.clone(),
+            switch_expressions: switch_expression_overrides.clone(),
+            per_note_expressions: per_note_expression_overrides.clone(),
         }
     }
 
@@ -740,6 +808,17 @@ impl SynthParamStates for SynthStatesMap {
             .copied()
             .unwrap_or_default()
     }
+
+    fn get_numeric_expression_for_note(
+        &self,
+        expression: NumericPerNoteExpression,
+        note_id: NoteID,
+    ) -> f32 {
+        self.per_note_expressions
+            .get(&(expression, note_id))
+            .copied()
+            .unwrap_or_default()
+    }
 }
 
 /// Simple implementation of [`BufferStates`] trait where every parameter is
@@ -796,6 +875,16 @@ impl<S: SynthParamStates> SynthParamBufferStates for ConstantBufferStates<S> {
     ) -> SwitchBufferState<impl Iterator<Item = TimedValue<bool>> + Clone> {
         SwitchBufferState::<std::iter::Empty<TimedValue<bool>>>::Constant(
             self.s.get_switch_global_expression(expression),
+        )
+    }
+
+    fn get_numeric_expression_for_note(
+        &self,
+        expression: NumericPerNoteExpression,
+        note_id: NoteID,
+    ) -> NumericBufferState<impl Iterator<Item = PiecewiseLinearCurvePoint> + Clone> {
+        NumericBufferState::<std::iter::Empty<PiecewiseLinearCurvePoint>>::Constant(
+            self.s.get_numeric_expression_for_note(expression, note_id),
         )
     }
 }
@@ -1417,6 +1506,31 @@ fn ramp_switch_expressions(
         .collect()
 }
 
+fn ramp_per_note_expressions(
+    start_overrides: &HashMap<(NumericPerNoteExpression, NoteID), f32>,
+    end_overrides: &HashMap<(NumericPerNoteExpression, NoteID), f32>,
+) -> HashMap<(NumericPerNoteExpression, NoteID), RampedState> {
+    let all_keys = start_overrides
+        .keys()
+        .chain(end_overrides.keys())
+        .collect::<HashSet<_>>();
+    all_keys
+        .into_iter()
+        .map(|key| {
+            let (expression, _) = *key;
+            (
+                *key,
+                ramp_for_numeric(
+                    Default::default(),
+                    valid_range_for_per_note_expression(expression),
+                    start_overrides.get(key).copied().map(InternalValue::Numeric),
+                    end_overrides.get(key).copied().map(InternalValue::Numeric),
+                ),
+            )
+        })
+        .collect()
+}
+
 /// A simple implementation of a [`SynthParamBufferStates`] that allows
 /// for parameters to change between the start and end of a buffer.
 ///
@@ -1431,6 +1545,7 @@ pub struct SynthRampedStatesMap {
     states: RampedStatesMap,
     numeric_expressions: HashMap<NumericGlobalExpression, RampedState>,
     switch_expressions: HashMap<SwitchGlobalExpression, RampedState>,
+    per_note_expressions: HashMap<(NumericPerNoteExpression, NoteID), RampedState>,
 }
 
 /// Params for [`SynthRampedStatesMap::new`]
@@ -1532,6 +1647,91 @@ impl SynthRampedStatesMap {
                 start_switch_expressions,
                 end_switch_expressions,
             ),
+            per_note_expressions: Default::default(),
+        }
+    }
+
+    /// Create a new [`SynthRampedStatesMap`] with per-note expression overrides.
+    ///
+    /// This is similar to [`Self::new`], but also allows specifying per-note expression
+    /// values for specific notes at the start and end of the buffer.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use conformal_component::parameters::{StaticInfoRef, InternalValue, TypeSpecificInfoRef, SynthRampedStatesMap, NumericBufferState, BufferStates, SynthRampedOverrides};
+    /// # use conformal_component::synth::{SynthParamBufferStates, NumericGlobalExpression, NumericPerNoteExpression};
+    /// # use conformal_component::events::{NoteID, NoteIDInternals};
+    /// let infos = vec![
+    ///   StaticInfoRef {
+    ///     title: "Numeric",
+    ///     short_title: "Numeric",
+    ///     unique_id: "numeric",
+    ///     flags: Default::default(),
+    ///     type_specific: TypeSpecificInfoRef::Numeric {
+    ///       default: 0.0,
+    ///       valid_range: 0.0..=1.0,
+    ///       units: None,
+    ///     },
+    ///   },
+    /// ];
+    ///
+    /// let note_id = NoteID { internals: NoteIDInternals::NoteIDFromPitch(60) };
+    /// let start_per_note = vec![
+    ///   ((NumericPerNoteExpression::PitchBend, note_id), 0.0),
+    /// ].into_iter().collect();
+    /// let end_per_note = vec![
+    ///   ((NumericPerNoteExpression::PitchBend, note_id), 2.0),
+    /// ].into_iter().collect();
+    ///
+    /// let states = SynthRampedStatesMap::new_with_per_note(
+    ///   infos.iter().cloned(),
+    ///   SynthRampedOverrides {
+    ///     start_params: &Default::default(),
+    ///     end_params: &Default::default(),
+    ///     start_numeric_expressions: &Default::default(),
+    ///     end_numeric_expressions: &Default::default(),
+    ///     start_switch_expressions: &Default::default(),
+    ///     end_switch_expressions: &Default::default(),
+    ///   },
+    ///   &start_per_note,
+    ///   &end_per_note,
+    ///   10,
+    /// );
+    ///
+    /// match states.get_numeric_expression_for_note(NumericPerNoteExpression::PitchBend, note_id) {
+    ///   NumericBufferState::PiecewiseLinear(_) => (),
+    ///   _ => panic!("Expected a ramped value"),
+    /// };
+    /// ```
+    pub fn new_with_per_note<'a, 'b: 'a>(
+        infos: impl IntoIterator<Item = InfoRef<'a, &'b str>> + 'a,
+        SynthRampedOverrides {
+            start_params,
+            end_params,
+            start_numeric_expressions,
+            end_numeric_expressions,
+            start_switch_expressions,
+            end_switch_expressions,
+        }: SynthRampedOverrides<'_, '_>,
+        start_per_note_expressions: &HashMap<(NumericPerNoteExpression, NoteID), f32>,
+        end_per_note_expressions: &HashMap<(NumericPerNoteExpression, NoteID), f32>,
+        buffer_size: usize,
+    ) -> Self {
+        Self {
+            states: RampedStatesMap::new(infos, start_params, end_params, buffer_size),
+            numeric_expressions: ramp_numeric_expressions(
+                start_numeric_expressions,
+                end_numeric_expressions,
+            ),
+            switch_expressions: ramp_switch_expressions(
+                start_switch_expressions,
+                end_switch_expressions,
+            ),
+            per_note_expressions: ramp_per_note_expressions(
+                start_per_note_expressions,
+                end_per_note_expressions,
+            ),
         }
     }
 
@@ -1584,7 +1784,7 @@ impl SynthRampedStatesMap {
         numeric_expression_overrides: &HashMap<NumericGlobalExpression, f32>,
         switch_expression_overrides: &HashMap<SwitchGlobalExpression, bool>,
     ) -> Self {
-        Self::new(
+        Self::new_with_per_note(
             infos,
             SynthRampedOverrides {
                 start_params: overrides,
@@ -1594,6 +1794,76 @@ impl SynthRampedStatesMap {
                 start_switch_expressions: switch_expression_overrides,
                 end_switch_expressions: switch_expression_overrides,
             },
+            &Default::default(),
+            &Default::default(),
+            0,
+        )
+    }
+
+    /// Create a new [`SynthRampedStatesMap`] for synths with all parameters constant,
+    /// including per-note expression overrides.
+    ///
+    /// This is similar to [`Self::new_const`], but also allows specifying per-note
+    /// expression values for specific notes.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use conformal_component::parameters::{StaticInfoRef, InternalValue, TypeSpecificInfoRef, SynthRampedStatesMap, NumericBufferState, BufferStates};
+    /// # use conformal_component::synth::{SynthParamBufferStates, NumericGlobalExpression, NumericPerNoteExpression};
+    /// # use conformal_component::events::{NoteID, NoteIDInternals};
+    ///
+    /// let infos = vec![
+    ///   StaticInfoRef {
+    ///     title: "Numeric",
+    ///     short_title: "Numeric",
+    ///     unique_id: "numeric",
+    ///     flags: Default::default(),
+    ///     type_specific: TypeSpecificInfoRef::Numeric {
+    ///       default: 0.0,
+    ///       valid_range: 0.0..=1.0,
+    ///       units: None,
+    ///     },
+    ///   },
+    /// ];
+    ///
+    /// let note_id = NoteID { internals: NoteIDInternals::NoteIDFromPitch(60) };
+    /// let per_note_overrides = vec![
+    ///   ((NumericPerNoteExpression::PitchBend, note_id), 1.5),
+    /// ].into_iter().collect();
+    ///
+    /// let states = SynthRampedStatesMap::new_const_with_per_note(
+    ///   infos.iter().cloned(),
+    ///   &Default::default(),
+    ///   &Default::default(),
+    ///   &Default::default(),
+    ///   &per_note_overrides,
+    /// );
+    ///
+    /// match states.get_numeric_expression_for_note(NumericPerNoteExpression::PitchBend, note_id) {
+    ///   NumericBufferState::Constant(v) if (v - 1.5).abs() < 1e-6 => (),
+    ///   _ => panic!("Expected constant value of 1.5"),
+    /// };
+    /// ```
+    pub fn new_const_with_per_note<'a, 'b: 'a>(
+        infos: impl IntoIterator<Item = InfoRef<'a, &'b str>> + 'a,
+        overrides: &HashMap<&'_ str, InternalValue>,
+        numeric_expression_overrides: &HashMap<NumericGlobalExpression, f32>,
+        switch_expression_overrides: &HashMap<SwitchGlobalExpression, bool>,
+        per_note_expression_overrides: &HashMap<(NumericPerNoteExpression, NoteID), f32>,
+    ) -> Self {
+        Self::new_with_per_note(
+            infos,
+            SynthRampedOverrides {
+                start_params: overrides,
+                end_params: overrides,
+                start_numeric_expressions: numeric_expression_overrides,
+                end_numeric_expressions: numeric_expression_overrides,
+                start_switch_expressions: switch_expression_overrides,
+                end_switch_expressions: switch_expression_overrides,
+            },
+            per_note_expression_overrides,
+            per_note_expression_overrides,
             0,
         )
     }
@@ -1669,6 +1939,36 @@ impl SynthParamBufferStates for SynthRampedStatesMap {
             None => SwitchBufferState::Constant(Default::default()),
             _ => unreachable!(
                 "internal invariant violation: expected a switch global expression to be either constant or ramped switch"
+            ),
+        }
+    }
+
+    fn get_numeric_expression_for_note(
+        &self,
+        expression: NumericPerNoteExpression,
+        note_id: NoteID,
+    ) -> NumericBufferState<impl Iterator<Item = PiecewiseLinearCurvePoint> + Clone> {
+        match self.per_note_expressions.get(&(expression, note_id)) {
+            Some(RampedState::Constant(InternalValue::Numeric(v))) => {
+                NumericBufferState::Constant(*v)
+            }
+            Some(RampedState::Numeric(RampedNumeric { start, end, range })) => {
+                let curve = PiecewiseLinearCurve::new(
+                    ramp_numeric(*start, *end, self.states.buffer_size),
+                    self.states.buffer_size,
+                    range.clone(),
+                );
+                if let Some(curve) = curve {
+                    NumericBufferState::PiecewiseLinear(curve)
+                } else {
+                    panic!(
+                        "{start} -> {end} is not a valid ramp for {expression:?} (range: {range:?})"
+                    );
+                }
+            }
+            None => NumericBufferState::Constant(Default::default()),
+            _ => unreachable!(
+                "internal invariant violation: expected a per-note expression to be either constant or ramped numeric"
             ),
         }
     }
