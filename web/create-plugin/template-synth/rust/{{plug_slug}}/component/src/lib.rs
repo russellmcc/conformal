@@ -1,7 +1,9 @@
 use conformal_component::audio::BufferMut;
 use conformal_component::events::NoteData;
 use conformal_component::parameters::{self, Flags, InfoRef, TypeSpecificInfoRef};
-use conformal_component::synth::{HandleEventsContext, ProcessContext, Synth as SynthTrait};
+use conformal_component::synth::{
+    HandleEventsContext, ProcessContext, Synth as SynthTrait, SynthParamBufferStates,
+};
 use conformal_component::{Component as ComponentTrait, ProcessingEnvironment, Processor, pzip};
 use conformal_poly::{self, EventData, Poly, Voice as VoiceTrait};
 use itertools::izip;
@@ -92,7 +94,7 @@ impl VoiceTrait for Voice {
     fn process(
         &mut self,
         events: impl IntoIterator<Item = conformal_poly::Event>,
-        params: &impl parameters::BufferStates,
+        params: &impl SynthParamBufferStates,
         note_expressions: conformal_poly::NoteExpressionCurve<
             impl Iterator<Item = conformal_poly::NoteExpressionPoint> + Clone,
         >,
@@ -102,7 +104,7 @@ impl VoiceTrait for Voice {
         let mut events = events.into_iter().peekable();
         for ((index, sample), (gain, global_pitch_bend), expression) in izip!(
             output.iter_mut().enumerate(),
-            pzip!(params[numeric "gain", numeric "pitch_bend"]),
+            pzip!(params[numeric "gain", global_expression_numeric PitchBend]),
             note_expressions.iter_by_sample(),
         ) {
             while let Some(conformal_poly::Event {
