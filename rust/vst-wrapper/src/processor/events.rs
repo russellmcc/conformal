@@ -4,7 +4,7 @@ use vst3::{
 };
 
 use conformal_component::events::{
-    Data, Event, NoteData, NoteExpression, NoteExpressionData, NoteID,
+    Data, Event, NoteData, NoteExpression, NoteExpressionData, NoteID, NoteIDInternals,
 };
 
 use crate::mpe_quirks::Support;
@@ -62,11 +62,19 @@ unsafe fn convert_event(
                             tuning: event.__field0.noteOn.tuning,
                             velocity: event.__field0.noteOn.velocity,
                             id: if channel != 0 {
-                                NoteID::from_channel_for_mpe_quirks(channel)
+                                NoteID {
+                                    internals: NoteIDInternals::NoteIDFromChannelID(channel),
+                                }
                             } else if event.__field0.noteOn.noteId == -1 {
-                                NoteID::from_pitch(pitch)
+                                NoteID {
+                                    internals: NoteIDInternals::NoteIDFromPitch(pitch),
+                                }
                             } else {
-                                NoteID::from_id(event.__field0.noteOn.noteId)
+                                NoteID {
+                                    internals: NoteIDInternals::NoteIDWithID(
+                                        event.__field0.noteOn.noteId,
+                                    ),
+                                }
                             },
                         },
                     },
@@ -87,11 +95,19 @@ unsafe fn convert_event(
                             tuning: event.__field0.noteOff.tuning,
                             velocity: event.__field0.noteOff.velocity,
                             id: if channel != 0 {
-                                NoteID::from_channel_for_mpe_quirks(channel)
+                                NoteID {
+                                    internals: NoteIDInternals::NoteIDFromChannelID(channel),
+                                }
                             } else if event.__field0.noteOff.noteId == -1 {
-                                NoteID::from_pitch(pitch)
+                                NoteID {
+                                    internals: NoteIDInternals::NoteIDFromPitch(pitch),
+                                }
                             } else {
-                                NoteID::from_id(event.__field0.noteOff.noteId)
+                                NoteID {
+                                    internals: NoteIDInternals::NoteIDWithID(
+                                        event.__field0.noteOff.noteId,
+                                    ),
+                                }
                             },
                         },
                     },
@@ -101,7 +117,11 @@ unsafe fn convert_event(
                 sample_offset: event.sampleOffset as usize,
                 data: Data::NoteExpression {
                     data: NoteExpressionData {
-                        id: NoteID::from_id(event.__field0.noteExpressionValue.noteId),
+                        id: NoteID {
+                            internals: NoteIDInternals::NoteIDWithID(
+                                event.__field0.noteExpressionValue.noteId,
+                            ),
+                        },
                         #[allow(clippy::cast_possible_truncation)]
                         expression: match event.__field0.noteExpressionValue.typeId {
                             vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID => {

@@ -1,7 +1,8 @@
 //! Contains data structures representing _events_ sent to [`crate::synth::Synth`]s
 
+#[doc(hidden)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-enum NoteIDInternals {
+pub enum NoteIDInternals {
     NoteIDWithID(i32),
     NoteIDFromPitch(u8),
     NoteIDFromChannelID(i16),
@@ -13,62 +14,10 @@ enum NoteIDInternals {
 /// that is playing.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct NoteID {
-    internals: NoteIDInternals,
-}
-
-impl NoteID {
-    /// Create a new `NoteID` from a numeric ID.
-    ///
-    /// Note that the `NoteID`s will be considered equal if they come from
-    /// the same numeric ID, and different if they come from different numeric IDs.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use conformal_component::events::NoteID;
-    /// assert_eq!(NoteID::from_id(42), NoteID::from_id(42));
-    /// assert_ne!(NoteID::from_id(42), NoteID::from_id(43));
-    /// ```
-    #[must_use]
-    pub const fn from_id(id: i32) -> Self {
-        Self {
-            internals: NoteIDInternals::NoteIDWithID(id),
-        }
-    }
-
+    /// This is only for use by implementors of format adaptors, do not look into this
+    /// as a plug-in writer.
     #[doc(hidden)]
-    #[must_use]
-    pub const fn from_pitch(pitch: u8) -> Self {
-        Self {
-            internals: NoteIDInternals::NoteIDFromPitch(pitch),
-        }
-    }
-
-    #[doc(hidden)]
-    #[must_use]
-    pub const fn from_channel_for_mpe_quirks(id: i16) -> Self {
-        Self {
-            internals: NoteIDInternals::NoteIDFromChannelID(id),
-        }
-    }
-}
-
-#[doc(hidden)]
-#[must_use]
-pub fn to_vst_note_id(note_id: NoteID) -> i32 {
-    match note_id.internals {
-        NoteIDInternals::NoteIDWithID(id) => id,
-        NoteIDInternals::NoteIDFromPitch(_) | NoteIDInternals::NoteIDFromChannelID(_) => -1,
-    }
-}
-
-#[doc(hidden)]
-#[must_use]
-pub fn to_vst_note_channel_for_mpe_quirks(note_id: NoteID) -> i16 {
-    match note_id.internals {
-        NoteIDInternals::NoteIDFromChannelID(id) => id,
-        NoteIDInternals::NoteIDFromPitch(_) | NoteIDInternals::NoteIDWithID(_) => 0,
-    }
+    pub internals: NoteIDInternals,
 }
 
 /// Contains data common to both `NoteOn` and `NoteOff` events.
@@ -224,7 +173,9 @@ mod tests {
     use super::{Data, Event, Events, NoteData, NoteID};
 
     static EXAMPLE_NOTE: NoteData = NoteData {
-        id: NoteID::from_pitch(60),
+        id: NoteID {
+            internals: super::NoteIDInternals::NoteIDFromPitch(60),
+        },
         pitch: 60,
         velocity: 1.0,
         tuning: 0.0,

@@ -4816,7 +4816,9 @@ mod tests {
                     sample_offset: 10,
                     data: Data::NoteOn {
                         data: NoteData {
-                            id: NoteID::from_channel_for_mpe_quirks(1),
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDFromChannelID(1),
+                            },
                             pitch: 64,
                             velocity: 0.5,
                             tuning: 0f32,
@@ -4851,7 +4853,9 @@ mod tests {
                             sample_offset: 0,
                             data: Data::NoteOn {
                                 data: NoteData {
-                                    id: NoteID::from_channel_for_mpe_quirks(1),
+                                    id: NoteID {
+                                        internals: NoteIDInternals::NoteIDFromChannelID(1),
+                                    },
                                     pitch: 64,
                                     velocity: 0.5,
                                     tuning: 0f32,

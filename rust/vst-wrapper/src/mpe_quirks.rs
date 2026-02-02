@@ -2,10 +2,7 @@ use std::iter::Peekable;
 
 use conformal_component::{
     audio::approx_eq,
-    events::{
-        self, Events, NoteExpression, NoteExpressionData, NoteID,
-        to_vst_note_channel_for_mpe_quirks,
-    },
+    events::{self, Events, NoteExpression, NoteExpressionData, NoteID, NoteIDInternals},
     parameters::{self, BufferStates, Flags, IdHash, States, TypeSpecificInfo, hash_id},
 };
 
@@ -95,7 +92,9 @@ enum Parameter {
 
 fn note_expression_data(parameter: Parameter, channel: i16, value: f32) -> NoteExpressionData {
     NoteExpressionData {
-        id: NoteID::from_channel_for_mpe_quirks(channel),
+        id: NoteID {
+            internals: NoteIDInternals::NoteIDFromChannelID(channel),
+        },
         expression: match parameter {
             Parameter::Pitch => NoteExpression::PitchBend(value),
             Parameter::Aftertouch => NoteExpression::Aftertouch(value),
@@ -222,10 +221,17 @@ fn interleave_events_for_channel(
     }
 }
 
+fn to_vst_note_channel_for_mpe_quirks(id: events::NoteID) -> Option<i16> {
+    match id.internals {
+        NoteIDInternals::NoteIDFromChannelID(channel) => Some(channel),
+        NoteIDInternals::NoteIDFromPitch(_) | NoteIDInternals::NoteIDWithID(_) => None,
+    }
+}
+
 fn update_state_for_event(ev: &events::Data, quirks_state: &mut State) {
     match ev {
         events::Data::NoteOn { data } => {
-            if let c @ 1..=16 = to_vst_note_channel_for_mpe_quirks(data.id) {
+            if let Some(c @ 1..=16) = to_vst_note_channel_for_mpe_quirks(data.id) {
                 quirks_state.channels[(c - 1) as usize] = Default::default();
             }
         }
