@@ -80,10 +80,6 @@ pub trait HandleEventsContext {
     fn events(&self) -> impl Iterator<Item = events::Data> + Clone;
 
     /// Parameter state
-    ///
-    /// Note that `parameters` will include [`CONTROLLER_PARAMETERS`] related to controller state
-    /// (e.g. pitch bend, mod wheel, etc.) above, in addition to all the parameters
-    /// returned by `crate::Component::parameter_infos`.
     fn parameters(&self) -> impl SynthParamStates;
 }
 
@@ -108,10 +104,6 @@ pub trait ProcessContext {
     fn events(&self) -> Events<impl Iterator<Item = Event> + Clone>;
 
     /// Parameter states for this call
-    ///
-    /// Note that `parameters` will include [`CONTROLLER_PARAMETERS`] related to controller state
-    /// (e.g. pitch bend, mod wheel, etc.) above, in addition to all the parameters
-    /// returned by `crate::Component::parameter_infos`.
     ///
     /// In order to consume the parameters, you can use the [`crate::pzip`] macro
     /// to convert the parameters into an iterator of tuples that represent
