@@ -45,7 +45,7 @@ pub(crate) fn should_include_parameter_in_snapshot(id: &str) -> bool {
 ///
 /// We handle this by defining internal VST3 parameters that map to these
 /// controllers. Note that these parameters do live in our normal parameter
-/// store, but are filtered out by should_include_parameter_in_snapshot.
+/// store, but are filtered out by [`should_include_parameter_in_snapshot`].
 pub(crate) const PITCH_BEND_PARAMETER: &str = formatcp!("{UNIQUE_ID_INTERNAL_PREFIX}pitch_bend");
 pub(crate) const MOD_WHEEL_PARAMETER: &str = formatcp!("{UNIQUE_ID_INTERNAL_PREFIX}mod_wheel");
 pub(crate) const EXPRESSION_PEDAL_PARAMETER: &str =

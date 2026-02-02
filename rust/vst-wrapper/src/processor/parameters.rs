@@ -884,14 +884,12 @@ impl<'a> ExistingBufferStates<'a> {
     }
 }
 
-pub fn existing_buffer_states_from_store<'a>(
-    store: &'a ProcessingStore,
-) -> impl BufferStates + Clone {
+pub fn existing_buffer_states_from_store(store: &ProcessingStore) -> impl BufferStates + Clone {
     ExistingBufferStates::new(store)
 }
 
-pub fn existing_synth_param_buffer_states_from_store<'a>(
-    store: &'a ProcessingStore,
+pub fn existing_synth_param_buffer_states_from_store(
+    store: &ProcessingStore,
 ) -> impl SynthParamBufferStates + Clone {
     ExistingBufferStates::new(store)
 }
@@ -1133,8 +1131,6 @@ pub unsafe fn no_audio_synth_param_changes_from_vst3<'a>(
     unsafe { no_audio_param_changes_from_vst3_internal(com_changes, store) }
 }
 
-pub unsafe fn existing_synth_params<'a>(
-    store: &'a mut ProcessingStore,
-) -> impl SynthParamStates + Clone {
+pub unsafe fn existing_synth_params(store: &mut ProcessingStore) -> impl SynthParamStates + Clone {
     &store.core
 }

@@ -643,13 +643,13 @@ struct EffectProcessBuffer<'a, P> {
 }
 
 impl<P: Effect> ProcessBuffer for EffectProcessBuffer<'_, P> {
-    unsafe fn process<'a>(
+    unsafe fn process(
         &mut self,
         _e: Events<impl Iterator<Item = Event> + Clone>,
         store: &mut parameters::ProcessingStore,
         num_frames: usize,
         _mpe_quirks: Option<&mut mpe_quirks::State>,
-        vst_parameters: Option<ComRef<'a, vst3::Steinberg::Vst::IParameterChanges>>,
+        vst_parameters: Option<ComRef<'_, vst3::Steinberg::Vst::IParameterChanges>>,
     ) -> i32 {
         if let Some(vst_parameters) = vst_parameters {
             if let Some(buffer_states) =
@@ -1305,24 +1305,24 @@ struct SynthProcessBuffer<'a, P> {
 }
 
 trait ProcessBuffer {
-    unsafe fn process<'a>(
+    unsafe fn process(
         &mut self,
         e: Events<impl Iterator<Item = Event> + Clone>,
         store: &mut parameters::ProcessingStore,
         num_frames: usize,
         mpe_quirks: Option<&mut mpe_quirks::State>,
-        vst_parameters: Option<ComRef<'a, vst3::Steinberg::Vst::IParameterChanges>>,
+        vst_parameters: Option<ComRef<'_, vst3::Steinberg::Vst::IParameterChanges>>,
     ) -> i32;
 }
 
 impl<P: Synth> ProcessBuffer for SynthProcessBuffer<'_, P> {
-    unsafe fn process<'a>(
+    unsafe fn process(
         &mut self,
         e: Events<impl Iterator<Item = Event> + Clone>,
         store: &mut parameters::ProcessingStore,
         num_frames: usize,
         mpe_quirks: Option<&mut mpe_quirks::State>,
-        vst_parameters: Option<ComRef<'a, vst3::Steinberg::Vst::IParameterChanges>>,
+        vst_parameters: Option<ComRef<'_, vst3::Steinberg::Vst::IParameterChanges>>,
     ) -> vst3::Steinberg::tresult {
         if let Some(vst_parameters) = vst_parameters {
             if let Some(buffer_states) = unsafe {

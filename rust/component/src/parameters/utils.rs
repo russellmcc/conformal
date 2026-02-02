@@ -1433,6 +1433,22 @@ pub struct SynthRampedStatesMap {
     switch_expressions: HashMap<SwitchGlobalExpression, RampedState>,
 }
 
+/// Params for [`SynthRampedStatesMap::new`]
+pub struct SynthRampedOverrides<'a, 'b> {
+    /// Overrides for parameters at the start of the buffer
+    pub start_params: &'a HashMap<&'b str, InternalValue>,
+    /// Overrides for parameters at the end of the buffer
+    pub end_params: &'a HashMap<&'b str, InternalValue>,
+    /// Overrides for numeric global expression controllerss at the start of the buffer
+    pub start_numeric_expressions: &'a HashMap<NumericGlobalExpression, f32>,
+    /// Overrides for numeric global expression controllers at the end of the buffer
+    pub end_numeric_expressions: &'a HashMap<NumericGlobalExpression, f32>,
+    /// Overrides for switch global expression controllers at the start of the buffer
+    pub start_switch_expressions: &'a HashMap<SwitchGlobalExpression, bool>,
+    /// Overrides for switch global expression controllers at the end of the buffer
+    pub end_switch_expressions: &'a HashMap<SwitchGlobalExpression, bool>,
+}
+
 impl SynthRampedStatesMap {
     /// Create a new [`SynthRampedStatesMap`] for synths from a list of `Info`s and `override`s.
     ///
@@ -1441,7 +1457,7 @@ impl SynthRampedStatesMap {
     /// # Examples
     ///
     /// ```
-    /// # use conformal_component::parameters::{StaticInfoRef, InternalValue, TypeSpecificInfoRef, SynthRampedStatesMap, NumericBufferState, BufferStates};
+    /// # use conformal_component::parameters::{StaticInfoRef, InternalValue, TypeSpecificInfoRef, SynthRampedStatesMap, NumericBufferState, BufferStates, SynthRampedOverrides};
     /// # use conformal_component::synth::{SynthParamBufferStates, NumericGlobalExpression};
     /// let infos = vec![
     ///   StaticInfoRef {
@@ -1461,12 +1477,14 @@ impl SynthRampedStatesMap {
     /// let end_param_overrides = vec![("numeric", InternalValue::Numeric(0.5))].into_iter().collect();
     /// let states = SynthRampedStatesMap::new(
     ///   infos.iter().cloned(),
-    ///   &Default::default(),
-    ///   &end_param_overrides,
-    ///   &start_expression_overrides,
-    ///   &Default::default(),
-    ///   &Default::default(),
-    ///   &Default::default(),
+    ///   SynthRampedOverrides {
+    ///     start_params: &Default::default(),
+    ///     end_params: &end_param_overrides,
+    ///     start_numeric_expressions: &start_expression_overrides,
+    ///     end_numeric_expressions: &Default::default(),
+    ///     start_switch_expressions: &Default::default(),
+    ///     end_switch_expressions: &Default::default(),
+    ///   },
     ///   10
     /// );
     ///
@@ -1494,28 +1512,25 @@ impl SynthRampedStatesMap {
     /// specified in `infos`.
     pub fn new<'a, 'b: 'a>(
         infos: impl IntoIterator<Item = InfoRef<'a, &'b str>> + 'a,
-        start_overrides: &HashMap<&'_ str, InternalValue>,
-        end_overrides: &HashMap<&'_ str, InternalValue>,
-        start_numeric_expression_overrides: &HashMap<NumericGlobalExpression, f32>,
-        end_numeric_expression_overrides: &HashMap<NumericGlobalExpression, f32>,
-        start_switch_expression_overrides: &HashMap<SwitchGlobalExpression, bool>,
-        end_switch_expression_overrides: &HashMap<SwitchGlobalExpression, bool>,
+        SynthRampedOverrides {
+            start_params,
+            end_params,
+            start_numeric_expressions,
+            end_numeric_expressions,
+            start_switch_expressions,
+            end_switch_expressions,
+        }: SynthRampedOverrides<'_, '_>,
         buffer_size: usize,
     ) -> Self {
         Self {
-            states: RampedStatesMap::new(
-                infos.into_iter(),
-                start_overrides,
-                end_overrides,
-                buffer_size,
-            ),
+            states: RampedStatesMap::new(infos, start_params, end_params, buffer_size),
             numeric_expressions: ramp_numeric_expressions(
-                start_numeric_expression_overrides,
-                end_numeric_expression_overrides,
+                start_numeric_expressions,
+                end_numeric_expressions,
             ),
             switch_expressions: ramp_switch_expressions(
-                start_switch_expression_overrides,
-                end_switch_expression_overrides,
+                start_switch_expressions,
+                end_switch_expressions,
             ),
         }
     }
@@ -1571,12 +1586,14 @@ impl SynthRampedStatesMap {
     ) -> Self {
         Self::new(
             infos,
-            overrides,
-            overrides,
-            numeric_expression_overrides,
-            numeric_expression_overrides,
-            switch_expression_overrides,
-            switch_expression_overrides,
+            SynthRampedOverrides {
+                start_params: overrides,
+                end_params: overrides,
+                start_numeric_expressions: numeric_expression_overrides,
+                end_numeric_expressions: numeric_expression_overrides,
+                start_switch_expressions: switch_expression_overrides,
+                end_switch_expressions: switch_expression_overrides,
+            },
             0,
         )
     }
