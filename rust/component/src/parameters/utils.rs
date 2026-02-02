@@ -203,6 +203,18 @@ macro_rules! pzip_part {
         use $crate::parameters::BufferStates;
         $crate::parameters::decompose_switch($params.get_switch($path).unwrap())
     }};
+    (global_expression_numeric $variant:ident $params:ident) => {{
+        use $crate::synth::{NumericGlobalExpression, SynthParamBufferStates};
+        $crate::parameters::decompose_numeric(
+            $params.get_numeric_global_expression(NumericGlobalExpression::$variant),
+        )
+    }};
+    (global_expression_switch $variant:ident $params:ident) => {{
+        use $crate::synth::{SwitchGlobalExpression, SynthParamBufferStates};
+        $crate::parameters::decompose_switch(
+            $params.get_switch_global_expression(SwitchGlobalExpression::$variant),
+        )
+    }};
 }
 
 #[macro_export]
@@ -217,6 +229,12 @@ macro_rules! pzip_value_type {
     (switch) => {
         bool
     };
+    (global_expression_numeric) => {
+        f32
+    };
+    (global_expression_switch) => {
+        bool
+    };
 }
 
 #[macro_export]
@@ -227,7 +245,7 @@ macro_rules! pzip_collect {
         $params:ident,
         [], // No more inputs
         [ $($names:ident,)* ], // Remaining names
-        [ $($acc_name:ident $acc_kind:ident $acc_path:literal)* ] // Accumulated
+        [ $($acc_name:ident $acc_kind:ident $acc_path:tt)* ] // Accumulated
     ) => {
         {
             #[allow(unused_parens, non_snake_case)]
@@ -310,7 +328,7 @@ macro_rules! pzip_collect {
     // Recursive step
     (
         $params:ident,
-        [ $k:ident $p:literal $(, $rest_k:ident $rest_p:literal)* ],
+        [ $k:ident $p:tt $(, $rest_k:ident $rest_p:tt)* ],
         [ $next_name:ident, $($rest_names:ident,)* ],
         [ $($acc:tt)* ]
     ) => {
@@ -379,9 +397,45 @@ macro_rules! pzip_collect {
 ///
 /// assert_eq!(samples, vec![(0.0, 1, false), (0.0, 1, false)]);
 /// ```
+///
+/// # Global Expression Parameters
+///
+/// For synths, you can also access global expression controllers
+/// using `global_expression_numeric` and `global_expression_switch`.
+/// Note that this requires the parameter source to implement
+/// [`SynthParamBufferStates`](crate::synth::SynthParamBufferStates).
+///
+/// ```
+/// # use conformal_component::pzip;
+/// # use conformal_component::parameters::{ConstantBufferStates, StaticInfoRef, TypeSpecificInfoRef, InternalValue};
+/// # use conformal_component::synth::SynthParamBufferStates;
+/// let params = ConstantBufferStates::new_synth_defaults(
+///   vec![
+///     StaticInfoRef {
+///       title: "Gain",
+///       short_title: "Gain",
+///       unique_id: "gain",
+///       flags: Default::default(),
+///       type_specific: TypeSpecificInfoRef::Numeric {
+///         default: 0.5,
+///         valid_range: 0.0..=1.0,
+///         units: None,
+///       },
+///     },
+///   ],
+/// );
+///
+/// let samples: Vec<_> = pzip!(params[
+///   numeric "gain",
+///   global_expression_numeric ModWheel,
+///   global_expression_switch SustainPedal
+/// ]).take(1).collect();
+///
+/// assert_eq!(samples, vec![(0.5, 0.0, false)]);
+/// ```
 #[macro_export]
 macro_rules! pzip {
-    ($params:ident[$($kind:ident $path:literal),+]) => {
+    ($params:ident[$($kind:ident $path:tt),+]) => {
         $crate::pzip_collect!(
             $params,
             [ $($kind $path),+ ],
