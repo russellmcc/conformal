@@ -1268,54 +1268,57 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
                 num_frames,
             };
             let mpe = mpe.unwrap();
+            let vst_params = ComRef::from_raw((*data).inputParameterChanges);
+            let input_events = ComRef::from_raw((*data).inputEvents)
+                .map(|vst_events| Events::new(events::event_iterator(vst_events), num_frames));
 
-            if let Some(vst_parameters) = ComRef::from_raw((*data).inputParameterChanges) {
-                let Some(buffer_states) = parameters::synth_param_changes_from_vst3(
-                    vst_parameters,
-                    params,
-                    num_frames,
-                    mpe,
-                ) else {
-                    return vst3::Steinberg::kInvalidArgument;
-                };
-                if let Some(input_events) = ComRef::from_raw((*data).inputEvents) {
-                    let Some(events) =
-                        Events::new(events::event_iterator(input_events), num_frames)
-                    else {
+            match (vst_params, input_events) {
+                (_, Some(None)) => return vst3::Steinberg::kInvalidArgument,
+                (Some(vst_params), Some(Some(events))) => {
+                    if let Some(parameters) = parameters::synth_param_changes_from_vst3(
+                        vst_params, params, num_frames, mpe,
+                    ) {
+                        processor.process(&SynthProcessContext { events, parameters }, &mut output);
+                    } else {
                         return vst3::Steinberg::kInvalidArgument;
-                    };
-                    let context = SynthProcessContext {
-                        events,
-                        parameters: buffer_states,
-                    };
-                    processor.process(&context, &mut output);
-                } else {
-                    let context = SynthProcessContext {
-                        events: Events::new(std::iter::empty(), num_frames).unwrap(),
-                        parameters: buffer_states,
-                    };
-                    processor.process(&context, &mut output);
+                    }
                 }
-            } else {
-                let buffer_states =
-                    parameters::existing_synth_param_buffer_states_from_store(params, mpe);
-                if let Some(input_events) = ComRef::from_raw((*data).inputEvents) {
-                    let Some(events) =
-                        Events::new(events::event_iterator(input_events), num_frames)
-                    else {
+                (Some(vst_params), None) => {
+                    if let Some(parameters) = parameters::synth_param_changes_from_vst3(
+                        vst_params, params, num_frames, mpe,
+                    ) {
+                        processor.process(
+                            &SynthProcessContext {
+                                events: Events::new(std::iter::empty(), num_frames).unwrap(),
+                                parameters,
+                            },
+                            &mut output,
+                        );
+                    } else {
                         return vst3::Steinberg::kInvalidArgument;
-                    };
-                    let context = SynthProcessContext {
-                        events,
-                        parameters: buffer_states,
-                    };
-                    processor.process(&context, &mut output);
-                } else {
-                    let context = SynthProcessContext {
-                        events: Events::new(std::iter::empty(), num_frames).unwrap(),
-                        parameters: buffer_states,
-                    };
-                    processor.process(&context, &mut output);
+                    }
+                }
+                (None, Some(Some(events))) => {
+                    let buffer_states =
+                        parameters::existing_synth_param_buffer_states_from_store(params, mpe);
+                    processor.process(
+                        &SynthProcessContext {
+                            events,
+                            parameters: buffer_states,
+                        },
+                        &mut output,
+                    );
+                }
+                (None, None) => {
+                    processor.process(
+                        &SynthProcessContext {
+                            events: Events::new(std::iter::empty(), num_frames).unwrap(),
+                            parameters: parameters::existing_synth_param_buffer_states_from_store(
+                                params, mpe,
+                            ),
+                        },
+                        &mut output,
+                    );
                 }
             }
             vst3::Steinberg::kResultOk
