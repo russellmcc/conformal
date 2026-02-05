@@ -65,9 +65,6 @@ struct ActiveProcessContext<P, A> {
 
     processor: P,
     active_processor: A,
-
-    // Synths need a separate state for MPE.
-    mpe: Option<mpe::State>,
 }
 
 #[derive(Default)]
@@ -106,9 +103,14 @@ struct SynthProcessorCategory {
 }
 
 #[derive(Debug)]
-enum ActiveSynthProcessor {
+enum SynthProcessorAudioState {
     AudioEnabled(ChannelLayout),
     AudioDisabled,
+}
+
+struct ActiveSynthProcessor {
+    audio_state: SynthProcessorAudioState,
+    mpe: mpe::State,
 }
 
 impl Default for SynthProcessorCategory {
@@ -128,25 +130,28 @@ trait ActiveProcessor<P> {
         processor: &mut P,
         data: *mut vst3::Steinberg::Vst::ProcessData,
         params: &mut parameters::ProcessingStore,
-        mpe: Option<&mut mpe::State>,
     ) -> vst3::Steinberg::tresult;
 
     unsafe fn handle_events(
         &self,
         processor: &mut P,
-        e: Option<impl Iterator<Item = conformal_component::events::Data> + Clone>,
+        data: *mut vst3::Steinberg::Vst::ProcessData,
         params: &mut parameters::ProcessingStore,
-        mpe: Option<&mut mpe::State>,
-        vst_parameters: Option<ComRef<'_, vst3::Steinberg::Vst::IParameterChanges>>,
     ) -> vst3::Steinberg::tresult;
+
+    fn set_processing(&self, processing: bool);
+}
+
+unsafe fn vst_parameters_from_process_data(
+    data: *mut vst3::Steinberg::Vst::ProcessData,
+) -> Option<ComRef<'static, vst3::Steinberg::Vst::IParameterChanges>> {
+    unsafe { ComRef::from_raw((*data).inputParameterChanges) }
 }
 
 trait ProcessorCategory {
     type Active;
 
     fn activate(&self) -> Self::Active;
-
-    fn mpe(&self) -> Option<mpe::State>;
 
     fn create_processor<C: Component>(
         &self,
@@ -200,12 +205,15 @@ impl ProcessorCategory for SynthProcessorCategory {
     type Active = ActiveSynthProcessor;
 
     fn activate(&self) -> Self::Active {
-        if self.bus_activation_state.event_input_active
-            && self.bus_activation_state.audio_output_active
-        {
-            ActiveSynthProcessor::AudioEnabled(self.channel_layout)
-        } else {
-            ActiveSynthProcessor::AudioDisabled
+        ActiveSynthProcessor {
+            audio_state: if self.bus_activation_state.event_input_active
+                && self.bus_activation_state.audio_output_active
+            {
+                SynthProcessorAudioState::AudioEnabled(self.channel_layout)
+            } else {
+                SynthProcessorAudioState::AudioDisabled
+            },
+            mpe: Default::default(),
         }
     }
 
@@ -378,10 +386,6 @@ impl ProcessorCategory for SynthProcessorCategory {
             .iter()
             .map(Into::into)
             .chain(mpe::quirks::parameters())
-    }
-
-    fn mpe(&self) -> Option<mpe::State> {
-        Some(Default::default())
     }
 }
 
@@ -600,10 +604,6 @@ impl ProcessorCategory for EffectProcessorCategory {
     ) -> impl Iterator<Item = conformal_component::parameters::Info> + Clone {
         core::iter::empty()
     }
-
-    fn mpe(&self) -> Option<mpe::State> {
-        None
-    }
 }
 
 struct EffectProcessContext<P> {
@@ -643,7 +643,6 @@ impl<P: Effect> ActiveProcessor<P> for ActiveEffectProcessor {
         processor: &mut P,
         data: *mut vst3::Steinberg::Vst::ProcessData,
         params: &mut parameters::ProcessingStore,
-        _mpe: Option<&mut mpe::State>,
     ) -> vst3::Steinberg::tresult {
         let ActiveEffectProcessor::AudioEnabled(channel_layout) = self else {
             return vst3::Steinberg::kInvalidArgument;
@@ -688,12 +687,10 @@ impl<P: Effect> ActiveProcessor<P> for ActiveEffectProcessor {
     unsafe fn handle_events(
         &self,
         processor: &mut P,
-        _e: Option<impl Iterator<Item = conformal_component::events::Data> + Clone>,
+        data: *mut vst3::Steinberg::Vst::ProcessData,
         params: &mut parameters::ProcessingStore,
-        _mpe: Option<&mut mpe::State>,
-        vst_parameters: Option<ComRef<'_, vst3::Steinberg::Vst::IParameterChanges>>,
     ) -> vst3::Steinberg::tresult {
-        if let Some(vst_parameters) = vst_parameters {
+        if let Some(vst_parameters) = unsafe { vst_parameters_from_process_data(data) } {
             if let Some((change_status, param_states)) =
                 unsafe { parameters::no_audio_param_changes_from_vst3(vst_parameters, params) }
             {
@@ -709,6 +706,8 @@ impl<P: Effect> ActiveProcessor<P> for ActiveEffectProcessor {
         }
         vst3::Steinberg::kResultOk
     }
+
+    fn set_processing(&self, _: bool) {}
 }
 
 struct PartialProcessingEnvironment {
@@ -1086,7 +1085,6 @@ impl<CF: ComponentFactory<Component: Component<Processor: ProcessorT>>, PC: Proc
                             params,
                             processor,
                             active_processor,
-                            mpe: self.category.borrow().mpe(),
                         }));
                     *process_context_active = true;
                     vst3::Steinberg::kResultOk
@@ -1241,9 +1239,9 @@ impl<E: Iterator<Item = conformal_component::events::Data> + Clone, P: SynthPara
 
 impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
     fn audio_enabled(&self) -> bool {
-        match self {
-            ActiveSynthProcessor::AudioEnabled(_) => true,
-            ActiveSynthProcessor::AudioDisabled => false,
+        match self.audio_state {
+            SynthProcessorAudioState::AudioEnabled(_) => true,
+            SynthProcessorAudioState::AudioDisabled => false,
         }
     }
 
@@ -1252,9 +1250,8 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
         processor: &mut P,
         data: *mut vst3::Steinberg::Vst::ProcessData,
         params: &mut parameters::ProcessingStore,
-        mpe: Option<&mut mpe::State>,
     ) -> vst3::Steinberg::tresult {
-        let ActiveSynthProcessor::AudioEnabled(channel_layout) = self else {
+        let SynthProcessorAudioState::AudioEnabled(channel_layout) = self.audio_state else {
             return vst3::Steinberg::kInvalidArgument;
         };
         unsafe {
@@ -1264,10 +1261,9 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
             let num_frames = (*data).numSamples as usize;
             let mut output = UnsafeMutBufferFromRaw {
                 ptr: (*(*data).outputs).__field0.channelBuffers32,
-                channel_layout: *channel_layout,
+                channel_layout,
                 num_frames,
             };
-            let mpe = mpe.unwrap();
             let vst_params = ComRef::from_raw((*data).inputParameterChanges);
             let input_events = ComRef::from_raw((*data).inputEvents)
                 .map(|vst_events| Events::new(events::event_iterator(vst_events), num_frames));
@@ -1276,7 +1272,7 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
                 (_, Some(None)) => return vst3::Steinberg::kInvalidArgument,
                 (Some(vst_params), Some(Some(events))) => {
                     if let Some(parameters) = parameters::synth_param_changes_from_vst3(
-                        vst_params, params, num_frames, mpe,
+                        vst_params, params, num_frames, &self.mpe,
                     ) {
                         processor.process(&SynthProcessContext { events, parameters }, &mut output);
                     } else {
@@ -1285,7 +1281,7 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
                 }
                 (Some(vst_params), None) => {
                     if let Some(parameters) = parameters::synth_param_changes_from_vst3(
-                        vst_params, params, num_frames, mpe,
+                        vst_params, params, num_frames, &self.mpe,
                     ) {
                         processor.process(
                             &SynthProcessContext {
@@ -1299,8 +1295,9 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
                     }
                 }
                 (None, Some(Some(events))) => {
-                    let buffer_states =
-                        parameters::existing_synth_param_buffer_states_from_store(params, mpe);
+                    let buffer_states = parameters::existing_synth_param_buffer_states_from_store(
+                        params, &self.mpe,
+                    );
                     processor.process(
                         &SynthProcessContext {
                             events,
@@ -1314,7 +1311,7 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
                         &SynthProcessContext {
                             events: Events::new(std::iter::empty(), num_frames).unwrap(),
                             parameters: parameters::existing_synth_param_buffer_states_from_store(
-                                params, mpe,
+                                params, &self.mpe,
                             ),
                         },
                         &mut output,
@@ -1328,15 +1325,29 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
     unsafe fn handle_events(
         &self,
         processor: &mut P,
-        e: Option<impl Iterator<Item = conformal_component::events::Data> + Clone>,
+        data: *mut vst3::Steinberg::Vst::ProcessData,
         params: &mut parameters::ProcessingStore,
-        mpe: Option<&mut mpe::State>,
-        vst_parameters: Option<ComRef<'_, vst3::Steinberg::Vst::IParameterChanges>>,
     ) -> vst3::Steinberg::tresult {
-        let mpe = mpe.unwrap();
+        let vst_parameters = unsafe { vst_parameters_from_process_data(data) };
+        let e = match unsafe {
+            ComRef::from_raw((*data).inputEvents)
+                .map(|input_events| events::all_zero_event_iterator(input_events))
+        } {
+            Some(Some(events)) => {
+                let events_empty = events.clone().next().is_none();
+                if events_empty { None } else { Some(events) }
+            }
+            Some(None) => return vst3::Steinberg::kInvalidArgument,
+            None => None,
+        };
+
         if let Some(vst_parameters) = vst_parameters {
             if let Some((change_status, param_states)) = unsafe {
-                parameters::no_audio_synth_param_changes_from_vst3(vst_parameters, params, mpe)
+                parameters::no_audio_synth_param_changes_from_vst3(
+                    vst_parameters,
+                    params,
+                    &self.mpe,
+                )
             } {
                 if change_status == parameters::ChangesStatus::Changes || e.is_some() {
                     if let Some(e) = e {
@@ -1361,7 +1372,7 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
                 return vst3::Steinberg::kInvalidArgument;
             }
         } else if let Some(e) = e {
-            let param_states = unsafe { parameters::existing_synth_params(params, mpe) };
+            let param_states = unsafe { parameters::existing_synth_params(params, &self.mpe) };
             let context = SynthHandleEventsContext {
                 events: e.clone(),
                 parameters: param_states.clone(),
@@ -1370,6 +1381,8 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
         }
         vst3::Steinberg::kResultOk
     }
+
+    fn set_processing(&self, _: bool) {}
 }
 
 impl<
@@ -1479,6 +1492,7 @@ impl<
             if (state != 0) != pd.processing {
                 pd.processing = state != 0;
                 pd.processor.set_processing(pd.processing);
+                pd.active_processor.set_processing(pd.processing);
             }
             vst3::Steinberg::kResultOk
         } else {
@@ -1501,28 +1515,11 @@ impl<
                 let num_frames = (*data).numSamples as usize;
 
                 if num_frames == 0 || !pd.active_processor.audio_enabled() {
-                    let vst_parameters = ComRef::from_raw((*data).inputParameterChanges);
-                    if let Some(input_events) = ComRef::from_raw((*data).inputEvents) {
-                        if let Some(event_iter) = events::all_zero_event_iterator(input_events) {
-                            let events_empty = event_iter.clone().next().is_none();
-                            return pd.active_processor.handle_events(
-                                &mut pd.processor,
-                                (!events_empty).then_some(event_iter),
-                                &mut pd.params,
-                                pd.mpe.as_mut(),
-                                vst_parameters,
-                            );
-                        }
-                    } else {
-                        return pd.active_processor.handle_events(
-                            &mut pd.processor,
-                            None::<std::iter::Empty<conformal_component::events::Data>>,
-                            &mut pd.params,
-                            pd.mpe.as_mut(),
-                            vst_parameters,
-                        );
-                    }
-                    return vst3::Steinberg::kInvalidArgument;
+                    return pd.active_processor.handle_events(
+                        &mut pd.processor,
+                        data,
+                        &mut pd.params,
+                    );
                 }
                 if (*data).symbolicSampleSize
                     != vst3::Steinberg::Vst::SymbolicSampleSizes_::kSample32 as i32
@@ -1530,12 +1527,9 @@ impl<
                     return vst3::Steinberg::kInvalidArgument;
                 }
 
-                return pd.active_processor.process_audio(
-                    &mut pd.processor,
-                    data,
-                    &mut pd.params,
-                    pd.mpe.as_mut(),
-                );
+                return pd
+                    .active_processor
+                    .process_audio(&mut pd.processor, data, &mut pd.params);
             }
             vst3::Steinberg::kInvalidArgument
         }
