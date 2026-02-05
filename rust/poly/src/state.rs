@@ -1,10 +1,4 @@
-use super::{Event, EventData, NoteExpressionCurve};
-use conformal_component::{
-    audio::approx_eq,
-    events::{self as events, NoteData, NoteExpressionData, NoteID},
-};
-
-use crate::{NoteExpressionPoint, NoteExpressionState};
+use conformal_component::events::{self as events, NoteData, NoteID};
 
 #[derive(Clone, Debug, PartialEq)]
 enum VoicePlayingState {
@@ -12,40 +6,9 @@ enum VoicePlayingState {
     Note { order: usize, id: NoteID, pitch: u8 },
 }
 
-impl NoteExpressionState {
-    fn update_note_expression(&mut self, new: NoteExpressionState) -> Option<NoteExpressionState> {
-        const EPSILON: f32 = 1e-6;
-
-        let mut any_change = false;
-        let mut update =
-            |field: fn(&NoteExpressionState) -> f32,
-             field_mut: fn(&mut NoteExpressionState) -> &mut f32| {
-                if !approx_eq(field(&new), field(self), EPSILON) {
-                    any_change = true;
-                }
-                *field_mut(self) = field(&new);
-            };
-        update(|x| x.pitch_bend, |x| &mut x.pitch_bend);
-        update(|x| x.aftertouch, |x| &mut x.aftertouch);
-        update(|x| x.timbre, |x| &mut x.timbre);
-        if any_change { Some(new) } else { None }
-    }
-
-    fn update_with(&self, event: events::NoteExpression) -> NoteExpressionState {
-        let mut ret = *self;
-        match event {
-            events::NoteExpression::PitchBend(x) => ret.pitch_bend = x,
-            events::NoteExpression::Aftertouch(x) => ret.aftertouch = x,
-            events::NoteExpression::Timbre(x) => ret.timbre = x,
-        }
-        ret
-    }
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct Voice {
     playing: VoicePlayingState,
-    expression: NoteExpressionState,
 }
 
 const MAX_VOICES: usize = 32;
@@ -60,16 +23,15 @@ pub struct State {
 struct EventStreamStep {
     voice: usize,
     sample_offset: usize,
-    first: Option<EventData>,
-    second: Option<EventData>,
-    expression: Option<NoteExpressionState>,
+    first: Option<events::Data>,
+    second: Option<events::Data>,
 }
 
 impl Iterator for EventStreamStep {
-    type Item = (usize, super::Event);
+    type Item = (usize, events::Event);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let first: Option<EventData> = self.first.take();
+        let first: Option<events::Data> = self.first.take();
         let second = self.second.take();
         match (first, second) {
             (Some(first), Some(second)) => {
@@ -77,7 +39,7 @@ impl Iterator for EventStreamStep {
                 self.second = None;
                 Some((
                     self.voice,
-                    Event {
+                    events::Event {
                         sample_offset: self.sample_offset,
                         data: first,
                     },
@@ -87,7 +49,7 @@ impl Iterator for EventStreamStep {
                 self.first = None;
                 Some((
                     self.voice,
-                    Event {
+                    events::Event {
                         sample_offset: self.sample_offset,
                         data: first,
                     },
@@ -102,27 +64,20 @@ impl Iterator for EventStreamStep {
 }
 
 impl EventStreamStep {
-    fn new1(voice: usize, first: Event, expression: Option<NoteExpressionState>) -> Self {
+    fn new1(voice: usize, first: events::Event) -> Self {
         Self {
             voice,
             sample_offset: first.sample_offset,
             first: Some(first.data),
             second: None,
-            expression,
         }
     }
-    fn new2(
-        voice: usize,
-        first: Event,
-        second: EventData,
-        expression: Option<NoteExpressionState>,
-    ) -> Self {
+    fn new2(voice: usize, first: events::Event, second: events::Data) -> Self {
         Self {
             voice,
             sample_offset: first.sample_offset,
             first: Some(first.data),
             second: Some(second),
-            expression,
         }
     }
     fn new0() -> Self {
@@ -131,26 +86,12 @@ impl EventStreamStep {
             sample_offset: 0,
             first: None,
             second: None,
-            expression: None,
-        }
-    }
-    fn new_expression(
-        voice: usize,
-        sample_offset: usize,
-        expression: Option<NoteExpressionState>,
-    ) -> Self {
-        Self {
-            voice,
-            sample_offset,
-            first: None,
-            second: None,
-            expression,
         }
     }
 }
 
-fn synthetic_note_off(id: NoteID, pitch: u8) -> EventData {
-    EventData::NoteOff {
+fn synthetic_note_off(id: NoteID, pitch: u8) -> events::Data {
+    events::Data::NoteOff {
         data: NoteData {
             id,
             pitch,
@@ -167,7 +108,6 @@ impl State {
             voices: (0..max_voices)
                 .map(|i| Voice {
                     playing: VoicePlayingState::Idle { order: i },
-                    expression: NoteExpressionState::default(),
                 })
                 .collect(),
             voices_compress_order_scratch: Default::default(),
@@ -179,7 +119,6 @@ impl State {
         self.voices.clear();
         self.voices.extend((0..num_voices).map(|i| Voice {
             playing: VoicePlayingState::Idle { order: i },
-            expression: NoteExpressionState::default(),
         }));
     }
 
@@ -187,35 +126,10 @@ impl State {
     pub fn dispatch_events(
         mut self,
         events: impl IntoIterator<Item = events::Event>,
-    ) -> impl IntoIterator<Item = (usize, Event)> {
+    ) -> impl IntoIterator<Item = (usize, events::Event)> {
         events
             .into_iter()
             .flat_map(move |event| self.update_state_and_dispatch_for_event(&event))
-    }
-
-    pub fn note_expressions_for_voice(
-        mut self,
-        voice: usize,
-        events: impl Iterator<Item = events::Event> + Clone,
-    ) -> NoteExpressionCurve<impl Iterator<Item = NoteExpressionPoint> + Clone> {
-        let raw = std::iter::once(NoteExpressionPoint {
-            sample_offset: 0,
-            state: self.voices[voice].expression,
-        })
-        .chain(events.filter_map(move |event| {
-            let time = event.sample_offset;
-            let dispatched = self.update_state_and_dispatch_for_event(&event);
-            if dispatched.voice == voice {
-                dispatched.expression.map(|state| NoteExpressionPoint {
-                    sample_offset: time,
-                    state,
-                })
-            } else {
-                None
-            }
-        }));
-
-        NoteExpressionCurve::new(raw).unwrap()
     }
 
     fn update_state_and_dispatch_for_event(&mut self, event: &events::Event) -> EventStreamStep {
@@ -225,9 +139,6 @@ impl State {
             }
             events::Data::NoteOff { data } => {
                 self.update_state_and_dispatch_for_note_off(event.sample_offset, data)
-            }
-            events::Data::NoteExpression { data } => {
-                self.update_state_and_dispatch_for_note_expression(event.sample_offset, data)
             }
         }
     }
@@ -242,14 +153,7 @@ impl State {
         let mut old_voice_index = None;
         let mut old_voice_order = None;
         let mut new_voice_order = None;
-        for (
-            index,
-            Voice {
-                playing,
-                expression,
-            },
-        ) in self.voices.iter_mut().enumerate()
-        {
+        for (index, Voice { playing }) in self.voices.iter_mut().enumerate() {
             match (playing, open_index_order) {
                 (VoicePlayingState::Idle { order }, None) => {
                     open_index = Some(index);
@@ -264,11 +168,10 @@ impl State {
                 (VoicePlayingState::Note { id, .. }, _) if data.id == *id => {
                     return EventStreamStep::new1(
                         index,
-                        Event {
+                        events::Event {
                             sample_offset,
-                            data: EventData::NoteOn { data: *data },
+                            data: events::Data::NoteOn { data: *data },
                         },
-                        expression.update_note_expression(Default::default()),
                     );
                 }
                 (VoicePlayingState::Note { order, .. }, _) => {
@@ -314,28 +217,23 @@ impl State {
             order: new_voice_order.map_or(0, |x| x + 1),
             pitch: data.pitch,
         };
-        let expression_point = self.voices[open_index]
-            .expression
-            .update_note_expression(Default::default());
 
         if let Some(extra_off) = extra_off {
             EventStreamStep::new2(
                 open_index,
-                Event {
+                events::Event {
                     sample_offset,
                     data: extra_off,
                 },
-                EventData::NoteOn { data: *data },
-                expression_point,
+                events::Data::NoteOn { data: *data },
             )
         } else {
             EventStreamStep::new1(
                 open_index,
-                Event {
+                events::Event {
                     sample_offset,
-                    data: EventData::NoteOn { data: *data },
+                    data: events::Data::NoteOn { data: *data },
                 },
-                expression_point,
             )
         }
     }
@@ -363,43 +261,11 @@ impl State {
                     voice_state.playing = VoicePlayingState::Idle { order };
                     return EventStreamStep::new1(
                         index,
-                        Event {
+                        events::Event {
                             sample_offset,
-                            data: EventData::NoteOff { data: *data },
+                            data: events::Data::NoteOff { data: *data },
                         },
-                        Default::default(),
                     );
-                }
-                _ => {}
-            }
-        }
-        EventStreamStep::new0()
-    }
-
-    fn update_state_and_dispatch_for_note_expression(
-        &mut self,
-        sample_offset: usize,
-        data: &NoteExpressionData,
-    ) -> EventStreamStep {
-        for (
-            index,
-            Voice {
-                playing,
-                expression,
-            },
-        ) in self.voices.iter_mut().enumerate()
-        {
-            match playing {
-                VoicePlayingState::Note { id, .. } if data.id == *id => {
-                    if let Some(new_expression) =
-                        expression.update_note_expression(expression.update_with(data.expression))
-                    {
-                        return EventStreamStep::new_expression(
-                            index,
-                            sample_offset,
-                            Some(new_expression),
-                        );
-                    }
                 }
                 _ => {}
             }
@@ -486,12 +352,13 @@ impl State {
 #[cfg(test)]
 mod tests {
     use super::State;
-    use crate::{Event, EventData};
-    use conformal_component::events::{self as events, NoteData, NoteID};
+    use conformal_component::events::{self as events, NoteData, NoteID, NoteIDInternals};
 
     fn example_note_data(pitch: u8) -> NoteData {
         NoteData {
-            id: NoteID::from_pitch(pitch),
+            id: NoteID {
+                internals: NoteIDInternals::NoteIDFromPitch(pitch),
+            },
             pitch,
             velocity: 1.0,
             tuning: 0.0,
@@ -516,26 +383,26 @@ mod tests {
         }
     }
 
-    fn expected_note_on(time: usize, pitch: u8) -> Event {
-        Event {
+    fn expected_note_on(time: usize, pitch: u8) -> events::Event {
+        events::Event {
             sample_offset: time,
-            data: EventData::NoteOn {
+            data: events::Data::NoteOn {
                 data: example_note_data(pitch),
             },
         }
     }
 
-    fn expected_note_off(time: usize, pitch: u8) -> Event {
-        Event {
+    fn expected_note_off(time: usize, pitch: u8) -> events::Event {
+        events::Event {
             sample_offset: time,
-            data: EventData::NoteOff {
+            data: events::Data::NoteOff {
                 data: example_note_data(pitch),
             },
         }
     }
 
     // Note that we always allow the voice state logic to shuffle the voices!
-    fn assert_events_match(expected: Vec<Vec<Event>>, mut actual: Vec<Vec<Event>>) {
+    fn assert_events_match(expected: Vec<Vec<events::Event>>, mut actual: Vec<Vec<events::Event>>) {
         let actual_original = actual.clone();
         assert_eq!(expected.len(), actual.len());
         for events in expected {
@@ -549,7 +416,7 @@ mod tests {
         state: &State,
         num_voices: usize,
         events: Vec<events::Event>,
-    ) -> Vec<Vec<crate::Event>> {
+    ) -> Vec<Vec<events::Event>> {
         (0..num_voices)
             .into_iter()
             .map(|voice_index| {
@@ -589,9 +456,12 @@ mod tests {
         );
     }
 
-    fn cat_events(a: Vec<Vec<Event>>, b: Vec<Vec<Event>>) -> Vec<Vec<Event>> {
+    fn cat_events(
+        a: Vec<Vec<events::Event>>,
+        b: Vec<Vec<events::Event>>,
+    ) -> Vec<Vec<events::Event>> {
         a.into_iter()
-            .zip(b.into_iter())
+            .zip(b)
             .map(|(mut a, b)| {
                 a.extend(b);
                 a
