@@ -143,13 +143,13 @@ pub struct CoreWithMpe<'a> {
     mpe: &'a mpe::State,
 }
 
-impl<'a> cp::States for CoreWithMpe<'a> {
+impl cp::States for CoreWithMpe<'_> {
     fn get_by_hash(&self, id: cp::IdHash) -> Option<cp::InternalValue> {
         self.core.get_by_hash(id)
     }
 }
 
-impl<'a> SynthParamStates for CoreWithMpe<'a> {
+impl SynthParamStates for CoreWithMpe<'_> {
     fn get_numeric_global_expression(&self, expression: NumericGlobalExpression) -> f32 {
         self.core
             .get_numeric(parameter_id_for_numeric_global_expression(expression))
@@ -885,7 +885,7 @@ struct InitializedScratchWithMpe<'a> {
     mpe: &'a mpe::State,
 }
 
-impl<'a> BufferStates for InitializedScratchWithMpe<'a> {
+impl BufferStates for InitializedScratchWithMpe<'_> {
     fn get_by_hash(
         &self,
         param_id: cp::IdHash,
@@ -984,7 +984,7 @@ struct ExistingBufferStatesWithMpe<'a> {
     mpe: &'a mpe::State,
 }
 
-impl<'a> BufferStates for ExistingBufferStatesWithMpe<'a> {
+impl BufferStates for ExistingBufferStatesWithMpe<'_> {
     fn get_by_hash(
         &self,
         param_id: cp::IdHash,

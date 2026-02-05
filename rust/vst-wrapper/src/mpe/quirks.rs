@@ -88,9 +88,13 @@ impl std::ops::Index<(NumericPerNoteExpression, i16)> for Hashes {
 impl Default for Hashes {
     fn default() -> Self {
         Hashes {
-            pitch: std::array::from_fn(|i| hash_id(&pitch_param_id(i as i16 + 1))),
-            aftertouch: std::array::from_fn(|i| hash_id(&aftertouch_param_id(i as i16 + 1))),
-            timbre: std::array::from_fn(|i| hash_id(&timbre_param_id(i as i16 + 1))),
+            pitch: std::array::from_fn(|i| hash_id(&pitch_param_id(i16::try_from(i).unwrap() + 1))),
+            aftertouch: std::array::from_fn(|i| {
+                hash_id(&aftertouch_param_id(i16::try_from(i).unwrap() + 1))
+            }),
+            timbre: std::array::from_fn(|i| {
+                hash_id(&timbre_param_id(i16::try_from(i).unwrap() + 1))
+            }),
         }
     }
 }
