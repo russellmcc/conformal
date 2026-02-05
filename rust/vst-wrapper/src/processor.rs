@@ -121,18 +121,15 @@ impl Default for SynthProcessorCategory {
 }
 
 trait ActiveProcessor<P> {
-    type ProcessBuffer<'a>: ProcessBuffer
-    where
-        P: 'a,
-        Self: 'a;
-
     fn audio_enabled(&self) -> bool;
 
-    unsafe fn make_process_buffer<'a>(
+    unsafe fn process_audio(
         &self,
-        processor: &'a mut P,
+        processor: &mut P,
         data: *mut vst3::Steinberg::Vst::ProcessData,
-    ) -> Option<Self::ProcessBuffer<'a>>;
+        params: &mut parameters::ProcessingStore,
+        mpe: Option<&mut mpe::State>,
+    ) -> vst3::Steinberg::tresult;
 
     unsafe fn handle_events(
         &self,
@@ -633,86 +630,58 @@ impl<P: conformal_component::parameters::States + Clone>
     }
 }
 
-struct EffectProcessBuffer<'a, P> {
-    processor: &'a mut P,
-    input: UnsafeBufferFromRaw,
-    output: UnsafeMutBufferFromRaw,
-}
-
-impl<P: Effect> ProcessBuffer for EffectProcessBuffer<'_, P> {
-    unsafe fn process(
-        &mut self,
-        _e: Events<impl Iterator<Item = Event> + Clone>,
-        store: &mut parameters::ProcessingStore,
-        num_frames: usize,
-        _mpe: Option<&mut mpe::State>,
-        vst_parameters: Option<ComRef<'_, vst3::Steinberg::Vst::IParameterChanges>>,
-    ) -> i32 {
-        if let Some(vst_parameters) = vst_parameters {
-            if let Some(buffer_states) =
-                unsafe { parameters::param_changes_from_vst3(vst_parameters, store, num_frames) }
-            {
-                let context = EffectProcessContext {
-                    parameters: buffer_states,
-                };
-                self.processor
-                    .process(&context, &self.input, &mut self.output);
-                vst3::Steinberg::kResultOk
-            } else {
-                vst3::Steinberg::kInvalidArgument
-            }
-        } else {
-            let context = EffectProcessContext {
-                parameters: parameters::existing_buffer_states_from_store(store),
-            };
-            self.processor
-                .process(&context, &self.input, &mut self.output);
-            vst3::Steinberg::kResultOk
-        }
-    }
-}
-
 impl<P: Effect> ActiveProcessor<P> for ActiveEffectProcessor {
-    type ProcessBuffer<'a>
-        = EffectProcessBuffer<'a, P>
-    where
-        P: 'a;
-
-    unsafe fn make_process_buffer<'a>(
-        &self,
-        processor: &'a mut P,
-        data: *mut vst3::Steinberg::Vst::ProcessData,
-    ) -> Option<Self::ProcessBuffer<'a>> {
-        match self {
-            ActiveEffectProcessor::AudioEnabled(channel_layout) => unsafe {
-                if (*data).numOutputs != 1 {
-                    return None;
-                }
-                if (*data).numInputs != 1 {
-                    return None;
-                }
-                Some(EffectProcessBuffer {
-                    processor,
-                    input: UnsafeBufferFromRaw {
-                        ptr: (*(*data).inputs).__field0.channelBuffers32,
-                        channel_layout: *channel_layout,
-                        num_frames: (*data).numSamples as usize,
-                    },
-                    output: UnsafeMutBufferFromRaw {
-                        ptr: (*(*data).outputs).__field0.channelBuffers32,
-                        channel_layout: *channel_layout,
-                        num_frames: (*data).numSamples as usize,
-                    },
-                })
-            },
-            ActiveEffectProcessor::AudioDisabled => None,
-        }
-    }
-
     fn audio_enabled(&self) -> bool {
         match self {
             ActiveEffectProcessor::AudioEnabled(_) => true,
             ActiveEffectProcessor::AudioDisabled => false,
+        }
+    }
+
+    unsafe fn process_audio(
+        &self,
+        processor: &mut P,
+        data: *mut vst3::Steinberg::Vst::ProcessData,
+        params: &mut parameters::ProcessingStore,
+        _mpe: Option<&mut mpe::State>,
+    ) -> vst3::Steinberg::tresult {
+        let ActiveEffectProcessor::AudioEnabled(channel_layout) = self else {
+            return vst3::Steinberg::kInvalidArgument;
+        };
+        unsafe {
+            if (*data).numOutputs != 1 || (*data).numInputs != 1 {
+                return vst3::Steinberg::kInvalidArgument;
+            }
+            let num_frames = (*data).numSamples as usize;
+            let input = UnsafeBufferFromRaw {
+                ptr: (*(*data).inputs).__field0.channelBuffers32,
+                channel_layout: *channel_layout,
+                num_frames,
+            };
+            let mut output = UnsafeMutBufferFromRaw {
+                ptr: (*(*data).outputs).__field0.channelBuffers32,
+                channel_layout: *channel_layout,
+                num_frames,
+            };
+
+            if let Some(vst_parameters) = ComRef::from_raw((*data).inputParameterChanges) {
+                let Some(buffer_states) =
+                    parameters::param_changes_from_vst3(vst_parameters, params, num_frames)
+                else {
+                    return vst3::Steinberg::kInvalidArgument;
+                };
+                let context = EffectProcessContext {
+                    parameters: buffer_states,
+                };
+                processor.process(&context, &input, &mut output);
+            } else {
+                let buffer_states = parameters::existing_buffer_states_from_store(params);
+                let context = EffectProcessContext {
+                    parameters: buffer_states,
+                };
+                processor.process(&context, &input, &mut output);
+            }
+            vst3::Steinberg::kResultOk
         }
     }
 
@@ -733,16 +702,12 @@ impl<P: Effect> ActiveProcessor<P> for ActiveEffectProcessor {
                         parameters: param_states,
                     };
                     processor.handle_parameters(context);
-                    vst3::Steinberg::kResultOk
-                } else {
-                    vst3::Steinberg::kResultOk
                 }
             } else {
-                vst3::Steinberg::kInvalidArgument
+                return vst3::Steinberg::kInvalidArgument;
             }
-        } else {
-            vst3::Steinberg::kResultOk
         }
+        vst3::Steinberg::kResultOk
     }
 }
 
@@ -1274,95 +1239,86 @@ impl<E: Iterator<Item = conformal_component::events::Data> + Clone, P: SynthPara
     }
 }
 
-struct SynthProcessBuffer<'a, P> {
-    synth: &'a mut P,
-    output: UnsafeMutBufferFromRaw,
-}
-
-trait ProcessBuffer {
-    unsafe fn process(
-        &mut self,
-        e: Events<impl Iterator<Item = Event> + Clone>,
-        store: &mut parameters::ProcessingStore,
-        num_frames: usize,
-        mpe: Option<&mut mpe::State>,
-        vst_parameters: Option<ComRef<'_, vst3::Steinberg::Vst::IParameterChanges>>,
-    ) -> i32;
-}
-
-impl<P: Synth> ProcessBuffer for SynthProcessBuffer<'_, P> {
-    unsafe fn process(
-        &mut self,
-        events: Events<impl Iterator<Item = Event> + Clone>,
-        store: &mut parameters::ProcessingStore,
-        num_frames: usize,
-        mpe: Option<&mut mpe::State>,
-        vst_parameters: Option<ComRef<'_, vst3::Steinberg::Vst::IParameterChanges>>,
-    ) -> vst3::Steinberg::tresult {
-        // Note - we maintain the invariant that MPE state always exists for synths.
-        let mpe = mpe.unwrap();
-
-        if let Some(vst_parameters) = vst_parameters {
-            if let Some(buffer_states) = unsafe {
-                parameters::synth_param_changes_from_vst3(vst_parameters, store, num_frames, mpe)
-            } {
-                let context = SynthProcessContext {
-                    events,
-                    parameters: buffer_states,
-                };
-                self.synth.process(&context, &mut self.output);
-
-                vst3::Steinberg::kResultOk
-            } else {
-                vst3::Steinberg::kInvalidArgument
-            }
-        } else {
-            let buffer_states =
-                parameters::existing_synth_param_buffer_states_from_store(store, mpe);
-            let context = SynthProcessContext {
-                events,
-                parameters: buffer_states.clone(),
-            };
-            self.synth.process(&context, &mut self.output);
-            vst3::Steinberg::kResultOk
-        }
-    }
-}
-
 impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
-    type ProcessBuffer<'a>
-        = SynthProcessBuffer<'a, P>
-    where
-        P: 'a;
-
-    unsafe fn make_process_buffer<'a>(
-        &self,
-        processor: &'a mut P,
-        data: *mut vst3::Steinberg::Vst::ProcessData,
-    ) -> Option<Self::ProcessBuffer<'a>> {
-        match self {
-            ActiveSynthProcessor::AudioEnabled(channel_layout) => unsafe {
-                if (*data).numOutputs != 1 {
-                    return None;
-                }
-
-                Some(SynthProcessBuffer {
-                    synth: processor,
-                    output: UnsafeMutBufferFromRaw {
-                        ptr: (*(*data).outputs).__field0.channelBuffers32,
-                        channel_layout: *channel_layout,
-                        num_frames: (*data).numSamples as usize,
-                    },
-                })
-            },
-            ActiveSynthProcessor::AudioDisabled => None,
-        }
-    }
-
     fn audio_enabled(&self) -> bool {
         match self {
             ActiveSynthProcessor::AudioEnabled(_) => true,
             ActiveSynthProcessor::AudioDisabled => false,
+        }
+    }
+
+    unsafe fn process_audio(
+        &self,
+        processor: &mut P,
+        data: *mut vst3::Steinberg::Vst::ProcessData,
+        params: &mut parameters::ProcessingStore,
+        mpe: Option<&mut mpe::State>,
+    ) -> vst3::Steinberg::tresult {
+        let ActiveSynthProcessor::AudioEnabled(channel_layout) = self else {
+            return vst3::Steinberg::kInvalidArgument;
+        };
+        unsafe {
+            if (*data).numOutputs != 1 {
+                return vst3::Steinberg::kInvalidArgument;
+            }
+            let num_frames = (*data).numSamples as usize;
+            let mut output = UnsafeMutBufferFromRaw {
+                ptr: (*(*data).outputs).__field0.channelBuffers32,
+                channel_layout: *channel_layout,
+                num_frames,
+            };
+            let mpe = mpe.unwrap();
+
+            if let Some(vst_parameters) = ComRef::from_raw((*data).inputParameterChanges) {
+                let Some(buffer_states) = parameters::synth_param_changes_from_vst3(
+                    vst_parameters,
+                    params,
+                    num_frames,
+                    mpe,
+                ) else {
+                    return vst3::Steinberg::kInvalidArgument;
+                };
+                if let Some(input_events) = ComRef::from_raw((*data).inputEvents) {
+                    let Some(events) =
+                        Events::new(events::event_iterator(input_events), num_frames)
+                    else {
+                        return vst3::Steinberg::kInvalidArgument;
+                    };
+                    let context = SynthProcessContext {
+                        events,
+                        parameters: buffer_states,
+                    };
+                    processor.process(&context, &mut output);
+                } else {
+                    let context = SynthProcessContext {
+                        events: Events::new(std::iter::empty(), num_frames).unwrap(),
+                        parameters: buffer_states,
+                    };
+                    processor.process(&context, &mut output);
+                }
+            } else {
+                let buffer_states =
+                    parameters::existing_synth_param_buffer_states_from_store(params, mpe);
+                if let Some(input_events) = ComRef::from_raw((*data).inputEvents) {
+                    let Some(events) =
+                        Events::new(events::event_iterator(input_events), num_frames)
+                    else {
+                        return vst3::Steinberg::kInvalidArgument;
+                    };
+                    let context = SynthProcessContext {
+                        events,
+                        parameters: buffer_states,
+                    };
+                    processor.process(&context, &mut output);
+                } else {
+                    let context = SynthProcessContext {
+                        events: Events::new(std::iter::empty(), num_frames).unwrap(),
+                        parameters: buffer_states,
+                    };
+                    processor.process(&context, &mut output);
+                }
+            }
+            vst3::Steinberg::kResultOk
         }
     }
 
@@ -1571,35 +1527,13 @@ impl<
                     return vst3::Steinberg::kInvalidArgument;
                 }
 
-                if let Some(mut process_buffer) = pd
-                    .active_processor
-                    .make_process_buffer(&mut pd.processor, data)
-                {
-                    let vst_parameters = ComRef::from_raw((*data).inputParameterChanges);
-                    if let Some(input_events) = ComRef::from_raw((*data).inputEvents) {
-                        if let Some(events) =
-                            Events::new(events::event_iterator(input_events), num_frames)
-                        {
-                            return process_buffer.process(
-                                events,
-                                &mut pd.params,
-                                num_frames,
-                                pd.mpe.as_mut(),
-                                vst_parameters,
-                            );
-                        }
-                    } else {
-                        return process_buffer.process(
-                            Events::new(std::iter::empty(), num_frames).unwrap(),
-                            &mut pd.params,
-                            num_frames,
-                            pd.mpe.as_mut(),
-                            vst_parameters,
-                        );
-                    }
-                }
+                return pd.active_processor.process_audio(
+                    &mut pd.processor,
+                    data,
+                    &mut pd.params,
+                    pd.mpe.as_mut(),
+                );
             }
-            // If we got here, some invariant was not met by the host (i.e., Events was misformated, or wrong audio format.)
             vst3::Steinberg::kInvalidArgument
         }
     }
