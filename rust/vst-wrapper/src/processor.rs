@@ -1329,73 +1329,6 @@ impl<P: Synth> ProcessBuffer for SynthProcessBuffer<'_, P> {
     }
 }
 
-trait InternalProcessHelper<H> {
-    unsafe fn do_process(
-        self,
-        helper: H,
-        params: &mut parameters::ProcessingStore,
-        data: *mut vst3::Steinberg::Vst::ProcessData,
-        mpe: Option<&mut mpe::State>,
-        num_frames: usize,
-    ) -> vst3::Steinberg::tresult;
-}
-
-impl<H: ProcessBuffer, I: Iterator<Item = conformal_component::events::Event> + Clone>
-    InternalProcessHelper<H> for Events<I>
-{
-    unsafe fn do_process(
-        self,
-        mut helper: H,
-        params: &mut parameters::ProcessingStore,
-        data: *mut vst3::Steinberg::Vst::ProcessData,
-        mpe: Option<&mut mpe::State>,
-        num_frames: usize,
-    ) -> vst3::Steinberg::tresult {
-        unsafe {
-            helper.process(
-                self,
-                params,
-                num_frames,
-                mpe,
-                vst3::ComRef::from_raw((*data).inputParameterChanges),
-            )
-        }
-    }
-}
-
-struct NoAudioProcessHelper<'a, P, C> {
-    processor: &'a mut P,
-    events_empty: bool,
-    active_processor: &'a C,
-}
-
-impl<
-    'a,
-    P: ProcessorT,
-    Iter: Iterator<Item = conformal_component::events::Data> + Clone,
-    C: ActiveProcessor<P>,
-> InternalProcessHelper<NoAudioProcessHelper<'a, P, C>> for Iter
-{
-    unsafe fn do_process(
-        self,
-        helper: NoAudioProcessHelper<'a, P, C>,
-        params: &mut parameters::ProcessingStore,
-        data: *mut vst3::Steinberg::Vst::ProcessData,
-        mpe: Option<&mut mpe::State>,
-        _: usize,
-    ) -> vst3::Steinberg::tresult {
-        unsafe {
-            helper.active_processor.handle_events(
-                helper.processor,
-                (!helper.events_empty).then_some(self),
-                params,
-                mpe,
-                vst3::ComRef::from_raw((*data).inputParameterChanges),
-            )
-        }
-    }
-}
-
 impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
     type ProcessBuffer<'a>
         = SynthProcessBuffer<'a, P>
@@ -1609,36 +1542,27 @@ impl<
                 let num_frames = (*data).numSamples as usize;
 
                 if num_frames == 0 || !pd.active_processor.audio_enabled() {
+                    let vst_parameters = ComRef::from_raw((*data).inputParameterChanges);
                     if let Some(input_events) = ComRef::from_raw((*data).inputEvents) {
                         if let Some(event_iter) = events::all_zero_event_iterator(input_events) {
-                            let helper = NoAudioProcessHelper {
-                                processor: &mut pd.processor,
-                                events_empty: event_iter.clone().next().is_none(),
-                                active_processor: &pd.active_processor,
-                            };
-                            return event_iter.do_process(
-                                helper,
+                            let events_empty = event_iter.clone().next().is_none();
+                            return pd.active_processor.handle_events(
+                                &mut pd.processor,
+                                (!events_empty).then_some(event_iter),
                                 &mut pd.params,
-                                data,
                                 pd.mpe.as_mut(),
-                                0,
+                                vst_parameters,
                             );
                         }
                     } else {
-                        let helper = NoAudioProcessHelper {
-                            processor: &mut pd.processor,
-                            events_empty: true,
-                            active_processor: &pd.active_processor,
-                        };
-                        return std::iter::empty().do_process(
-                            helper,
+                        return pd.active_processor.handle_events(
+                            &mut pd.processor,
+                            None::<std::iter::Empty<conformal_component::events::Data>>,
                             &mut pd.params,
-                            data,
                             pd.mpe.as_mut(),
-                            0,
+                            vst_parameters,
                         );
                     }
-                    // If we got here, some pre-condition of the parameters was not met by the host
                     return vst3::Steinberg::kInvalidArgument;
                 }
                 if (*data).symbolicSampleSize
@@ -1647,32 +1571,31 @@ impl<
                     return vst3::Steinberg::kInvalidArgument;
                 }
 
-                if let Some(process_buffer) = pd
+                if let Some(mut process_buffer) = pd
                     .active_processor
                     .make_process_buffer(&mut pd.processor, data)
                 {
+                    let vst_parameters = ComRef::from_raw((*data).inputParameterChanges);
                     if let Some(input_events) = ComRef::from_raw((*data).inputEvents) {
                         if let Some(events) =
                             Events::new(events::event_iterator(input_events), num_frames)
                         {
-                            return events.do_process(
-                                process_buffer,
+                            return process_buffer.process(
+                                events,
                                 &mut pd.params,
-                                data,
-                                pd.mpe.as_mut(),
                                 num_frames,
+                                pd.mpe.as_mut(),
+                                vst_parameters,
                             );
                         }
                     } else {
-                        return Events::new(std::iter::empty(), num_frames)
-                            .unwrap()
-                            .do_process(
-                                process_buffer,
-                                &mut pd.params,
-                                data,
-                                pd.mpe.as_mut(),
-                                num_frames,
-                            );
+                        return process_buffer.process(
+                            Events::new(std::iter::empty(), num_frames).unwrap(),
+                            &mut pd.params,
+                            num_frames,
+                            pd.mpe.as_mut(),
+                            vst_parameters,
+                        );
                     }
                 }
             }
