@@ -2,11 +2,8 @@
 
 use std::cell::RefCell;
 
-use crate::mpe_quirks::{
-    self, Support, add_mpe_quirk_events_buffer, add_mpe_quirk_events_no_audio,
-    update_mpe_quirk_events_buffer, update_mpe_quirk_events_no_audio,
-};
-use crate::{ClassID, ComponentFactory, HostInfo};
+use crate::mpe;
+use crate::{ClassID, ComponentFactory};
 use conformal_component::audio::{Buffer, BufferMut, ChannelLayout};
 use conformal_component::effect::Effect;
 use conformal_component::events::{Event, Events};
@@ -69,8 +66,8 @@ struct ActiveProcessContext<P, A> {
     processor: P,
     active_processor: A,
 
-    /// If we support hosts with MPE Quirks, the current state for MPE quirks.
-    mpe_quirks: Option<mpe_quirks::State>,
+    // Synths need a separate state for MPE.
+    mpe: Option<mpe::State>,
 }
 
 #[derive(Default)]
@@ -88,10 +85,6 @@ enum ProcessContext<P, A> {
         /// by keeping the `processing_active` state here, even when we are inactive.
         processing: bool,
         params: parameters::ProcessingStore,
-
-        /// Whether we support host quirks for MPE note expression.
-        /// see [`crate::mpe_quirks`] for more details.
-        support_mpe_quirks: Support,
     },
 }
 
@@ -146,7 +139,7 @@ trait ActiveProcessor<P> {
         processor: &mut P,
         e: Option<impl Iterator<Item = conformal_component::events::Data> + Clone>,
         params: &mut parameters::ProcessingStore,
-        mpe_quirks: Option<&mut mpe_quirks::State>,
+        mpe: Option<&mut mpe::State>,
         vst_parameters: Option<ComRef<'_, vst3::Steinberg::Vst::IParameterChanges>>,
     ) -> vst3::Steinberg::tresult;
 }
@@ -155,6 +148,8 @@ trait ProcessorCategory {
     type Active;
 
     fn activate(&self) -> Self::Active;
+
+    fn mpe(&self) -> Option<mpe::State>;
 
     fn create_processor<C: Component>(
         &self,
@@ -201,7 +196,6 @@ trait ProcessorCategory {
 
     fn get_extra_parameters(
         &self,
-        host_info: &HostInfo,
     ) -> impl Iterator<Item = conformal_component::parameters::Info> + Clone;
 }
 
@@ -382,15 +376,15 @@ impl ProcessorCategory for SynthProcessorCategory {
 
     fn get_extra_parameters(
         &self,
-        host_info: &HostInfo,
     ) -> impl Iterator<Item = conformal_component::parameters::Info> + Clone {
         crate::parameters::CONTROLLER_PARAMETERS
             .iter()
             .map(Into::into)
-            .chain(
-                mpe_quirks::parameters()
-                    .filter(|_| mpe_quirks::should_support(host_info) == Support::SupportQuirks),
-            )
+            .chain(mpe::quirks::parameters())
+    }
+
+    fn mpe(&self) -> Option<mpe::State> {
+        Some(Default::default())
     }
 }
 
@@ -606,9 +600,12 @@ impl ProcessorCategory for EffectProcessorCategory {
 
     fn get_extra_parameters(
         &self,
-        _: &HostInfo,
     ) -> impl Iterator<Item = conformal_component::parameters::Info> + Clone {
         core::iter::empty()
+    }
+
+    fn mpe(&self) -> Option<mpe::State> {
+        None
     }
 }
 
@@ -648,7 +645,7 @@ impl<P: Effect> ProcessBuffer for EffectProcessBuffer<'_, P> {
         _e: Events<impl Iterator<Item = Event> + Clone>,
         store: &mut parameters::ProcessingStore,
         num_frames: usize,
-        _mpe_quirks: Option<&mut mpe_quirks::State>,
+        _mpe: Option<&mut mpe::State>,
         vst_parameters: Option<ComRef<'_, vst3::Steinberg::Vst::IParameterChanges>>,
     ) -> i32 {
         if let Some(vst_parameters) = vst_parameters {
@@ -724,7 +721,7 @@ impl<P: Effect> ActiveProcessor<P> for ActiveEffectProcessor {
         processor: &mut P,
         _e: Option<impl Iterator<Item = conformal_component::events::Data> + Clone>,
         params: &mut parameters::ProcessingStore,
-        _mpe_quirks: Option<&mut mpe_quirks::State>,
+        _mpe: Option<&mut mpe::State>,
         vst_parameters: Option<ComRef<'_, vst3::Steinberg::Vst::IParameterChanges>>,
     ) -> vst3::Steinberg::tresult {
         if let Some(vst_parameters) = vst_parameters {
@@ -947,7 +944,7 @@ where
                 let (params_main, params_processing) = parameters::create_stores(
                     {
                         let mut infos = conformal_component.parameter_infos();
-                        infos.extend(self.category.borrow().get_extra_parameters(&host_info));
+                        infos.extend(self.category.borrow().get_extra_parameters());
                         infos
                     }
                     .iter()
@@ -975,7 +972,6 @@ where
                 self.process_context.replace(ProcessContext::Inactive {
                     processing: false,
                     params: params_processing,
-                    support_mpe_quirks: mpe_quirks::should_support(&host_info),
                 });
                 (s, vst3::Steinberg::kResultOk)
             }
@@ -1101,33 +1097,16 @@ impl<CF: ComponentFactory<Component: Component<Processor: ProcessorT>>, PC: Proc
                 }
                 (
                     ProcessContext::Active(ActiveProcessContext {
-                        params,
-                        processing,
-                        mpe_quirks,
-                        ..
+                        params, processing, ..
                     }),
                     false,
                 ) => {
-                    self.process_context.replace(ProcessContext::Inactive {
-                        processing,
-                        params,
-                        support_mpe_quirks: if mpe_quirks.is_some() {
-                            Support::SupportQuirks
-                        } else {
-                            Support::DoNotSupportQuirks
-                        },
-                    });
+                    self.process_context
+                        .replace(ProcessContext::Inactive { processing, params });
                     *process_context_active = false;
                     vst3::Steinberg::kResultOk
                 }
-                (
-                    ProcessContext::Inactive {
-                        params,
-                        processing,
-                        support_mpe_quirks,
-                    },
-                    true,
-                ) => {
+                (ProcessContext::Inactive { params, processing }, true) => {
                     let active_processor = self.category.borrow().activate();
                     let mut processor = self
                         .category
@@ -1142,11 +1121,7 @@ impl<CF: ComponentFactory<Component: Component<Processor: ProcessorT>>, PC: Proc
                             params,
                             processor,
                             active_processor,
-                            mpe_quirks: if support_mpe_quirks == Support::SupportQuirks {
-                                Some(Default::default())
-                            } else {
-                                None
-                            },
+                            mpe: self.category.borrow().mpe(),
                         }));
                     *process_context_active = true;
                     vst3::Steinberg::kResultOk
@@ -1310,7 +1285,7 @@ trait ProcessBuffer {
         e: Events<impl Iterator<Item = Event> + Clone>,
         store: &mut parameters::ProcessingStore,
         num_frames: usize,
-        mpe_quirks: Option<&mut mpe_quirks::State>,
+        mpe: Option<&mut mpe::State>,
         vst_parameters: Option<ComRef<'_, vst3::Steinberg::Vst::IParameterChanges>>,
     ) -> i32;
 }
@@ -1318,53 +1293,37 @@ trait ProcessBuffer {
 impl<P: Synth> ProcessBuffer for SynthProcessBuffer<'_, P> {
     unsafe fn process(
         &mut self,
-        e: Events<impl Iterator<Item = Event> + Clone>,
+        events: Events<impl Iterator<Item = Event> + Clone>,
         store: &mut parameters::ProcessingStore,
         num_frames: usize,
-        mpe_quirks: Option<&mut mpe_quirks::State>,
+        mpe: Option<&mut mpe::State>,
         vst_parameters: Option<ComRef<'_, vst3::Steinberg::Vst::IParameterChanges>>,
     ) -> vst3::Steinberg::tresult {
+        // Note - we maintain the invariant that MPE state always exists for synths.
+        let mpe = mpe.unwrap();
+
         if let Some(vst_parameters) = vst_parameters {
             if let Some(buffer_states) = unsafe {
-                parameters::synth_param_changes_from_vst3(vst_parameters, store, num_frames)
+                parameters::synth_param_changes_from_vst3(vst_parameters, store, num_frames, mpe)
             } {
-                if let Some(mpe_quirks) = mpe_quirks {
-                    let buffer_states_clone = buffer_states.clone();
-                    {
-                        let events = add_mpe_quirk_events_buffer(
-                            e.clone().into_iter(),
-                            mpe_quirks.clone(),
-                            &buffer_states_clone,
-                            num_frames,
-                        );
-                        let context = SynthProcessContext {
-                            events,
-                            parameters: buffer_states,
-                        };
-                        self.synth.process(&context, &mut self.output);
-                    }
-                    update_mpe_quirk_events_buffer(e.into_iter(), mpe_quirks, &buffer_states_clone);
-                } else {
-                    let context = SynthProcessContext {
-                        events: e,
-                        parameters: buffer_states,
-                    };
-                    self.synth.process(&context, &mut self.output);
-                }
+                let context = SynthProcessContext {
+                    events,
+                    parameters: buffer_states,
+                };
+                self.synth.process(&context, &mut self.output);
+
                 vst3::Steinberg::kResultOk
             } else {
                 vst3::Steinberg::kInvalidArgument
             }
         } else {
-            let buffer_states = parameters::existing_synth_param_buffer_states_from_store(store);
+            let buffer_states =
+                parameters::existing_synth_param_buffer_states_from_store(store, mpe);
             let context = SynthProcessContext {
-                events: e.clone(),
+                events,
                 parameters: buffer_states.clone(),
             };
             self.synth.process(&context, &mut self.output);
-            if let Some(mpe_quirks) = mpe_quirks {
-                update_mpe_quirk_events_buffer(e.into_iter(), mpe_quirks, &buffer_states);
-            }
             vst3::Steinberg::kResultOk
         }
     }
@@ -1376,7 +1335,7 @@ trait InternalProcessHelper<H> {
         helper: H,
         params: &mut parameters::ProcessingStore,
         data: *mut vst3::Steinberg::Vst::ProcessData,
-        mpe_quirks: Option<&mut mpe_quirks::State>,
+        mpe: Option<&mut mpe::State>,
         num_frames: usize,
     ) -> vst3::Steinberg::tresult;
 }
@@ -1389,7 +1348,7 @@ impl<H: ProcessBuffer, I: Iterator<Item = conformal_component::events::Event> + 
         mut helper: H,
         params: &mut parameters::ProcessingStore,
         data: *mut vst3::Steinberg::Vst::ProcessData,
-        mpe_quirks: Option<&mut mpe_quirks::State>,
+        mpe: Option<&mut mpe::State>,
         num_frames: usize,
     ) -> vst3::Steinberg::tresult {
         unsafe {
@@ -1397,7 +1356,7 @@ impl<H: ProcessBuffer, I: Iterator<Item = conformal_component::events::Event> + 
                 self,
                 params,
                 num_frames,
-                mpe_quirks,
+                mpe,
                 vst3::ComRef::from_raw((*data).inputParameterChanges),
             )
         }
@@ -1422,7 +1381,7 @@ impl<
         helper: NoAudioProcessHelper<'a, P, C>,
         params: &mut parameters::ProcessingStore,
         data: *mut vst3::Steinberg::Vst::ProcessData,
-        mpe_quirks: Option<&mut mpe_quirks::State>,
+        mpe: Option<&mut mpe::State>,
         _: usize,
     ) -> vst3::Steinberg::tresult {
         unsafe {
@@ -1430,7 +1389,7 @@ impl<
                 helper.processor,
                 (!helper.events_empty).then_some(self),
                 params,
-                mpe_quirks,
+                mpe,
                 vst3::ComRef::from_raw((*data).inputParameterChanges),
             )
         }
@@ -1479,79 +1438,45 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
         processor: &mut P,
         e: Option<impl Iterator<Item = conformal_component::events::Data> + Clone>,
         params: &mut parameters::ProcessingStore,
-        mpe_quirks: Option<&mut mpe_quirks::State>,
+        mpe: Option<&mut mpe::State>,
         vst_parameters: Option<ComRef<'_, vst3::Steinberg::Vst::IParameterChanges>>,
     ) -> vst3::Steinberg::tresult {
+        let mpe = mpe.unwrap();
         if let Some(vst_parameters) = vst_parameters {
             if let Some((change_status, param_states)) = unsafe {
-                parameters::no_audio_synth_param_changes_from_vst3(vst_parameters, params)
+                parameters::no_audio_synth_param_changes_from_vst3(vst_parameters, params, mpe)
             } {
                 if change_status == parameters::ChangesStatus::Changes || e.is_some() {
-                    if let Some(mpe_quirks) = mpe_quirks {
-                        let param_states_clone = param_states.clone();
-                        if let Some(e) = e {
-                            {
-                                let context = SynthHandleEventsContext {
-                                    events: add_mpe_quirk_events_no_audio(
-                                        e.clone(),
-                                        mpe_quirks.clone(),
-                                        &param_states_clone,
-                                    ),
-                                    parameters: param_states,
-                                };
-                                processor.handle_events(context);
-                            }
-                            update_mpe_quirk_events_no_audio(e, mpe_quirks, &param_states_clone);
-                        } else {
-                            {
-                                let context = SynthHandleEventsContext {
-                                    events: add_mpe_quirk_events_no_audio(
-                                        std::iter::empty(),
-                                        mpe_quirks.clone(),
-                                        &param_states_clone,
-                                    ),
-                                    parameters: param_states,
-                                };
-                                processor.handle_events(context);
-                            }
-                            update_mpe_quirk_events_no_audio(
-                                std::iter::empty(),
-                                mpe_quirks,
-                                &param_states_clone,
-                            );
+                    if let Some(e) = e {
+                        {
+                            let context = SynthHandleEventsContext {
+                                events: e,
+                                parameters: param_states,
+                            };
+                            processor.handle_events(context);
                         }
-                    } else if let Some(e) = e {
-                        let context = SynthHandleEventsContext {
-                            events: e,
-                            parameters: param_states,
-                        };
-                        processor.handle_events(context);
                     } else {
-                        let context = SynthHandleEventsContext {
-                            events: std::iter::empty(),
-                            parameters: param_states,
-                        };
-                        processor.handle_events(context);
+                        {
+                            let context = SynthHandleEventsContext {
+                                events: std::iter::empty(),
+                                parameters: param_states,
+                            };
+                            processor.handle_events(context);
+                        }
                     }
                 }
-                vst3::Steinberg::kResultOk
             } else {
-                vst3::Steinberg::kInvalidArgument
+                return vst3::Steinberg::kInvalidArgument;
             }
-        } else {
-            if let Some(e) = e {
-                let param_states = unsafe { parameters::existing_synth_params(params) };
-                let context = SynthHandleEventsContext {
-                    events: e.clone(),
-                    parameters: param_states.clone(),
-                };
-                processor.handle_events(context);
-                if let Some(mpe_quirks) = mpe_quirks {
-                    update_mpe_quirk_events_no_audio(e, mpe_quirks, &param_states);
-                }
-            }
-            vst3::Steinberg::kResultOk
+        } else if let Some(e) = e {
+            let param_states = unsafe { parameters::existing_synth_params(params, mpe) };
+            let context = SynthHandleEventsContext {
+                events: e.clone(),
+                parameters: param_states.clone(),
+            };
+            processor.handle_events(context);
         }
+        vst3::Steinberg::kResultOk
     }
 }
 
@@ -1685,14 +1610,7 @@ impl<
 
                 if num_frames == 0 || !pd.active_processor.audio_enabled() {
                     if let Some(input_events) = ComRef::from_raw((*data).inputEvents) {
-                        if let Some(event_iter) = events::all_zero_event_iterator(
-                            input_events,
-                            if pd.mpe_quirks.is_some() {
-                                Support::SupportQuirks
-                            } else {
-                                Support::DoNotSupportQuirks
-                            },
-                        ) {
+                        if let Some(event_iter) = events::all_zero_event_iterator(input_events) {
                             let helper = NoAudioProcessHelper {
                                 processor: &mut pd.processor,
                                 events_empty: event_iter.clone().next().is_none(),
@@ -1702,7 +1620,7 @@ impl<
                                 helper,
                                 &mut pd.params,
                                 data,
-                                pd.mpe_quirks.as_mut(),
+                                pd.mpe.as_mut(),
                                 0,
                             );
                         }
@@ -1716,7 +1634,7 @@ impl<
                             helper,
                             &mut pd.params,
                             data,
-                            pd.mpe_quirks.as_mut(),
+                            pd.mpe.as_mut(),
                             0,
                         );
                     }
@@ -1734,22 +1652,14 @@ impl<
                     .make_process_buffer(&mut pd.processor, data)
                 {
                     if let Some(input_events) = ComRef::from_raw((*data).inputEvents) {
-                        if let Some(events) = Events::new(
-                            events::event_iterator(
-                                input_events,
-                                if pd.mpe_quirks.is_some() {
-                                    Support::SupportQuirks
-                                } else {
-                                    Support::DoNotSupportQuirks
-                                },
-                            ),
-                            num_frames,
-                        ) {
+                        if let Some(events) =
+                            Events::new(events::event_iterator(input_events), num_frames)
+                        {
                             return events.do_process(
                                 process_buffer,
                                 &mut pd.params,
                                 data,
-                                pd.mpe_quirks.as_mut(),
+                                pd.mpe.as_mut(),
                                 num_frames,
                             );
                         }
@@ -1760,7 +1670,7 @@ impl<
                                 process_buffer,
                                 &mut pd.params,
                                 data,
-                                pd.mpe_quirks.as_mut(),
+                                pd.mpe.as_mut(),
                                 num_frames,
                             );
                     }
@@ -1816,7 +1726,9 @@ mod tests {
     use std::collections::HashSet;
 
     use conformal_component::effect::Effect;
-    use conformal_component::synth::{NumericGlobalExpression, SynthParamBufferStates};
+    use conformal_component::synth::{
+        NumericGlobalExpression, NumericPerNoteExpression, SynthParamBufferStates,
+    };
     use vst3::ComWrapper;
     use vst3::Steinberg::{
         IBStreamTrait, IPluginBaseTrait,
@@ -1827,19 +1739,16 @@ mod tests {
     use super::{PartialProcessingEnvironment, create_effect, create_synth};
     use crate::HostInfo;
     use crate::fake_ibstream::Stream;
-    use crate::mpe_quirks::aftertouch_param_id;
+    use crate::mpe::quirks::aftertouch_param_id;
     use crate::processor::test_utils::{
-        ParameterValueQueueImpl, ParameterValueQueuePoint, SAMPLE_COUNT, activate_effect_busses,
-        mock_no_audio_process_data, mock_process, mock_process_effect, mock_process_mod,
-        setup_proc_effect,
+        MockData, MockEvent, ParameterValueQueueImpl, ParameterValueQueuePoint, SAMPLE_COUNT,
+        activate_effect_busses, mock_no_audio_process_data, mock_process, mock_process_effect,
+        mock_process_mod, setup_proc_effect,
     };
     use crate::{dummy_host, from_utf16_buffer};
     use assert_approx_eq::assert_approx_eq;
-    use conformal_component;
     use conformal_component::audio::{BufferMut, channels, channels_mut};
-    use conformal_component::events::{
-        Data, Event, NoteData, NoteExpression, NoteExpressionData, NoteID,
-    };
+    use conformal_component::events::{Data, NoteID, NoteIDInternals};
     use conformal_component::parameters::{
         BufferStates, Flags, InfoRef, StaticInfoRef, TypeSpecificInfoRef,
     };
@@ -1857,31 +1766,6 @@ mod tests {
     struct FakeSynth<'a> {
         processing: Option<&'a RefCell<bool>>,
         notes: HashSet<NoteID>,
-        pitchbend: f32,
-        timbre: f32,
-        aftertouch: f32,
-    }
-
-    impl<'a> FakeSynth<'a> {
-        fn handle_note_expression(
-            &mut self,
-            NoteExpressionData { id, expression }: NoteExpressionData,
-        ) {
-            if !self.notes.contains(&id) {
-                return;
-            }
-            match expression {
-                NoteExpression::PitchBend(pitchbend) => {
-                    self.pitchbend = pitchbend;
-                }
-                NoteExpression::Timbre(timbre) => {
-                    self.timbre = timbre;
-                }
-                NoteExpression::Aftertouch(aftertouch) => {
-                    self.aftertouch = aftertouch;
-                }
-            }
-        }
     }
 
     struct FakeEffect {}
@@ -1950,9 +1834,6 @@ mod tests {
                     Data::NoteOff { data } => {
                         self.notes.remove(&data.id);
                     }
-                    Data::NoteExpression { data } => {
-                        self.handle_note_expression(data);
-                    }
                 }
             }
         }
@@ -1973,6 +1854,32 @@ mod tests {
             let global_pitch_bend_iter = numeric_per_sample(
                 parameters.get_numeric_global_expression(NumericGlobalExpression::PitchBend),
             );
+            #[allow(clippy::iter_skip_zero)]
+            let mut mpe_pitchbend_iter =
+                self.notes.iter().next().map(|note| {
+                    numeric_per_sample(parameters.get_numeric_expression_for_note(
+                        NumericPerNoteExpression::PitchBend,
+                        *note,
+                    ))
+                    .skip(0)
+                });
+            #[allow(clippy::iter_skip_zero)]
+            let mut mpe_timbre_iter = self.notes.iter().next().map(|note| {
+                numeric_per_sample(
+                    parameters
+                        .get_numeric_expression_for_note(NumericPerNoteExpression::Timbre, *note),
+                )
+                .skip(0)
+            });
+            #[allow(clippy::iter_skip_zero)]
+            let mut mpe_aftertouch_iter =
+                self.notes.iter().next().map(|note| {
+                    numeric_per_sample(parameters.get_numeric_expression_for_note(
+                        NumericPerNoteExpression::Aftertouch,
+                        *note,
+                    ))
+                    .skip(0)
+                });
 
             for ((((frame_index, mult), enum_mult), switch_mult), global_pich_bend) in (0..output
                 .num_frames())
@@ -1986,12 +1893,33 @@ mod tests {
                         match event.data {
                             Data::NoteOn { ref data } => {
                                 self.notes.insert(data.id);
+                                mpe_pitchbend_iter = Some(
+                                    numeric_per_sample(parameters.get_numeric_expression_for_note(
+                                        NumericPerNoteExpression::PitchBend,
+                                        data.id,
+                                    ))
+                                    .skip(frame_index),
+                                );
+                                mpe_timbre_iter = Some(
+                                    numeric_per_sample(parameters.get_numeric_expression_for_note(
+                                        NumericPerNoteExpression::Timbre,
+                                        data.id,
+                                    ))
+                                    .skip(frame_index),
+                                );
+                                mpe_aftertouch_iter = Some(
+                                    numeric_per_sample(parameters.get_numeric_expression_for_note(
+                                        NumericPerNoteExpression::Aftertouch,
+                                        data.id,
+                                    ))
+                                    .skip(frame_index),
+                                );
                             }
                             Data::NoteOff { ref data } => {
                                 self.notes.remove(&data.id);
-                            }
-                            Data::NoteExpression { data } => {
-                                self.handle_note_expression(data);
+                                mpe_pitchbend_iter = None;
+                                mpe_timbre_iter = None;
+                                mpe_aftertouch_iter = None;
                             }
                         }
                         next_event = events_iter.next();
@@ -1999,14 +1927,26 @@ mod tests {
                         break;
                     }
                 }
+                let mpe_pitchbend = mpe_pitchbend_iter
+                    .as_mut()
+                    .and_then(Iterator::next)
+                    .unwrap_or(0.0);
+                let mpe_timbre = mpe_timbre_iter
+                    .as_mut()
+                    .and_then(Iterator::next)
+                    .unwrap_or(0.0);
+                let mpe_aftertouch = mpe_aftertouch_iter
+                    .as_mut()
+                    .and_then(Iterator::next)
+                    .unwrap_or(0.0);
                 for channel in channels_mut(output) {
                     channel[frame_index] = mult
                         * ((enum_mult + 1) as f32)
                         * (if switch_mult { 1.0 } else { 0.0 })
                         * self.notes.len() as f32
-                        + self.pitchbend
-                        + self.timbre
-                        + self.aftertouch
+                        + mpe_pitchbend
+                        + mpe_timbre
+                        + mpe_aftertouch
                         + global_pich_bend;
                 }
             }
@@ -2025,9 +1965,6 @@ mod tests {
             FakeSynth {
                 processing: self.processing,
                 notes,
-                pitchbend: 0f32,
-                timbre: 0f32,
-                aftertouch: 0f32,
             }
         }
 
@@ -3177,48 +3114,48 @@ mod tests {
             let audio = mock_process(
                 2,
                 vec![
-                    Event {
+                    MockEvent {
                         sample_offset: 0,
-                        data: Data::NoteOn {
-                            data: NoteData {
-                                id: NoteID::from_id(0),
-                                pitch: 64,
-                                velocity: 0.5,
-                                tuning: 0f32,
+                        data: MockData::NoteOn {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
                             },
+                            pitch: 64,
+                            velocity: 0.5,
+                            tuning: 0f32,
                         },
                     },
-                    Event {
+                    MockEvent {
                         sample_offset: 100,
-                        data: Data::NoteOff {
-                            data: NoteData {
-                                id: NoteID::from_id(0),
-                                pitch: 64,
-                                velocity: 0.5,
-                                tuning: 0f32,
+                        data: MockData::NoteOff {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
                             },
+                            pitch: 64,
+                            velocity: 0.5,
+                            tuning: 0f32,
                         },
                     },
-                    Event {
+                    MockEvent {
                         sample_offset: 200,
-                        data: Data::NoteOn {
-                            data: NoteData {
-                                id: NoteID::from_id(0),
-                                pitch: 64,
-                                velocity: 0.5,
-                                tuning: 0f32,
+                        data: MockData::NoteOn {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
                             },
+                            pitch: 64,
+                            velocity: 0.5,
+                            tuning: 0f32,
                         },
                     },
-                    Event {
+                    MockEvent {
                         sample_offset: 200,
-                        data: Data::NoteOn {
-                            data: NoteData {
-                                id: NoteID::from_id(1),
-                                pitch: 65,
-                                velocity: 0.5,
-                                tuning: 0f32,
+                        data: MockData::NoteOn {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(1),
                             },
+                            pitch: 65,
+                            velocity: 0.5,
+                            tuning: 0f32,
                         },
                     },
                 ],
@@ -3243,90 +3180,97 @@ mod tests {
             let audio = mock_process(
                 2,
                 vec![
-                    Event {
+                    MockEvent {
                         sample_offset: 0,
-                        data: Data::NoteOn {
-                            data: NoteData {
-                                id: NoteID::from_id(0),
-                                pitch: 64,
-                                velocity: 0.5,
-                                tuning: 0f32,
+                        data: MockData::NoteOn {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
                             },
+                            pitch: 64,
+                            velocity: 0.5,
+                            tuning: 0f32,
                         },
                     },
-                    Event {
+                    MockEvent {
                         sample_offset: 10,
-                        data: Data::NoteExpression {
-                            data: NoteExpressionData {
-                                id: NoteID::from_id(0),
-                                expression: NoteExpression::PitchBend(12.0),
+                        data: MockData::NoteExpressionChange {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
                             },
+                            expression: NumericPerNoteExpression::PitchBend,
+                            value: 12.0,
                         },
                     },
                     // Should ignore wrong-id events
-                    Event {
+                    MockEvent {
                         sample_offset: 11,
-                        data: Data::NoteExpression {
-                            data: NoteExpressionData {
-                                id: NoteID::from_id(4),
-                                expression: NoteExpression::PitchBend(24.0),
+                        data: MockData::NoteExpressionChange {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(4),
                             },
+                            expression: NumericPerNoteExpression::PitchBend,
+                            value: 24.0,
                         },
                     },
-                    Event {
+                    MockEvent {
                         sample_offset: 16,
-                        data: Data::NoteExpression {
-                            data: NoteExpressionData {
-                                id: NoteID::from_id(0),
-                                expression: NoteExpression::Timbre(0.6),
+                        data: MockData::NoteExpressionChange {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
                             },
+                            expression: NumericPerNoteExpression::Timbre,
+                            value: 0.6,
                         },
                     },
-                    Event {
+                    MockEvent {
                         sample_offset: 20,
-                        data: Data::NoteExpression {
-                            data: NoteExpressionData {
-                                id: NoteID::from_id(0),
-                                expression: NoteExpression::Aftertouch(0.7),
+                        data: MockData::NoteExpressionChange {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
                             },
+                            expression: NumericPerNoteExpression::Aftertouch,
+                            value: 0.7,
                         },
                     },
-                    Event {
+                    MockEvent {
                         sample_offset: 90,
-                        data: Data::NoteExpression {
-                            data: NoteExpressionData {
-                                id: NoteID::from_id(0),
-                                expression: NoteExpression::PitchBend(0.0),
+                        data: MockData::NoteExpressionChange {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
                             },
+                            expression: NumericPerNoteExpression::PitchBend,
+                            value: 0.0,
                         },
                     },
-                    Event {
+                    MockEvent {
                         sample_offset: 90,
-                        data: Data::NoteExpression {
-                            data: NoteExpressionData {
-                                id: NoteID::from_id(0),
-                                expression: NoteExpression::Timbre(0.0),
+                        data: MockData::NoteExpressionChange {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
                             },
+                            expression: NumericPerNoteExpression::Timbre,
+                            value: 0.0,
                         },
                     },
-                    Event {
+                    MockEvent {
                         sample_offset: 90,
-                        data: Data::NoteExpression {
-                            data: NoteExpressionData {
-                                id: NoteID::from_id(0),
-                                expression: NoteExpression::Aftertouch(0.0),
+                        data: MockData::NoteExpressionChange {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
                             },
+                            expression: NumericPerNoteExpression::Aftertouch,
+                            value: 0.0,
                         },
                     },
-                    Event {
+                    MockEvent {
                         sample_offset: 100,
-                        data: Data::NoteOff {
-                            data: NoteData {
-                                id: NoteID::from_id(0),
-                                pitch: 64,
-                                velocity: 0.5,
-                                tuning: 0f32,
+                        data: MockData::NoteOff {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
                             },
+                            pitch: 64,
+                            velocity: 0.5,
+                            tuning: 0f32,
                         },
                     },
                 ],
@@ -3413,15 +3357,15 @@ mod tests {
             assert!(
                 mock_process(
                     2,
-                    vec![Event {
+                    vec![MockEvent {
                         sample_offset: SAMPLE_COUNT + 1000,
-                        data: Data::NoteOn {
-                            data: NoteData {
-                                id: NoteID::from_id(0),
-                                pitch: 64,
-                                velocity: 0.5,
-                                tuning: 0f32,
+                        data: MockData::NoteOn {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
                             },
+                            pitch: 64,
+                            velocity: 0.5,
+                            tuning: 0f32,
                         },
                     }],
                     vec![],
@@ -3444,26 +3388,26 @@ mod tests {
                 mock_process(
                     2,
                     vec![
-                        Event {
+                        MockEvent {
                             sample_offset: 200,
-                            data: Data::NoteOn {
-                                data: NoteData {
-                                    id: NoteID::from_id(0),
-                                    pitch: 64,
-                                    velocity: 0.5,
-                                    tuning: 0f32,
+                            data: MockData::NoteOn {
+                                id: NoteID {
+                                    internals: NoteIDInternals::NoteIDWithID(0),
                                 },
+                                pitch: 64,
+                                velocity: 0.5,
+                                tuning: 0f32,
                             },
                         },
-                        Event {
+                        MockEvent {
                             sample_offset: 100,
-                            data: Data::NoteOff {
-                                data: NoteData {
-                                    id: NoteID::from_id(0),
-                                    pitch: 64,
-                                    velocity: 0.5,
-                                    tuning: 0f32,
+                            data: MockData::NoteOff {
+                                id: NoteID {
+                                    internals: NoteIDInternals::NoteIDWithID(0),
                                 },
+                                pitch: 64,
+                                velocity: 0.5,
+                                tuning: 0f32,
                             },
                         },
                     ],
@@ -3500,15 +3444,15 @@ mod tests {
             setup_proc(&proc, &host);
 
             let mut data = mock_no_audio_process_data(
-                vec![Event {
+                vec![MockEvent {
                     sample_offset: 100,
-                    data: Data::NoteOn {
-                        data: NoteData {
-                            id: NoteID::from_id(0),
-                            pitch: 64,
-                            velocity: 0.5,
-                            tuning: 0f32,
+                    data: MockData::NoteOn {
+                        id: NoteID {
+                            internals: NoteIDInternals::NoteIDWithID(0),
                         },
+                        pitch: 64,
+                        velocity: 0.5,
+                        tuning: 0f32,
                     },
                 }],
                 vec![],
@@ -3531,26 +3475,26 @@ mod tests {
             let audio = mock_process(
                 2,
                 vec![
-                    Event {
+                    MockEvent {
                         sample_offset: 0,
-                        data: Data::NoteOn {
-                            data: NoteData {
-                                id: NoteID::from_id(0),
-                                pitch: 64,
-                                velocity: 0.5,
-                                tuning: 0f32,
+                        data: MockData::NoteOn {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
                             },
+                            pitch: 64,
+                            velocity: 0.5,
+                            tuning: 0f32,
                         },
                     },
-                    Event {
+                    MockEvent {
                         sample_offset: 0,
-                        data: Data::NoteOn {
-                            data: NoteData {
-                                id: NoteID::from_id(1),
-                                pitch: 64,
-                                velocity: 0.5,
-                                tuning: 0f32,
+                        data: MockData::NoteOn {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(1),
                             },
+                            pitch: 64,
+                            velocity: 0.5,
+                            tuning: 0f32,
                         },
                     },
                 ],
@@ -3561,15 +3505,15 @@ mod tests {
             assert!(audio.is_some());
 
             let mut data2 = mock_no_audio_process_data(
-                vec![Event {
+                vec![MockEvent {
                     sample_offset: 0,
-                    data: Data::NoteOff {
-                        data: NoteData {
-                            id: NoteID::from_id(0),
-                            pitch: 64,
-                            velocity: 0.5,
-                            tuning: 0f32,
+                    data: MockData::NoteOff {
+                        id: NoteID {
+                            internals: NoteIDInternals::NoteIDWithID(0),
                         },
+                        pitch: 64,
+                        velocity: 0.5,
+                        tuning: 0f32,
                     },
                 }],
                 vec![],
@@ -3582,15 +3526,15 @@ mod tests {
 
             let audio3 = mock_process(
                 2,
-                vec![Event {
+                vec![MockEvent {
                     sample_offset: 100,
-                    data: Data::NoteOff {
-                        data: NoteData {
-                            id: NoteID::from_id(1),
-                            pitch: 64,
-                            velocity: 0.5,
-                            tuning: 0f32,
+                    data: MockData::NoteOff {
+                        id: NoteID {
+                            internals: NoteIDInternals::NoteIDWithID(1),
                         },
+                        pitch: 64,
+                        velocity: 0.5,
+                        tuning: 0f32,
                     },
                 }],
                 vec![],
@@ -3628,26 +3572,26 @@ mod tests {
             let audio = mock_process(
                 2,
                 vec![
-                    Event {
+                    MockEvent {
                         sample_offset: 0,
-                        data: Data::NoteOn {
-                            data: NoteData {
-                                id: NoteID::from_id(0),
-                                pitch: 64,
-                                velocity: 0.5,
-                                tuning: 0f32,
+                        data: MockData::NoteOn {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
                             },
+                            pitch: 64,
+                            velocity: 0.5,
+                            tuning: 0f32,
                         },
                     },
-                    Event {
+                    MockEvent {
                         sample_offset: 0,
-                        data: Data::NoteOn {
-                            data: NoteData {
-                                id: NoteID::from_id(1),
-                                pitch: 64,
-                                velocity: 0.5,
-                                tuning: 0f32,
+                        data: MockData::NoteOn {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(1),
                             },
+                            pitch: 64,
+                            velocity: 0.5,
+                            tuning: 0f32,
                         },
                     },
                 ],
@@ -3667,15 +3611,15 @@ mod tests {
             setup_proc(&proc, &host);
             let audio = mock_process(
                 2,
-                vec![Event {
+                vec![MockEvent {
                     sample_offset: 0,
-                    data: Data::NoteOn {
-                        data: NoteData {
-                            id: NoteID::from_id(0),
-                            pitch: 64,
-                            velocity: 0.5,
-                            tuning: 0f32,
+                    data: MockData::NoteOn {
+                        id: NoteID {
+                            internals: NoteIDInternals::NoteIDWithID(0),
                         },
+                        pitch: 64,
+                        velocity: 0.5,
+                        tuning: 0f32,
                     },
                 }],
                 vec![
@@ -3744,15 +3688,15 @@ mod tests {
             setup_proc(&proc, &host);
             let audio = mock_process(
                 2,
-                vec![Event {
+                vec![MockEvent {
                     sample_offset: 0,
-                    data: Data::NoteOn {
-                        data: NoteData {
-                            id: NoteID::from_id(0),
-                            pitch: 64,
-                            velocity: 0.5,
-                            tuning: 0f32,
+                    data: MockData::NoteOn {
+                        id: NoteID {
+                            internals: NoteIDInternals::NoteIDWithID(0),
                         },
+                        pitch: 64,
+                        velocity: 0.5,
+                        tuning: 0f32,
                     },
                 }],
                 vec![ParameterValueQueueImpl {
@@ -3788,15 +3732,15 @@ mod tests {
             setup_proc(&proc, &host);
             let audio = mock_process(
                 2,
-                vec![Event {
+                vec![MockEvent {
                     sample_offset: 0,
-                    data: Data::NoteOn {
-                        data: NoteData {
-                            id: NoteID::from_id(0),
-                            pitch: 64,
-                            velocity: 0.5,
-                            tuning: 0f32,
+                    data: MockData::NoteOn {
+                        id: NoteID {
+                            internals: NoteIDInternals::NoteIDWithID(0),
                         },
+                        pitch: 64,
+                        velocity: 0.5,
+                        tuning: 0f32,
                     },
                 }],
                 vec![ParameterValueQueueImpl {
@@ -3822,15 +3766,15 @@ mod tests {
             setup_proc(&proc, &host);
             let audio = mock_process(
                 2,
-                vec![Event {
+                vec![MockEvent {
                     sample_offset: 0,
-                    data: Data::NoteOn {
-                        data: NoteData {
-                            id: NoteID::from_id(0),
-                            pitch: 64,
-                            velocity: 0.5,
-                            tuning: 0f32,
+                    data: MockData::NoteOn {
+                        id: NoteID {
+                            internals: NoteIDInternals::NoteIDWithID(0),
                         },
+                        pitch: 64,
+                        velocity: 0.5,
+                        tuning: 0f32,
                     },
                 }],
                 vec![ParameterValueQueueImpl {
@@ -3854,15 +3798,15 @@ mod tests {
             setup_proc(&proc, &host);
             let audio = mock_process(
                 2,
-                vec![Event {
+                vec![MockEvent {
                     sample_offset: 0,
-                    data: Data::NoteOn {
-                        data: NoteData {
-                            id: NoteID::from_id(0),
-                            pitch: 64,
-                            velocity: 0.5,
-                            tuning: 0f32,
+                    data: MockData::NoteOn {
+                        id: NoteID {
+                            internals: NoteIDInternals::NoteIDWithID(0),
                         },
+                        pitch: 64,
+                        velocity: 0.5,
+                        tuning: 0f32,
                     },
                 }],
                 vec![ParameterValueQueueImpl {
@@ -3895,15 +3839,15 @@ mod tests {
             setup_proc(&proc, &host);
             let audio = mock_process(
                 2,
-                vec![Event {
+                vec![MockEvent {
                     sample_offset: 0,
-                    data: Data::NoteOn {
-                        data: NoteData {
-                            id: NoteID::from_id(0),
-                            pitch: 64,
-                            velocity: 0.5,
-                            tuning: 0f32,
+                    data: MockData::NoteOn {
+                        id: NoteID {
+                            internals: NoteIDInternals::NoteIDWithID(0),
                         },
+                        pitch: 64,
+                        velocity: 0.5,
+                        tuning: 0f32,
                     },
                 }],
                 vec![ParameterValueQueueImpl {
@@ -3935,15 +3879,15 @@ mod tests {
             setup_proc(&proc, &host);
             let audio = mock_process(
                 2,
-                vec![Event {
+                vec![MockEvent {
                     sample_offset: 0,
-                    data: Data::NoteOn {
-                        data: NoteData {
-                            id: NoteID::from_id(0),
-                            pitch: 64,
-                            velocity: 0.5,
-                            tuning: 0f32,
+                    data: MockData::NoteOn {
+                        id: NoteID {
+                            internals: NoteIDInternals::NoteIDWithID(0),
                         },
+                        pitch: 64,
+                        velocity: 0.5,
+                        tuning: 0f32,
                     },
                 }],
                 vec![ParameterValueQueueImpl {
@@ -3969,15 +3913,15 @@ mod tests {
             setup_proc(&proc, &host);
             let data = mock_process(
                 2,
-                vec![Event {
+                vec![MockEvent {
                     sample_offset: 0,
-                    data: Data::NoteOn {
-                        data: NoteData {
-                            id: NoteID::from_id(0),
-                            pitch: 64,
-                            velocity: 0.5,
-                            tuning: 0f32,
+                    data: MockData::NoteOn {
+                        id: NoteID {
+                            internals: NoteIDInternals::NoteIDWithID(0),
                         },
+                        pitch: 64,
+                        velocity: 0.5,
+                        tuning: 0f32,
                     },
                 }],
                 vec![
@@ -4095,15 +4039,15 @@ mod tests {
 
             let audio = mock_process(
                 2,
-                vec![Event {
+                vec![MockEvent {
                     sample_offset: 0,
-                    data: Data::NoteOn {
-                        data: NoteData {
-                            id: NoteID::from_id(0),
-                            pitch: 64,
-                            velocity: 0.5,
-                            tuning: 0f32,
+                    data: MockData::NoteOn {
+                        id: NoteID {
+                            internals: NoteIDInternals::NoteIDWithID(0),
                         },
+                        pitch: 64,
+                        velocity: 0.5,
+                        tuning: 0f32,
                     },
                 }],
                 vec![ParameterValueQueueImpl {
@@ -4285,15 +4229,15 @@ mod tests {
 
             let audio = mock_process(
                 2,
-                vec![Event {
+                vec![MockEvent {
                     sample_offset: 10,
-                    data: Data::NoteOn {
-                        data: NoteData {
-                            id: NoteID::from_id(0),
-                            pitch: 64,
-                            velocity: 0.5,
-                            tuning: 0f32,
+                    data: MockData::NoteOn {
+                        id: NoteID {
+                            internals: NoteIDInternals::NoteIDWithID(0),
                         },
+                        pitch: 64,
+                        velocity: 0.5,
+                        tuning: 0f32,
                     },
                 }],
                 vec![],
@@ -4410,15 +4354,15 @@ mod tests {
 
             let audio = mock_process(
                 2,
-                vec![Event {
+                vec![MockEvent {
                     sample_offset: 10,
-                    data: Data::NoteOn {
-                        data: NoteData {
-                            id: NoteID::from_id(0),
-                            pitch: 64,
-                            velocity: 0.5,
-                            tuning: 0f32,
+                    data: MockData::NoteOn {
+                        id: NoteID {
+                            internals: NoteIDInternals::NoteIDWithID(0),
                         },
+                        pitch: 64,
+                        velocity: 0.5,
+                        tuning: 0f32,
                     },
                 }],
                 vec![],
@@ -4694,15 +4638,15 @@ mod tests {
             // to its default state.
             let audio = mock_process(
                 2,
-                vec![Event {
+                vec![MockEvent {
                     sample_offset: 10,
-                    data: Data::NoteOn {
-                        data: NoteData {
-                            id: NoteID::from_id(0),
-                            pitch: 64,
-                            velocity: 0.5,
-                            tuning: 0f32,
+                    data: MockData::NoteOn {
+                        id: NoteID {
+                            internals: NoteIDInternals::NoteIDWithID(0),
                         },
+                        pitch: 64,
+                        velocity: 0.5,
+                        tuning: 0f32,
                     },
                 }],
                 vec![],
@@ -4782,15 +4726,15 @@ mod tests {
 
             let audio = mock_process(
                 2,
-                vec![Event {
+                vec![MockEvent {
                     sample_offset: 100,
-                    data: Data::NoteOn {
-                        data: NoteData {
-                            id: NoteID::from_id(0),
-                            pitch: 64,
-                            velocity: 0.5,
-                            tuning: 0f32,
+                    data: MockData::NoteOn {
+                        id: NoteID {
+                            internals: NoteIDInternals::NoteIDWithID(0),
                         },
+                        pitch: 64,
+                        velocity: 0.5,
+                        tuning: 0f32,
                     },
                 }],
                 vec![],
@@ -4812,17 +4756,15 @@ mod tests {
 
             let audio = mock_process(
                 2,
-                vec![Event {
+                vec![MockEvent {
                     sample_offset: 10,
-                    data: Data::NoteOn {
-                        data: NoteData {
-                            id: NoteID {
-                                internals: NoteIDInternals::NoteIDFromChannelID(1),
-                            },
-                            pitch: 64,
-                            velocity: 0.5,
-                            tuning: 0f32,
+                    data: MockData::NoteOn {
+                        id: NoteID {
+                            internals: NoteIDInternals::NoteIDFromChannelID(1),
                         },
+                        pitch: 64,
+                        velocity: 0.5,
+                        tuning: 0f32,
                     },
                 }],
                 vec![ParameterValueQueueImpl {
@@ -4849,17 +4791,15 @@ mod tests {
             assert_eq!(
                 proc.process(
                     &mut mock_no_audio_process_data(
-                        vec![Event {
+                        vec![MockEvent {
                             sample_offset: 0,
-                            data: Data::NoteOn {
-                                data: NoteData {
-                                    id: NoteID {
-                                        internals: NoteIDInternals::NoteIDFromChannelID(1),
-                                    },
-                                    pitch: 64,
-                                    velocity: 0.5,
-                                    tuning: 0f32,
+                            data: MockData::NoteOn {
+                                id: NoteID {
+                                    internals: NoteIDInternals::NoteIDFromChannelID(1),
                                 },
+                                pitch: 64,
+                                velocity: 0.5,
+                                tuning: 0f32,
                             },
                         }],
                         vec![],

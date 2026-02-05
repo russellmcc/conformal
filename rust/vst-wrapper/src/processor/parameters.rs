@@ -15,9 +15,12 @@ use vst3::{
     },
 };
 
-use crate::parameters::{
-    convert_enum, convert_numeric, convert_switch, parameter_id_for_numeric_global_expression,
-    parameter_id_for_switch_global_expression,
+use crate::{
+    mpe,
+    parameters::{
+        convert_enum, convert_numeric, convert_switch, parameter_id_for_numeric_global_expression,
+        parameter_id_for_switch_global_expression,
+    },
 };
 use conformal_component::{
     parameters as cp,
@@ -134,14 +137,37 @@ impl cp::States for &ProcessingStoreCore {
     }
 }
 
-impl SynthParamStates for &ProcessingStoreCore {
+#[derive(Clone)]
+pub struct CoreWithMpe<'a> {
+    core: &'a ProcessingStoreCore,
+    mpe: &'a mpe::State,
+}
+
+impl<'a> cp::States for CoreWithMpe<'a> {
+    fn get_by_hash(&self, id: cp::IdHash) -> Option<cp::InternalValue> {
+        self.core.get_by_hash(id)
+    }
+}
+
+impl<'a> SynthParamStates for CoreWithMpe<'a> {
     fn get_numeric_global_expression(&self, expression: NumericGlobalExpression) -> f32 {
-        self.get_numeric(parameter_id_for_numeric_global_expression(expression))
+        self.core
+            .get_numeric(parameter_id_for_numeric_global_expression(expression))
             .unwrap()
     }
     fn get_switch_global_expression(&self, expression: SwitchGlobalExpression) -> bool {
-        self.get_switch(parameter_id_for_switch_global_expression(expression))
+        self.core
+            .get_switch(parameter_id_for_switch_global_expression(expression))
             .unwrap()
+    }
+
+    fn get_numeric_expression_for_note(
+        &self,
+        expression: conformal_component::synth::NumericPerNoteExpression,
+        note_id: conformal_component::events::NoteID,
+    ) -> f32 {
+        self.mpe
+            .get_numeric_expression_for_note(expression, note_id, &self.core)
     }
 }
 
@@ -853,7 +879,27 @@ impl BufferStates for InitializedScratch<'_> {
     }
 }
 
-impl SynthParamBufferStates for InitializedScratch<'_> {
+#[derive(Clone)]
+struct InitializedScratchWithMpe<'a> {
+    scratch: InitializedScratch<'a>,
+    mpe: &'a mpe::State,
+}
+
+impl<'a> BufferStates for InitializedScratchWithMpe<'a> {
+    fn get_by_hash(
+        &self,
+        param_id: cp::IdHash,
+    ) -> Option<
+        BufferState<
+            impl Iterator<Item = PiecewiseLinearCurvePoint> + Clone,
+            impl Iterator<Item = TimedValue<u32>> + Clone,
+            impl Iterator<Item = TimedValue<bool>> + Clone,
+        >,
+    > {
+        self.scratch.get_by_hash(param_id)
+    }
+}
+impl SynthParamBufferStates for InitializedScratchWithMpe<'_> {
     // Optimization Opportunity - we could potentially these by pre-computing the hashes!
 
     fn get_numeric_global_expression(
@@ -870,6 +916,15 @@ impl SynthParamBufferStates for InitializedScratch<'_> {
     ) -> SwitchBufferState<impl Iterator<Item = TimedValue<bool>> + Clone> {
         self.get_switch(parameter_id_for_switch_global_expression(expression))
             .unwrap()
+    }
+
+    fn get_numeric_expression_for_note(
+        &self,
+        expression: conformal_component::synth::NumericPerNoteExpression,
+        note_id: conformal_component::events::NoteID,
+    ) -> NumericBufferState<impl Iterator<Item = PiecewiseLinearCurvePoint> + Clone> {
+        self.mpe
+            .get_numeric_expression_for_note_buffer(expression, note_id, &self.scratch)
     }
 }
 
@@ -888,10 +943,14 @@ pub fn existing_buffer_states_from_store(store: &ProcessingStore) -> impl Buffer
     ExistingBufferStates::new(store)
 }
 
-pub fn existing_synth_param_buffer_states_from_store(
-    store: &ProcessingStore,
+pub fn existing_synth_param_buffer_states_from_store<'a>(
+    store: &'a ProcessingStore,
+    mpe: &'a mpe::State,
 ) -> impl SynthParamBufferStates + Clone {
-    ExistingBufferStates::new(store)
+    ExistingBufferStatesWithMpe {
+        existing: ExistingBufferStates::new(store),
+        mpe,
+    }
 }
 
 impl BufferStates for ExistingBufferStates<'_> {
@@ -919,7 +978,28 @@ impl BufferStates for ExistingBufferStates<'_> {
     }
 }
 
-impl SynthParamBufferStates for ExistingBufferStates<'_> {
+#[derive(Clone)]
+struct ExistingBufferStatesWithMpe<'a> {
+    existing: ExistingBufferStates<'a>,
+    mpe: &'a mpe::State,
+}
+
+impl<'a> BufferStates for ExistingBufferStatesWithMpe<'a> {
+    fn get_by_hash(
+        &self,
+        param_id: cp::IdHash,
+    ) -> Option<
+        BufferState<
+            impl Iterator<Item = PiecewiseLinearCurvePoint> + Clone,
+            impl Iterator<Item = TimedValue<u32>> + Clone,
+            impl Iterator<Item = TimedValue<bool>> + Clone,
+        >,
+    > {
+        self.existing.get_by_hash(param_id)
+    }
+}
+
+impl SynthParamBufferStates for ExistingBufferStatesWithMpe<'_> {
     // Optimization Opportunity - we could potentially these by pre-computing the hashes!
 
     fn get_numeric_global_expression(
@@ -935,6 +1015,15 @@ impl SynthParamBufferStates for ExistingBufferStates<'_> {
     ) -> SwitchBufferState<impl Iterator<Item = TimedValue<bool>> + Clone> {
         self.get_switch(parameter_id_for_switch_global_expression(expression))
             .unwrap()
+    }
+
+    fn get_numeric_expression_for_note(
+        &self,
+        expression: conformal_component::synth::NumericPerNoteExpression,
+        note_id: conformal_component::events::NoteID,
+    ) -> NumericBufferState<impl Iterator<Item = PiecewiseLinearCurvePoint> + Clone> {
+        self.mpe
+            .get_numeric_expression_for_note_buffer(expression, note_id, &self.existing)
     }
 }
 
@@ -1093,8 +1182,10 @@ pub unsafe fn synth_param_changes_from_vst3<'a>(
     com_changes: ComRef<'a, IParameterChanges>,
     store: &'a mut ProcessingStore,
     buffer_size: usize,
+    mpe: &'a mpe::State,
 ) -> Option<impl SynthParamBufferStates + Clone> {
-    unsafe { internal_param_changes_from_vst3(com_changes, store, buffer_size) }
+    let scratch = unsafe { internal_param_changes_from_vst3(com_changes, store, buffer_size) }?;
+    Some(InitializedScratchWithMpe { scratch, mpe })
 }
 
 unsafe fn no_audio_param_changes_from_vst3_internal<'a>(
@@ -1127,10 +1218,20 @@ pub unsafe fn no_audio_param_changes_from_vst3<'a>(
 pub unsafe fn no_audio_synth_param_changes_from_vst3<'a>(
     com_changes: ComRef<'a, IParameterChanges>,
     store: &'a mut ProcessingStore,
+    mpe: &'a mpe::State,
 ) -> Option<(ChangesStatus, impl SynthParamStates + Clone)> {
-    unsafe { no_audio_param_changes_from_vst3_internal(com_changes, store) }
+    let (change_status, core) =
+        unsafe { no_audio_param_changes_from_vst3_internal(com_changes, store) }?;
+
+    Some((change_status, CoreWithMpe { core, mpe }))
 }
 
-pub unsafe fn existing_synth_params(store: &mut ProcessingStore) -> impl SynthParamStates + Clone {
-    &store.core
+pub unsafe fn existing_synth_params<'a>(
+    store: &'a mut ProcessingStore,
+    mpe: &'a mpe::State,
+) -> impl SynthParamStates + Clone {
+    CoreWithMpe {
+        core: &store.core,
+        mpe,
+    }
 }

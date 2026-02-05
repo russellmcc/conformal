@@ -3,11 +3,7 @@ use vst3::{
     Steinberg::Vst::{IEventList, IEventListTrait},
 };
 
-use conformal_component::events::{
-    Data, Event, NoteData, NoteExpression, NoteExpressionData, NoteID, NoteIDInternals,
-};
-
-use crate::mpe_quirks::Support;
+use conformal_component::events::{Data, Event, NoteData, NoteID, NoteIDInternals};
 
 unsafe fn get_event(
     event_list: ComRef<'_, IEventList>,
@@ -39,10 +35,7 @@ unsafe fn get_event(
     }
 }
 
-unsafe fn convert_event(
-    event: &vst3::Steinberg::Vst::Event,
-    support_mpe_quirks: Support,
-) -> Option<Event> {
+unsafe fn convert_event(event: &vst3::Steinberg::Vst::Event) -> Option<Event> {
     unsafe {
         if event.sampleOffset < 0 {
             return None;
@@ -51,9 +44,6 @@ unsafe fn convert_event(
             vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOnEvent => {
                 let pitch = u8::try_from(event.__field0.noteOn.pitch).ok()?;
                 let channel = event.__field0.noteOn.channel;
-                if support_mpe_quirks == Support::DoNotSupportQuirks && channel != 0 {
-                    return None;
-                }
                 Some(Event {
                     sample_offset: event.sampleOffset as usize,
                     data: Data::NoteOn {
@@ -83,10 +73,6 @@ unsafe fn convert_event(
             vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOffEvent => {
                 let pitch = u8::try_from(event.__field0.noteOff.pitch).ok()?;
                 let channel = event.__field0.noteOff.channel;
-                if support_mpe_quirks == Support::DoNotSupportQuirks && channel != 0 {
-                    return None;
-                }
-
                 Some(Event {
                     sample_offset: event.sampleOffset as usize,
                     data: Data::NoteOff {
@@ -113,35 +99,36 @@ unsafe fn convert_event(
                     },
                 })
             }
-            vst3::Steinberg::Vst::Event_::EventTypes_::kNoteExpressionValueEvent => Some(Event {
-                sample_offset: event.sampleOffset as usize,
-                data: Data::NoteExpression {
-                    data: NoteExpressionData {
-                        id: NoteID {
-                            internals: NoteIDInternals::NoteIDWithID(
-                                event.__field0.noteExpressionValue.noteId,
-                            ),
-                        },
-                        #[allow(clippy::cast_possible_truncation)]
-                        expression: match event.__field0.noteExpressionValue.typeId {
-                            vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID => {
-                                NoteExpression::PitchBend(
-                                    (event.__field0.noteExpressionValue.value as f32 - 0.5) * 240.0,
-                                )
-                            }
-                            super::NOTE_EXPRESSION_TIMBRE_TYPE_ID => NoteExpression::Timbre(
-                                event.__field0.noteExpressionValue.value as f32,
-                            ),
-                            super::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID => {
-                                NoteExpression::Aftertouch(
-                                    event.__field0.noteExpressionValue.value as f32,
-                                )
-                            }
-                            _ => return None,
-                        },
-                    },
-                },
-            }),
+            // TODO - support note expressions from vst events.
+            // vst3::Steinberg::Vst::Event_::EventTypes_::kNoteExpressionValueEvent => Some(Event {
+            //     sample_offset: event.sampleOffset as usize,
+            //     data: Data::NoteExpression {
+            //         data: NoteExpressionData {
+            //             id: NoteID {
+            //                 internals: NoteIDInternals::NoteIDWithID(
+            //                     event.__field0.noteExpressionValue.noteId,
+            //                 ),
+            //             },
+            //             #[allow(clippy::cast_possible_truncation)]
+            //             expression: match event.__field0.noteExpressionValue.typeId {
+            //                 vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID => {
+            //                     NoteExpression::PitchBend(
+            //                         (event.__field0.noteExpressionValue.value as f32 - 0.5) * 240.0,
+            //                     )
+            //                 }
+            //                 super::NOTE_EXPRESSION_TIMBRE_TYPE_ID => NoteExpression::Timbre(
+            //                     event.__field0.noteExpressionValue.value as f32,
+            //                 ),
+            //                 super::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID => {
+            //                     NoteExpression::Aftertouch(
+            //                         event.__field0.noteExpressionValue.value as f32,
+            //                     )
+            //                 }
+            //                 _ => return None,
+            //             },
+            //         },
+            //     },
+            // }),
             _ => None,
         }
     }
@@ -149,26 +136,24 @@ unsafe fn convert_event(
 
 pub unsafe fn event_iterator(
     event_list: ComRef<'_, IEventList>,
-    support_mpe_quirks: Support,
 ) -> impl Iterator<Item = Event> + Clone {
     unsafe {
         (0..event_list.getEventCount()).filter_map(move |i| -> Option<Event> {
             get_event(event_list, i)
                 .as_ref()
-                .and_then(|x| convert_event(x, support_mpe_quirks))
+                .and_then(|x| convert_event(x))
         })
     }
 }
 
 pub unsafe fn all_zero_event_iterator(
     event_list: ComRef<'_, IEventList>,
-    support_mpe_quirks: Support,
 ) -> Option<impl Iterator<Item = Data> + Clone> {
     unsafe {
         let i = (0..event_list.getEventCount()).filter_map(move |i| -> Option<Event> {
             get_event(event_list, i)
                 .as_ref()
-                .and_then(|x| convert_event(x, support_mpe_quirks))
+                .and_then(|x| convert_event(x))
         });
         if i.clone().any(|x| x.sample_offset != 0) {
             None

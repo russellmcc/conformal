@@ -201,7 +201,7 @@ mod edit_controller;
 mod factory;
 mod host_info;
 mod io;
-mod mpe_quirks;
+mod mpe;
 mod parameters;
 mod processor;
 mod view;
