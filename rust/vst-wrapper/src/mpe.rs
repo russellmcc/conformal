@@ -28,7 +28,7 @@ use conformal_component::parameters::{
 };
 use conformal_component::{
     events::{NoteID, NoteIDInternals},
-    synth::NumericPerNoteExpression,
+    synth::{NumericGlobalExpression, NumericPerNoteExpression, SwitchGlobalExpression},
 };
 use itertools::Either;
 pub mod quirks;
@@ -51,8 +51,66 @@ impl PerNoteState {
 }
 
 #[derive(Debug, Clone)]
+struct GlobalExpressionHashes {
+    pitch_bend: parameters::IdHash,
+    mod_wheel: parameters::IdHash,
+    expression_pedal: parameters::IdHash,
+    aftertouch: parameters::IdHash,
+    timbre: parameters::IdHash,
+    sustain_pedal: parameters::IdHash,
+}
+
+impl Default for GlobalExpressionHashes {
+    fn default() -> Self {
+        use crate::parameters::{
+            parameter_id_for_numeric_global_expression,
+            parameter_id_for_switch_global_expression,
+        };
+        Self {
+            pitch_bend: parameters::hash_id(parameter_id_for_numeric_global_expression(
+                NumericGlobalExpression::PitchBend,
+            )),
+            mod_wheel: parameters::hash_id(parameter_id_for_numeric_global_expression(
+                NumericGlobalExpression::ModWheel,
+            )),
+            expression_pedal: parameters::hash_id(parameter_id_for_numeric_global_expression(
+                NumericGlobalExpression::ExpressionPedal,
+            )),
+            aftertouch: parameters::hash_id(parameter_id_for_numeric_global_expression(
+                NumericGlobalExpression::Aftertouch,
+            )),
+            timbre: parameters::hash_id(parameter_id_for_numeric_global_expression(
+                NumericGlobalExpression::Timbre,
+            )),
+            sustain_pedal: parameters::hash_id(parameter_id_for_switch_global_expression(
+                SwitchGlobalExpression::SustainPedal,
+            )),
+        }
+    }
+}
+
+impl GlobalExpressionHashes {
+    fn numeric(&self, expression: NumericGlobalExpression) -> parameters::IdHash {
+        match expression {
+            NumericGlobalExpression::PitchBend => self.pitch_bend,
+            NumericGlobalExpression::ModWheel => self.mod_wheel,
+            NumericGlobalExpression::ExpressionPedal => self.expression_pedal,
+            NumericGlobalExpression::Aftertouch => self.aftertouch,
+            NumericGlobalExpression::Timbre => self.timbre,
+        }
+    }
+
+    fn switch(&self, expression: SwitchGlobalExpression) -> parameters::IdHash {
+        match expression {
+            SwitchGlobalExpression::SustainPedal => self.sustain_pedal,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct State {
     quirks_hashes: quirks::Hashes,
+    global_expression_hashes: GlobalExpressionHashes,
     expression_states: HashMap<i32, PerNoteState>,
 }
 
@@ -60,6 +118,7 @@ impl Default for State {
     fn default() -> Self {
         Self {
             quirks_hashes: Default::default(),
+            global_expression_hashes: Default::default(),
             // Note that we cheat a bit on the "no allocation" rule here, in that we
             // will allocate if we exceed this initial capacity. However, playing 100 notes
             // at once is a bit excessive, so it's probably okay to allocate once in that case.
@@ -381,6 +440,49 @@ impl State {
         }
 
         parameters::NumericBufferState::Constant(Default::default())
+    }
+
+    pub fn get_numeric_global_expression(
+        &self,
+        expression: NumericGlobalExpression,
+        parameters: &impl parameters::States,
+    ) -> f32 {
+        parameters
+            .numeric_by_hash(self.global_expression_hashes.numeric(expression))
+            .unwrap()
+    }
+
+    pub fn get_switch_global_expression(
+        &self,
+        expression: SwitchGlobalExpression,
+        parameters: &impl parameters::States,
+    ) -> bool {
+        parameters
+            .switch_by_hash(self.global_expression_hashes.switch(expression))
+            .unwrap()
+    }
+
+    pub fn get_numeric_global_expression_buffer(
+        &self,
+        expression: NumericGlobalExpression,
+        parameters: &impl parameters::BufferStates,
+    ) -> parameters::NumericBufferState<
+        impl Iterator<Item = parameters::PiecewiseLinearCurvePoint> + Clone,
+    > {
+        parameters
+            .numeric_by_hash(self.global_expression_hashes.numeric(expression))
+            .unwrap()
+    }
+
+    pub fn get_switch_global_expression_buffer(
+        &self,
+        expression: SwitchGlobalExpression,
+        parameters: &impl parameters::BufferStates,
+    ) -> parameters::SwitchBufferState<impl Iterator<Item = parameters::TimedValue<bool>> + Clone>
+    {
+        parameters
+            .switch_by_hash(self.global_expression_hashes.switch(expression))
+            .unwrap()
     }
 }
 

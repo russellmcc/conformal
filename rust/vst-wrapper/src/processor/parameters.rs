@@ -17,10 +17,7 @@ use vst3::{
 
 use crate::{
     mpe,
-    parameters::{
-        convert_enum, convert_numeric, convert_switch, parameter_id_for_numeric_global_expression,
-        parameter_id_for_switch_global_expression,
-    },
+    parameters::{convert_enum, convert_numeric, convert_switch},
 };
 use conformal_component::{
     parameters as cp,
@@ -151,14 +148,12 @@ impl cp::States for CoreWithMpe<'_> {
 
 impl SynthParamStates for CoreWithMpe<'_> {
     fn get_numeric_global_expression(&self, expression: NumericGlobalExpression) -> f32 {
-        self.core
-            .get_numeric(parameter_id_for_numeric_global_expression(expression))
-            .unwrap()
+        self.mpe
+            .get_numeric_global_expression(expression, &self.core)
     }
     fn get_switch_global_expression(&self, expression: SwitchGlobalExpression) -> bool {
-        self.core
-            .get_switch(parameter_id_for_switch_global_expression(expression))
-            .unwrap()
+        self.mpe
+            .get_switch_global_expression(expression, &self.core)
     }
 
     fn get_numeric_expression_for_note(
@@ -903,22 +898,20 @@ impl<I> BufferStates for InitializedScratchWithMpe<'_, I> {
 impl<I: Iterator<Item = mpe::NoteEvent> + Clone> SynthParamBufferStates
     for InitializedScratchWithMpe<'_, I>
 {
-    // Optimization Opportunity - we could potentially these by pre-computing the hashes!
-
     fn get_numeric_global_expression(
         &self,
         expression: conformal_component::synth::NumericGlobalExpression,
     ) -> NumericBufferState<impl Iterator<Item = PiecewiseLinearCurvePoint> + Clone> {
-        self.get_numeric(parameter_id_for_numeric_global_expression(expression))
-            .unwrap()
+        self.mpe
+            .get_numeric_global_expression_buffer(expression, &self.scratch)
     }
 
     fn get_switch_global_expression(
         &self,
         expression: conformal_component::synth::SwitchGlobalExpression,
     ) -> SwitchBufferState<impl Iterator<Item = TimedValue<bool>> + Clone> {
-        self.get_switch(parameter_id_for_switch_global_expression(expression))
-            .unwrap()
+        self.mpe
+            .get_switch_global_expression_buffer(expression, &self.scratch)
     }
 
     fn get_numeric_expression_for_note(
@@ -1012,21 +1005,19 @@ impl<I> BufferStates for ExistingBufferStatesWithMpe<'_, I> {
 impl<I: Iterator<Item = mpe::NoteEvent> + Clone> SynthParamBufferStates
     for ExistingBufferStatesWithMpe<'_, I>
 {
-    // Optimization Opportunity - we could potentially these by pre-computing the hashes!
-
     fn get_numeric_global_expression(
         &self,
         expression: conformal_component::synth::NumericGlobalExpression,
     ) -> NumericBufferState<impl Iterator<Item = PiecewiseLinearCurvePoint> + Clone> {
-        self.get_numeric(parameter_id_for_numeric_global_expression(expression))
-            .unwrap()
+        self.mpe
+            .get_numeric_global_expression_buffer(expression, &self.existing)
     }
     fn get_switch_global_expression(
         &self,
         expression: conformal_component::synth::SwitchGlobalExpression,
     ) -> SwitchBufferState<impl Iterator<Item = TimedValue<bool>> + Clone> {
-        self.get_switch(parameter_id_for_switch_global_expression(expression))
-            .unwrap()
+        self.mpe
+            .get_switch_global_expression_buffer(expression, &self.existing)
     }
 
     fn get_numeric_expression_for_note(
