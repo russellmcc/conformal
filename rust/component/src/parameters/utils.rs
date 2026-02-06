@@ -352,6 +352,9 @@ macro_rules! pzip_collect {
     };
 }
 
+// TODO - support per-note expression in pzip.
+// TODO - support a pgrab macro that gets the value at the start of the buffer.
+
 /// Utility to get a per-sample iterator including the state of multiple parameters.
 ///
 /// This is a convenient way to consume a [`BufferStates`] object if you intend

@@ -880,12 +880,13 @@ impl BufferStates for InitializedScratch<'_> {
 }
 
 #[derive(Clone)]
-struct InitializedScratchWithMpe<'a> {
+struct InitializedScratchWithMpe<'a, I> {
     scratch: InitializedScratch<'a>,
     mpe: &'a mpe::State,
+    mpe_events: Option<mpe::NoteEvents<I>>,
 }
 
-impl BufferStates for InitializedScratchWithMpe<'_> {
+impl<I> BufferStates for InitializedScratchWithMpe<'_, I> {
     fn get_by_hash(
         &self,
         param_id: cp::IdHash,
@@ -899,7 +900,9 @@ impl BufferStates for InitializedScratchWithMpe<'_> {
         self.scratch.get_by_hash(param_id)
     }
 }
-impl SynthParamBufferStates for InitializedScratchWithMpe<'_> {
+impl<'a, I: Iterator<Item = mpe::NoteEvent> + Clone> SynthParamBufferStates
+    for InitializedScratchWithMpe<'a, I>
+{
     // Optimization Opportunity - we could potentially these by pre-computing the hashes!
 
     fn get_numeric_global_expression(
@@ -923,8 +926,12 @@ impl SynthParamBufferStates for InitializedScratchWithMpe<'_> {
         expression: conformal_component::synth::NumericPerNoteExpression,
         note_id: conformal_component::events::NoteID,
     ) -> NumericBufferState<impl Iterator<Item = PiecewiseLinearCurvePoint> + Clone> {
-        self.mpe
-            .get_numeric_expression_for_note_buffer(expression, note_id, &self.scratch)
+        self.mpe.get_numeric_expression_for_note_buffer(
+            expression,
+            note_id,
+            &self.scratch,
+            self.mpe_events.clone(),
+        )
     }
 }
 
@@ -946,10 +953,12 @@ pub fn existing_buffer_states_from_store(store: &ProcessingStore) -> impl Buffer
 pub fn existing_synth_param_buffer_states_from_store<'a>(
     store: &'a ProcessingStore,
     mpe: &'a mpe::State,
+    mpe_events: Option<mpe::NoteEvents<impl Iterator<Item = mpe::NoteEvent> + Clone>>,
 ) -> impl SynthParamBufferStates + Clone {
     ExistingBufferStatesWithMpe {
         existing: ExistingBufferStates::new(store),
         mpe,
+        mpe_events,
     }
 }
 
@@ -979,12 +988,13 @@ impl BufferStates for ExistingBufferStates<'_> {
 }
 
 #[derive(Clone)]
-struct ExistingBufferStatesWithMpe<'a> {
+struct ExistingBufferStatesWithMpe<'a, I> {
     existing: ExistingBufferStates<'a>,
     mpe: &'a mpe::State,
+    mpe_events: Option<mpe::NoteEvents<I>>,
 }
 
-impl BufferStates for ExistingBufferStatesWithMpe<'_> {
+impl<I> BufferStates for ExistingBufferStatesWithMpe<'_, I> {
     fn get_by_hash(
         &self,
         param_id: cp::IdHash,
@@ -999,7 +1009,9 @@ impl BufferStates for ExistingBufferStatesWithMpe<'_> {
     }
 }
 
-impl SynthParamBufferStates for ExistingBufferStatesWithMpe<'_> {
+impl<I: Iterator<Item = mpe::NoteEvent> + Clone> SynthParamBufferStates
+    for ExistingBufferStatesWithMpe<'_, I>
+{
     // Optimization Opportunity - we could potentially these by pre-computing the hashes!
 
     fn get_numeric_global_expression(
@@ -1022,8 +1034,12 @@ impl SynthParamBufferStates for ExistingBufferStatesWithMpe<'_> {
         expression: conformal_component::synth::NumericPerNoteExpression,
         note_id: conformal_component::events::NoteID,
     ) -> NumericBufferState<impl Iterator<Item = PiecewiseLinearCurvePoint> + Clone> {
-        self.mpe
-            .get_numeric_expression_for_note_buffer(expression, note_id, &self.existing)
+        self.mpe.get_numeric_expression_for_note_buffer(
+            expression,
+            note_id,
+            &self.existing,
+            self.mpe_events.clone(),
+        )
     }
 }
 
@@ -1183,9 +1199,14 @@ pub unsafe fn synth_param_changes_from_vst3<'a>(
     store: &'a mut ProcessingStore,
     buffer_size: usize,
     mpe: &'a mpe::State,
+    mpe_events: Option<mpe::NoteEvents<impl Iterator<Item = mpe::NoteEvent> + Clone>>,
 ) -> Option<impl SynthParamBufferStates + Clone> {
     let scratch = unsafe { internal_param_changes_from_vst3(com_changes, store, buffer_size) }?;
-    Some(InitializedScratchWithMpe { scratch, mpe })
+    Some(InitializedScratchWithMpe {
+        scratch,
+        mpe,
+        mpe_events,
+    })
 }
 
 unsafe fn no_audio_param_changes_from_vst3_internal<'a>(

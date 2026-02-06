@@ -782,6 +782,14 @@ impl<I: IntoIterator<Item = PiecewiseLinearCurvePoint> + Clone> PiecewiseLinearC
             None
         }
     }
+
+    #[doc(hidden)]
+    pub unsafe fn from_parts_unchecked(points: I, buffer_size: usize) -> Self {
+        Self {
+            points,
+            buffer_size,
+        }
+    }
 }
 
 impl<I> PiecewiseLinearCurve<I> {

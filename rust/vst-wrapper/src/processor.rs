@@ -14,8 +14,8 @@ use conformal_component::{
 };
 use serde::Serialize;
 use vst3::Steinberg::Vst::{
-    IConnectionPoint, IConnectionPointTrait, IHostApplication, IProcessContextRequirements,
-    IProcessContextRequirementsTrait,
+    IConnectionPoint, IConnectionPointTrait, IEventList, IHostApplication,
+    IProcessContextRequirements, IProcessContextRequirementsTrait,
 };
 use vst3::{
     Class,
@@ -126,20 +126,20 @@ trait ActiveProcessor<P> {
     fn audio_enabled(&self) -> bool;
 
     unsafe fn process_audio(
-        &self,
+        &mut self,
         processor: &mut P,
         data: *mut vst3::Steinberg::Vst::ProcessData,
         params: &mut parameters::ProcessingStore,
     ) -> vst3::Steinberg::tresult;
 
     unsafe fn handle_events(
-        &self,
+        &mut self,
         processor: &mut P,
         data: *mut vst3::Steinberg::Vst::ProcessData,
         params: &mut parameters::ProcessingStore,
     ) -> vst3::Steinberg::tresult;
 
-    fn set_processing(&self, processing: bool);
+    fn set_processing(&mut self, processing: bool);
 }
 
 unsafe fn vst_parameters_from_process_data(
@@ -639,7 +639,7 @@ impl<P: Effect> ActiveProcessor<P> for ActiveEffectProcessor {
     }
 
     unsafe fn process_audio(
-        &self,
+        &mut self,
         processor: &mut P,
         data: *mut vst3::Steinberg::Vst::ProcessData,
         params: &mut parameters::ProcessingStore,
@@ -685,7 +685,7 @@ impl<P: Effect> ActiveProcessor<P> for ActiveEffectProcessor {
     }
 
     unsafe fn handle_events(
-        &self,
+        &mut self,
         processor: &mut P,
         data: *mut vst3::Steinberg::Vst::ProcessData,
         params: &mut parameters::ProcessingStore,
@@ -707,7 +707,7 @@ impl<P: Effect> ActiveProcessor<P> for ActiveEffectProcessor {
         vst3::Steinberg::kResultOk
     }
 
-    fn set_processing(&self, _: bool) {}
+    fn set_processing(&mut self, _: bool) {}
 }
 
 struct PartialProcessingEnvironment {
@@ -969,6 +969,8 @@ where
 impl<CF: ComponentFactory<Component: Component<Processor: ProcessorT>>, PC: ProcessorCategory>
     IComponentTrait
     for Processor<<CF::Component as Component>::Processor, CF::Component, CF, PC, PC::Active>
+where
+    PC::Active: ActiveProcessor<<CF::Component as Component>::Processor>,
 {
     unsafe fn getControllerClassId(
         &self,
@@ -1071,13 +1073,14 @@ impl<CF: ComponentFactory<Component: Component<Processor: ProcessorT>>, PC: Proc
                     vst3::Steinberg::kResultOk
                 }
                 (ProcessContext::Inactive { params, processing }, true) => {
-                    let active_processor = self.category.borrow().activate();
+                    let mut active_processor = self.category.borrow().activate();
                     let mut processor = self
                         .category
                         .borrow()
                         .create_processor(conformal_component, env);
                     if processing {
                         processor.set_processing(true);
+                        active_processor.set_processing(true);
                     }
                     self.process_context
                         .replace(ProcessContext::Active(ActiveProcessContext {
@@ -1246,7 +1249,7 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
     }
 
     unsafe fn process_audio(
-        &self,
+        &mut self,
         processor: &mut P,
         data: *mut vst3::Steinberg::Vst::ProcessData,
         params: &mut parameters::ProcessingStore,
@@ -1267,12 +1270,19 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
             let vst_params = ComRef::from_raw((*data).inputParameterChanges);
             let input_events = ComRef::from_raw((*data).inputEvents)
                 .map(|vst_events| Events::new(events::event_iterator(vst_events), num_frames));
+            let mpe_events = ComRef::from_raw((*data).inputEvents).and_then(|events| {
+                mpe::NoteEvents::new(events::mpe_event_iterator(events), num_frames)
+            });
 
             match (vst_params, input_events) {
                 (_, Some(None)) => return vst3::Steinberg::kInvalidArgument,
                 (Some(vst_params), Some(Some(events))) => {
                     if let Some(parameters) = parameters::synth_param_changes_from_vst3(
-                        vst_params, params, num_frames, &self.mpe,
+                        vst_params,
+                        params,
+                        num_frames,
+                        &self.mpe,
+                        mpe_events.clone(),
                     ) {
                         processor.process(&SynthProcessContext { events, parameters }, &mut output);
                     } else {
@@ -1281,7 +1291,11 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
                 }
                 (Some(vst_params), None) => {
                     if let Some(parameters) = parameters::synth_param_changes_from_vst3(
-                        vst_params, params, num_frames, &self.mpe,
+                        vst_params,
+                        params,
+                        num_frames,
+                        &self.mpe,
+                        mpe_events.clone(),
                     ) {
                         processor.process(
                             &SynthProcessContext {
@@ -1296,7 +1310,9 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
                 }
                 (None, Some(Some(events))) => {
                     let buffer_states = parameters::existing_synth_param_buffer_states_from_store(
-                        params, &self.mpe,
+                        params,
+                        &self.mpe,
+                        mpe_events.clone(),
                     );
                     processor.process(
                         &SynthProcessContext {
@@ -1311,19 +1327,24 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
                         &SynthProcessContext {
                             events: Events::new(std::iter::empty(), num_frames).unwrap(),
                             parameters: parameters::existing_synth_param_buffer_states_from_store(
-                                params, &self.mpe,
+                                params,
+                                &self.mpe,
+                                mpe_events.clone(),
                             ),
                         },
                         &mut output,
                     );
                 }
             }
+            if let Some(mpe_events) = mpe_events {
+                self.mpe.update_for_events(mpe_events);
+            }
             vst3::Steinberg::kResultOk
         }
     }
 
     unsafe fn handle_events(
-        &self,
+        &mut self,
         processor: &mut P,
         data: *mut vst3::Steinberg::Vst::ProcessData,
         params: &mut parameters::ProcessingStore,
@@ -1340,6 +1361,12 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
             Some(None) => return vst3::Steinberg::kInvalidArgument,
             None => None,
         };
+
+        if let Some(mpe_events) = (unsafe { ComRef::from_raw((*data).inputEvents) })
+            .and_then(|events| unsafe { events::all_zero_mpe_event_iterator(events) })
+        {
+            self.mpe.update_for_event_data(mpe_events);
+        }
 
         if let Some(vst_parameters) = vst_parameters {
             if let Some((change_status, param_states)) = unsafe {
@@ -1382,7 +1409,9 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
         vst3::Steinberg::kResultOk
     }
 
-    fn set_processing(&self, _: bool) {}
+    fn set_processing(&mut self, processing: bool) {
+        self.mpe.set_processing(processing);
+    }
 }
 
 impl<
@@ -3023,125 +3052,174 @@ mod tests {
         }
     }
 
-    // TODO - support this test
-    // #[test]
-    // fn can_process_mpe() {
-    //     let proc = dummy_synth();
-    //     let host = ComWrapper::new(dummy_host::Host::default());
+    #[test]
+    fn can_process_mpe() {
+        let proc = dummy_synth();
+        let host = ComWrapper::new(dummy_host::Host::default());
 
-    //     unsafe {
-    //         setup_proc(&proc, &host);
+        unsafe {
+            setup_proc(&proc, &host);
 
-    //         let audio = mock_process(
-    //             2,
-    //             vec![
-    //                 MockEvent {
-    //                     sample_offset: 0,
-    //                     data: MockData::NoteOn {
-    //                         id: NoteID {
-    //                             internals: NoteIDInternals::NoteIDWithID(0),
-    //                         },
-    //                         pitch: 64,
-    //                         velocity: 0.5,
-    //                         tuning: 0f32,
-    //                     },
-    //                 },
-    //                 MockEvent {
-    //                     sample_offset: 10,
-    //                     data: MockData::NoteExpressionChange {
-    //                         id: NoteID {
-    //                             internals: NoteIDInternals::NoteIDWithID(0),
-    //                         },
-    //                         expression: NumericPerNoteExpression::PitchBend,
-    //                         value: 12.0,
-    //                     },
-    //                 },
-    //                 // Should ignore wrong-id events
-    //                 MockEvent {
-    //                     sample_offset: 11,
-    //                     data: MockData::NoteExpressionChange {
-    //                         id: NoteID {
-    //                             internals: NoteIDInternals::NoteIDWithID(4),
-    //                         },
-    //                         expression: NumericPerNoteExpression::PitchBend,
-    //                         value: 24.0,
-    //                     },
-    //                 },
-    //                 MockEvent {
-    //                     sample_offset: 16,
-    //                     data: MockData::NoteExpressionChange {
-    //                         id: NoteID {
-    //                             internals: NoteIDInternals::NoteIDWithID(0),
-    //                         },
-    //                         expression: NumericPerNoteExpression::Timbre,
-    //                         value: 0.6,
-    //                     },
-    //                 },
-    //                 MockEvent {
-    //                     sample_offset: 20,
-    //                     data: MockData::NoteExpressionChange {
-    //                         id: NoteID {
-    //                             internals: NoteIDInternals::NoteIDWithID(0),
-    //                         },
-    //                         expression: NumericPerNoteExpression::Aftertouch,
-    //                         value: 0.7,
-    //                     },
-    //                 },
-    //                 MockEvent {
-    //                     sample_offset: 90,
-    //                     data: MockData::NoteExpressionChange {
-    //                         id: NoteID {
-    //                             internals: NoteIDInternals::NoteIDWithID(0),
-    //                         },
-    //                         expression: NumericPerNoteExpression::PitchBend,
-    //                         value: 0.0,
-    //                     },
-    //                 },
-    //                 MockEvent {
-    //                     sample_offset: 90,
-    //                     data: MockData::NoteExpressionChange {
-    //                         id: NoteID {
-    //                             internals: NoteIDInternals::NoteIDWithID(0),
-    //                         },
-    //                         expression: NumericPerNoteExpression::Timbre,
-    //                         value: 0.0,
-    //                     },
-    //                 },
-    //                 MockEvent {
-    //                     sample_offset: 90,
-    //                     data: MockData::NoteExpressionChange {
-    //                         id: NoteID {
-    //                             internals: NoteIDInternals::NoteIDWithID(0),
-    //                         },
-    //                         expression: NumericPerNoteExpression::Aftertouch,
-    //                         value: 0.0,
-    //                     },
-    //                 },
-    //                 MockEvent {
-    //                     sample_offset: 100,
-    //                     data: MockData::NoteOff {
-    //                         id: NoteID {
-    //                             internals: NoteIDInternals::NoteIDWithID(0),
-    //                         },
-    //                         pitch: 64,
-    //                         velocity: 0.5,
-    //                         tuning: 0f32,
-    //                     },
-    //                 },
-    //             ],
-    //             vec![],
-    //             &proc,
-    //         );
-    //         assert!(audio.is_some());
-    //         assert_eq!(audio.as_ref().unwrap()[0][0], 1.0);
-    //         assert_approx_eq!(audio.as_ref().unwrap()[0][10], 13.0, 1e-5);
-    //         assert_approx_eq!(audio.as_ref().unwrap()[0][15], 13.0, 1e-5);
-    //         assert_approx_eq!(audio.as_ref().unwrap()[0][16], 13.6, 1e-5);
-    //         assert_approx_eq!(audio.as_ref().unwrap()[0][20], 14.3, 1e-5);
-    //         assert_approx_eq!(audio.as_ref().unwrap()[0][90], 1.0);
-    //         assert_eq!(audio.as_ref().unwrap()[1][100], 0.0);
-    //     }
-    // }
+            let audio = mock_process(
+                2,
+                vec![
+                    MockEvent {
+                        sample_offset: 0,
+                        data: MockData::NoteOn {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
+                            },
+                            pitch: 64,
+                            velocity: 0.5,
+                            tuning: 0f32,
+                        },
+                    },
+                    MockEvent {
+                        sample_offset: 10,
+                        data: MockData::NoteExpressionChange {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
+                            },
+                            expression: NumericPerNoteExpression::PitchBend,
+                            value: 12.0,
+                        },
+                    },
+                    // Should ignore wrong-id events
+                    MockEvent {
+                        sample_offset: 11,
+                        data: MockData::NoteExpressionChange {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(4),
+                            },
+                            expression: NumericPerNoteExpression::PitchBend,
+                            value: 24.0,
+                        },
+                    },
+                    MockEvent {
+                        sample_offset: 15,
+                        data: MockData::NoteExpressionChange {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
+                            },
+                            expression: NumericPerNoteExpression::Timbre,
+                            value: 0.0,
+                        },
+                    },
+                    MockEvent {
+                        sample_offset: 16,
+                        data: MockData::NoteExpressionChange {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
+                            },
+                            expression: NumericPerNoteExpression::Timbre,
+                            value: 0.6,
+                        },
+                    },
+                    MockEvent {
+                        sample_offset: 19,
+                        data: MockData::NoteExpressionChange {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
+                            },
+                            expression: NumericPerNoteExpression::Aftertouch,
+                            value: 0.0,
+                        },
+                    },
+                    MockEvent {
+                        sample_offset: 20,
+                        data: MockData::NoteExpressionChange {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
+                            },
+                            expression: NumericPerNoteExpression::Aftertouch,
+                            value: 0.7,
+                        },
+                    },
+                    MockEvent {
+                        sample_offset: 89,
+                        data: MockData::NoteExpressionChange {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
+                            },
+                            expression: NumericPerNoteExpression::PitchBend,
+                            value: 12.0,
+                        },
+                    },
+                    MockEvent {
+                        sample_offset: 89,
+                        data: MockData::NoteExpressionChange {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
+                            },
+                            expression: NumericPerNoteExpression::Timbre,
+                            value: 0.6,
+                        },
+                    },
+                    MockEvent {
+                        sample_offset: 89,
+                        data: MockData::NoteExpressionChange {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
+                            },
+                            expression: NumericPerNoteExpression::Aftertouch,
+                            value: 0.7,
+                        },
+                    },
+                    MockEvent {
+                        sample_offset: 90,
+                        data: MockData::NoteExpressionChange {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
+                            },
+                            expression: NumericPerNoteExpression::PitchBend,
+                            value: 0.0,
+                        },
+                    },
+                    MockEvent {
+                        sample_offset: 90,
+                        data: MockData::NoteExpressionChange {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
+                            },
+                            expression: NumericPerNoteExpression::Timbre,
+                            value: 0.0,
+                        },
+                    },
+                    MockEvent {
+                        sample_offset: 90,
+                        data: MockData::NoteExpressionChange {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
+                            },
+                            expression: NumericPerNoteExpression::Aftertouch,
+                            value: 0.0,
+                        },
+                    },
+                    MockEvent {
+                        sample_offset: 100,
+                        data: MockData::NoteOff {
+                            id: NoteID {
+                                internals: NoteIDInternals::NoteIDWithID(0),
+                            },
+                            pitch: 64,
+                            velocity: 0.5,
+                            tuning: 0f32,
+                        },
+                    },
+                ],
+                vec![],
+                &proc,
+            );
+            assert!(audio.is_some());
+            assert_eq!(audio.as_ref().unwrap()[0][0], 1.0);
+            assert_approx_eq!(audio.as_ref().unwrap()[0][10], 13.0, 1e-5);
+            assert_approx_eq!(audio.as_ref().unwrap()[0][15], 13.0, 1e-5);
+            assert_approx_eq!(audio.as_ref().unwrap()[0][16], 13.6, 1e-5);
+            assert_approx_eq!(audio.as_ref().unwrap()[0][20], 14.3, 1e-5);
+            assert_approx_eq!(audio.as_ref().unwrap()[0][90], 1.0);
+            assert_eq!(audio.as_ref().unwrap()[1][100], 0.0);
+        }
+    }
 
     #[test]
     fn can_process_effect() {

@@ -3,7 +3,12 @@ use vst3::{
     Steinberg::Vst::{IEventList, IEventListTrait},
 };
 
-use conformal_component::events::{Data, Event, NoteData, NoteID, NoteIDInternals};
+use conformal_component::{
+    events::{Data, Event, NoteData, NoteID, NoteIDInternals},
+    synth::NumericPerNoteExpression,
+};
+
+use crate::mpe;
 
 unsafe fn get_event(
     event_list: ComRef<'_, IEventList>,
@@ -99,36 +104,74 @@ unsafe fn convert_event(event: &vst3::Steinberg::Vst::Event) -> Option<Event> {
                     },
                 })
             }
-            // TODO - support note expressions from vst events.
-            // vst3::Steinberg::Vst::Event_::EventTypes_::kNoteExpressionValueEvent => Some(Event {
-            //     sample_offset: event.sampleOffset as usize,
-            //     data: Data::NoteExpression {
-            //         data: NoteExpressionData {
-            //             id: NoteID {
-            //                 internals: NoteIDInternals::NoteIDWithID(
-            //                     event.__field0.noteExpressionValue.noteId,
-            //                 ),
-            //             },
-            //             #[allow(clippy::cast_possible_truncation)]
-            //             expression: match event.__field0.noteExpressionValue.typeId {
-            //                 vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID => {
-            //                     NoteExpression::PitchBend(
-            //                         (event.__field0.noteExpressionValue.value as f32 - 0.5) * 240.0,
-            //                     )
-            //                 }
-            //                 super::NOTE_EXPRESSION_TIMBRE_TYPE_ID => NoteExpression::Timbre(
-            //                     event.__field0.noteExpressionValue.value as f32,
-            //                 ),
-            //                 super::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID => {
-            //                     NoteExpression::Aftertouch(
-            //                         event.__field0.noteExpressionValue.value as f32,
-            //                     )
-            //                 }
-            //                 _ => return None,
-            //             },
-            //         },
-            //     },
-            // }),
+            _ => None,
+        }
+    }
+}
+
+unsafe fn convert_mpe_event(event: &vst3::Steinberg::Vst::Event) -> Option<mpe::NoteEvent> {
+    unsafe {
+        if event.sampleOffset < 0 {
+            return None;
+        }
+        match u32::from(event.r#type) {
+            vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOnEvent => {
+                let channel = event.__field0.noteOn.channel;
+                let note_id = event.__field0.noteOn.noteId;
+                if note_id == -1 || channel != 0 {
+                    return None;
+                }
+                Some(mpe::NoteEvent {
+                    sample_offset: event.sampleOffset as usize,
+                    data: mpe::NoteEventData::On { note_id },
+                })
+            }
+            vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOffEvent => {
+                let channel = event.__field0.noteOff.channel;
+                let note_id = event.__field0.noteOff.noteId;
+                if note_id == -1 || channel != 0 {
+                    return None;
+                }
+                Some(mpe::NoteEvent {
+                    sample_offset: event.sampleOffset as usize,
+                    data: mpe::NoteEventData::Off { note_id },
+                })
+            }
+            vst3::Steinberg::Vst::Event_::EventTypes_::kNoteExpressionValueEvent => {
+                let note_id = event.__field0.noteExpressionValue.noteId;
+                if note_id == -1 {
+                    return None;
+                }
+                let expression = match event.__field0.noteExpressionValue.typeId {
+                    vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID => {
+                        NumericPerNoteExpression::PitchBend
+                    }
+                    super::NOTE_EXPRESSION_TIMBRE_TYPE_ID => NumericPerNoteExpression::Timbre,
+                    super::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID => {
+                        NumericPerNoteExpression::Aftertouch
+                    }
+                    _ => return None,
+                };
+                let value = match expression {
+                    NumericPerNoteExpression::PitchBend => {
+                        (event.__field0.noteExpressionValue.value as f32 - 0.5) * 240.0
+                    }
+                    NumericPerNoteExpression::Timbre => {
+                        event.__field0.noteExpressionValue.value as f32
+                    }
+                    NumericPerNoteExpression::Aftertouch => {
+                        event.__field0.noteExpressionValue.value as f32
+                    }
+                };
+                Some(mpe::NoteEvent {
+                    sample_offset: event.sampleOffset as usize,
+                    data: mpe::NoteEventData::ExpressionChange {
+                        note_id,
+                        expression,
+                        value,
+                    },
+                })
+            }
             _ => None,
         }
     }
@@ -154,6 +197,35 @@ pub unsafe fn all_zero_event_iterator(
             get_event(event_list, i)
                 .as_ref()
                 .and_then(|x| convert_event(x))
+        });
+        if i.clone().any(|x| x.sample_offset != 0) {
+            None
+        } else {
+            Some(i.map(|x| x.data))
+        }
+    }
+}
+
+pub unsafe fn mpe_event_iterator(
+    event_list: ComRef<'_, IEventList>,
+) -> impl Iterator<Item = mpe::NoteEvent> + Clone {
+    unsafe {
+        (0..event_list.getEventCount()).filter_map(move |i| -> Option<mpe::NoteEvent> {
+            get_event(event_list, i)
+                .as_ref()
+                .and_then(|x| convert_mpe_event(x))
+        })
+    }
+}
+
+pub unsafe fn all_zero_mpe_event_iterator(
+    event_list: ComRef<'_, IEventList>,
+) -> Option<impl Iterator<Item = mpe::NoteEventData> + Clone> {
+    unsafe {
+        let i = (0..event_list.getEventCount()).filter_map(move |i| -> Option<mpe::NoteEvent> {
+            get_event(event_list, i)
+                .as_ref()
+                .and_then(|x| convert_mpe_event(x))
         });
         if i.clone().any(|x| x.sample_offset != 0) {
             None

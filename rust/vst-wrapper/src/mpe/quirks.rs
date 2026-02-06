@@ -46,7 +46,7 @@ pub fn parameters() -> impl Iterator<Item = parameters::Info> + Clone + 'static 
                 flags: Flags { automatable: false },
                 type_specific: TypeSpecificInfo::Numeric {
                     default: 0.0,
-                    valid_range: -48.0..=48.0,
+                    valid_range: -120.0..=120.0,
                     units: None,
                 },
             },
