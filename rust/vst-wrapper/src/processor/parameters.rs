@@ -900,8 +900,8 @@ impl<I> BufferStates for InitializedScratchWithMpe<'_, I> {
         self.scratch.get_by_hash(param_id)
     }
 }
-impl<'a, I: Iterator<Item = mpe::NoteEvent> + Clone> SynthParamBufferStates
-    for InitializedScratchWithMpe<'a, I>
+impl<I: Iterator<Item = mpe::NoteEvent> + Clone> SynthParamBufferStates
+    for InitializedScratchWithMpe<'_, I>
 {
     // Optimization Opportunity - we could potentially these by pre-computing the hashes!
 

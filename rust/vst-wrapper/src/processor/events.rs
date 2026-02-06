@@ -152,14 +152,12 @@ unsafe fn convert_mpe_event(event: &vst3::Steinberg::Vst::Event) -> Option<mpe::
                     }
                     _ => return None,
                 };
+                #[allow(clippy::cast_possible_truncation)]
                 let value = match expression {
                     NumericPerNoteExpression::PitchBend => {
                         (event.__field0.noteExpressionValue.value as f32 - 0.5) * 240.0
                     }
-                    NumericPerNoteExpression::Timbre => {
-                        event.__field0.noteExpressionValue.value as f32
-                    }
-                    NumericPerNoteExpression::Aftertouch => {
+                    NumericPerNoteExpression::Timbre | NumericPerNoteExpression::Aftertouch => {
                         event.__field0.noteExpressionValue.value as f32
                     }
                 };

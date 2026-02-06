@@ -126,15 +126,12 @@ fn check_note_events_invariants<I: Iterator<Item = NoteEvent>>(
         }
         last = Some(event.sample_offset);
 
-        match event.data {
-            NoteEventData::ExpressionChange {
-                expression, value, ..
-            } => {
-                if !valid_range_for_per_note_expression(expression).contains(&value) {
-                    return false;
-                }
-            }
-            _ => {}
+        if let NoteEventData::ExpressionChange {
+            expression, value, ..
+        } = event.data
+            && !valid_range_for_per_note_expression(expression).contains(&value)
+        {
+            return false;
         }
     }
     true
@@ -240,7 +237,7 @@ fn get_numeric_buffer_for_note_expression(
                     None
                 }
             }
-            _ => None,
+            NoteEventData::Off { .. } => None,
         });
     if iter.clone().next().is_some() {
         // Note this is a bit subtle.
@@ -380,7 +377,7 @@ impl State {
                 }
                 return parameters::NumericBufferState::Constant(initial_value);
             }
-            _ => {}
+            NoteIDInternals::NoteIDFromPitch(_) => {}
         }
 
         parameters::NumericBufferState::Constant(Default::default())

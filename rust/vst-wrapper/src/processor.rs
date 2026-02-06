@@ -14,8 +14,8 @@ use conformal_component::{
 };
 use serde::Serialize;
 use vst3::Steinberg::Vst::{
-    IConnectionPoint, IConnectionPointTrait, IEventList, IHostApplication,
-    IProcessContextRequirements, IProcessContextRequirementsTrait,
+    IConnectionPoint, IConnectionPointTrait, IHostApplication, IProcessContextRequirements,
+    IProcessContextRequirementsTrait,
 };
 use vst3::{
     Class,
