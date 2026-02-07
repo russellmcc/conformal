@@ -19,7 +19,7 @@
 //! in which case we'll have to be smarter about when to interpret channels
 //! as MPE quirks.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::iter::once;
 use std::ops::RangeInclusive;
 
@@ -38,9 +38,18 @@ struct PerNoteState {
     pitch_bend: f32,
     timbre: f32,
     aftertouch: f32,
+    internal_id: u64,
+    added_release_to_queue: bool,
 }
 
 impl PerNoteState {
+    fn new_note(internal_id: u64) -> Self {
+        Self {
+            internal_id,
+            ..Default::default()
+        }
+    }
+
     fn get_expression(&self, expression: NumericPerNoteExpression) -> f32 {
         match expression {
             NumericPerNoteExpression::PitchBend => self.pitch_bend,
@@ -106,12 +115,22 @@ impl GlobalExpressionHashes {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct ReleaseRecord {
+    id: i32,
+    internal_id: u64,
+}
+
 #[derive(Debug, Clone)]
 pub struct State {
     quirks_hashes: quirks::Hashes,
     global_expression_hashes: GlobalExpressionHashes,
+    release_order: VecDeque<ReleaseRecord>,
     expression_states: HashMap<i32, PerNoteState>,
+    next_internal_id: u64,
 }
+
+const MAX_NOTES_BEFORE_ALLOCATION: usize = 256;
 
 impl Default for State {
     fn default() -> Self {
@@ -119,9 +138,11 @@ impl Default for State {
             quirks_hashes: Default::default(),
             global_expression_hashes: Default::default(),
             // Note that we cheat a bit on the "no allocation" rule here, in that we
-            // will allocate if we exceed this initial capacity. However, playing 100 notes
+            // will allocate if we exceed this initial capacity. However, playing [`MAX_NOTES_BEFORE_ALLOCATION`] notes
             // at once is a bit excessive, so it's probably okay to allocate once in that case.
-            expression_states: HashMap::with_capacity(100),
+            release_order: VecDeque::with_capacity(MAX_NOTES_BEFORE_ALLOCATION),
+            expression_states: HashMap::with_capacity(MAX_NOTES_BEFORE_ALLOCATION),
+            next_internal_id: 0,
         }
     }
 }
@@ -344,11 +365,63 @@ impl State {
         for data in event_datas {
             match data {
                 NoteEventData::On { note_id } => {
+                    // Note that we have a couple of goals here (in order of priority):
+                    //  - We *never* allocate unless there are more than `MAX_NOTES_BEFORE_ALLOCATION`
+                    //    notes concurrently active
+                    //  - We never drop expressions for notes that are still active
+                    //  - We keep expressions around for inactive notes as long as possible
+                    //    given the above constraints
+                    //
+                    // To achieve this, we maintain a queue of inactive notes from `Off` events.
+                    // However, some of them may have been re-triggered, so we'll have to skip them.
+                    // We use a 64-bit internal_id to identify re-triggers - each re-trigger gets
+                    // a unique internal_id. We don't worry about collisions since the internal_id
+                    // is 64 bits.
+                    if self.expression_states.len() >= MAX_NOTES_BEFORE_ALLOCATION
+                        && !self.expression_states.contains_key(&note_id)
+                    {
+                        while let Some(record) = self.release_order.pop_front() {
+                            if self
+                                .expression_states
+                                .get(&record.id)
+                                .is_some_and(|state| state.internal_id == record.internal_id)
+                            {
+                                self.expression_states.remove(&record.id);
+                                // We only needed space for one note, so break here.
+                                break;
+                            }
+                        }
+                    }
+
                     self.expression_states
-                        .insert(note_id, PerNoteState::default());
+                        .insert(note_id, PerNoteState::new_note(self.next_internal_id));
+                    self.next_internal_id += 1;
                 }
                 NoteEventData::Off { note_id } => {
-                    self.expression_states.remove(&note_id);
+                    // See above note for the overall scheme for avoiding allocations while maintaining
+                    // expressions for as long as possible.
+                    if let Some(state) = self.expression_states.get_mut(&note_id)
+                        && !state.added_release_to_queue
+                    {
+                        state.added_release_to_queue = true;
+                        let internal_id = state.internal_id;
+
+                        // We might need to clear stale entries from note order that refer to notes
+                        // that have since been retriggered. We only do this step if we need to do this
+                        // to prevent allocation.
+                        if self.release_order.len() >= MAX_NOTES_BEFORE_ALLOCATION {
+                            self.release_order.retain(|record| {
+                                self.expression_states
+                                    .get(&record.id)
+                                    .is_some_and(|state| state.internal_id == record.internal_id)
+                            });
+                        }
+
+                        self.release_order.push_back(ReleaseRecord {
+                            id: note_id,
+                            internal_id,
+                        });
+                    }
                 }
                 NoteEventData::ExpressionChange {
                     note_id,
@@ -672,7 +745,7 @@ mod tests {
     }
 
     #[test]
-    fn update_for_event_data_note_off_clears_state() {
+    fn update_for_event_data_note_off_does_not_clear_state() {
         let mut mpe = State::default();
         let empty_params =
             ConstantBufferStates::new(StatesMap::from(HashMap::<String, InternalValue>::new()));
@@ -699,7 +772,7 @@ mod tests {
             Some(NoteEvents::new(vec![].into_iter(), 100).unwrap()),
         );
         if let NumericBufferState::Constant(value) = pitch_bend {
-            assert_approx_eq!(value, 0.0);
+            assert_approx_eq!(value, 12.0);
         } else {
             panic!("Expected constant value");
         }
