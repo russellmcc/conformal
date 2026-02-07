@@ -5,7 +5,9 @@ use self::state::State;
 use conformal_component::{
     ProcessingEnvironment,
     audio::{BufferMut, channels_mut},
-    events as component_events, synth,
+    events as component_events,
+    parameters::{NumericBufferState, PiecewiseLinearCurvePoint},
+    synth,
 };
 
 pub use conformal_component::events::NoteData;
@@ -72,6 +74,29 @@ fn mul_constant_in_place(x: f32, y: &mut [f32]) {
 // was filled. This will let us skip rendering until a voice is playing
 // and also skip mixing silence.
 
+/// Non-audio data availble to voices during the processing call.
+///
+/// This includes events that occur during the buffer, as well as relevant parameter values.
+pub trait VoiceProcessContext {
+    /// The type of shared data shared between all voices.
+    type SharedData: Clone;
+
+    /// Returns an iterator of events that occurred for this voice during the processing call.
+    fn events(&self) -> impl Iterator<Item = Event>;
+
+    /// Returns the parameter states for this processing call.
+    fn parameters(&self) -> &impl synth::SynthParamBufferStates;
+
+    // TODO
+    // fn per_note_expression(
+    //     &self,
+    //     expression: synth::NumericPerNoteExpression,
+    // ) -> NumericBufferState<impl Iterator<Item = PiecewiseLinearCurvePoint> + Clone>;
+
+    /// Returns the shared data for this processing call.
+    fn shared_data(&self) -> &Self::SharedData;
+}
+
 /// A single voice in a polyphonic synth.
 pub trait Voice {
     /// Data that is shared across all voices. This could include things like
@@ -90,11 +115,9 @@ pub trait Voice {
     ///
     /// Audio for the voice will be written into the `output` buffer, which will
     /// start out filled with silence.
-    fn process(
+    fn process<'a>(
         &mut self,
-        events: impl IntoIterator<Item = Event>,
-        params: &impl synth::SynthParamBufferStates,
-        data: Self::SharedData<'_>,
+        context: &impl VoiceProcessContext<SharedData = Self::SharedData<'a>>,
         output: &mut [f32],
     );
 
@@ -115,6 +138,30 @@ pub trait Voice {
 
     /// Resets the voice to its initial state.
     fn reset(&mut self);
+}
+
+struct ProcessContextImpl<'a, E, P, SD> {
+    events_fn: E,
+    parameters: &'a P,
+    shared_data: &'a SD,
+}
+
+impl<EI: Iterator<Item = Event>, E: Fn() -> EI, P: synth::SynthParamBufferStates, SD: Clone>
+    VoiceProcessContext for ProcessContextImpl<'_, E, P, SD>
+{
+    type SharedData = SD;
+
+    fn events(&self) -> impl Iterator<Item = Event> {
+        (self.events_fn)()
+    }
+
+    fn parameters(&self) -> &impl synth::SynthParamBufferStates {
+        self.parameters
+    }
+
+    fn shared_data(&self) -> &Self::SharedData {
+        self.shared_data
+    }
 }
 
 /// A helper struct for implementing polyphonic synths.
@@ -219,9 +266,11 @@ impl<V: Voice> Poly<V> {
                 continue;
             }
             voice.process(
-                voice_events(),
-                params,
-                shared_data.clone(),
+                &ProcessContextImpl {
+                    events_fn: voice_events,
+                    parameters: params,
+                    shared_data,
+                },
                 &mut self.voice_scratch_buffer[0..output.num_frames()],
             );
             mul_constant_in_place(voice_scale, &mut self.voice_scratch_buffer);
