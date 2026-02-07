@@ -24,7 +24,8 @@ use std::iter::once;
 use std::ops::RangeInclusive;
 
 use conformal_component::parameters::{
-    self, NumericBufferState, PiecewiseLinearCurve, PiecewiseLinearCurvePoint,
+    self, NumericBufferState, PiecewiseLinearCurve, PiecewiseLinearCurvePoint, left_numeric_buffer,
+    right_numeric_buffer,
 };
 use conformal_component::{
     events::{NoteID, NoteIDInternals},
@@ -234,48 +235,6 @@ impl<I: Iterator<Item = NoteEvent> + Clone> NoteEvents<I> {
             })
         } else {
             None
-        }
-    }
-}
-
-fn left_numeric_buffer<
-    A: Iterator<Item = PiecewiseLinearCurvePoint> + Clone,
-    B: Iterator<Item = PiecewiseLinearCurvePoint> + Clone,
->(
-    state: NumericBufferState<A>,
-) -> NumericBufferState<Either<A, B>> {
-    match state {
-        NumericBufferState::Constant(value) => NumericBufferState::Constant(value),
-        NumericBufferState::PiecewiseLinear(curve) => {
-            let buffer_size = curve.buffer_size();
-            // Note we're sure that `curve` is valid, so so must be Either::Left(curve)
-            NumericBufferState::PiecewiseLinear(unsafe {
-                PiecewiseLinearCurve::from_parts_unchecked(
-                    Either::Left(curve.into_iter()),
-                    buffer_size,
-                )
-            })
-        }
-    }
-}
-
-fn right_numeric_buffer<
-    A: Iterator<Item = PiecewiseLinearCurvePoint> + Clone,
-    B: Iterator<Item = PiecewiseLinearCurvePoint> + Clone,
->(
-    state: NumericBufferState<B>,
-) -> NumericBufferState<Either<A, B>> {
-    match state {
-        NumericBufferState::Constant(value) => NumericBufferState::Constant(value),
-        NumericBufferState::PiecewiseLinear(curve) => {
-            let buffer_size = curve.buffer_size();
-            NumericBufferState::PiecewiseLinear(unsafe {
-                // Note we're sure that `curve` is valid, so so must be Either::Right(curve)
-                PiecewiseLinearCurve::from_parts_unchecked(
-                    Either::Right(curve.into_iter()),
-                    buffer_size,
-                )
-            })
         }
     }
 }
