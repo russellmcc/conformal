@@ -63,8 +63,7 @@ struct GlobalExpressionHashes {
 impl Default for GlobalExpressionHashes {
     fn default() -> Self {
         use crate::parameters::{
-            parameter_id_for_numeric_global_expression,
-            parameter_id_for_switch_global_expression,
+            parameter_id_for_numeric_global_expression, parameter_id_for_switch_global_expression,
         };
         Self {
             pitch_bend: parameters::hash_id(parameter_id_for_numeric_global_expression(
