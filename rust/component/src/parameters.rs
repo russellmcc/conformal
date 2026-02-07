@@ -641,7 +641,7 @@ pub trait States {
 }
 
 /// Represents a single point of a piecewise linear curve.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PiecewiseLinearCurvePoint {
     /// The number of samples from the start of the buffer this point occurs at.
     pub sample_offset: usize,
