@@ -5,9 +5,56 @@ use self::state::State;
 use conformal_component::{
     ProcessingEnvironment,
     audio::{BufferMut, channels_mut},
-    events::{self, Data, Event as CEvent},
-    synth,
+    events as component_events, synth,
 };
+
+pub use conformal_component::events::NoteData;
+
+/// The data associated with an event, independent of the time it occurred.
+#[derive(Clone, Debug, PartialEq)]
+pub enum EventData {
+    /// A note began.
+    NoteOn {
+        /// Data associated with the note.
+        data: NoteData,
+    },
+    /// A note ended.
+    NoteOff {
+        /// Data associated with the note.
+        data: NoteData,
+    },
+}
+
+/// An event that occurred at a specific time within a buffer.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Event {
+    /// Number of sample frames after the beginning of the buffer that this event occurred.
+    pub sample_offset: usize,
+    /// Data about the event.
+    pub data: EventData,
+}
+
+impl TryFrom<component_events::Data> for EventData {
+    type Error = ();
+    fn try_from(value: component_events::Data) -> Result<Self, Self::Error> {
+        #[allow(unreachable_patterns)]
+        match value {
+            component_events::Data::NoteOn { data } => Ok(EventData::NoteOn { data }),
+            component_events::Data::NoteOff { data } => Ok(EventData::NoteOff { data }),
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryFrom<component_events::Event> for Event {
+    type Error = ();
+    fn try_from(value: component_events::Event) -> Result<Self, Self::Error> {
+        Ok(Event {
+            sample_offset: value.sample_offset,
+            data: value.data.try_into()?,
+        })
+    }
+}
 
 fn add_in_place(x: &[f32], y: &mut [f32]) {
     for (x, y) in x.iter().zip(y.iter_mut()) {
@@ -37,7 +84,7 @@ pub trait Voice {
     /// Handles a single event outside of audio processing.
     ///
     /// Note that events sent during a [`process`](`Voice::process`) call must be handled there.
-    fn handle_event(&mut self, event: &events::Data);
+    fn handle_event(&mut self, event: &EventData);
 
     /// Renders audio for this voice.
     ///
@@ -45,7 +92,7 @@ pub trait Voice {
     /// start out filled with silence.
     fn process(
         &mut self,
-        events: impl IntoIterator<Item = events::Event>,
+        events: impl IntoIterator<Item = Event>,
         params: &impl synth::SynthParamBufferStates,
         data: Self::SharedData<'_>,
         output: &mut [f32],
@@ -118,22 +165,19 @@ impl<V: Voice> Poly<V> {
     /// Handles a set of events without rendering audio.
     ///
     /// This can be used to implement [`conformal_component::synth::Synth::handle_events`].
-    pub fn handle_events(&mut self, events: impl IntoIterator<Item = Data> + Clone) {
-        for (v, ev) in self
-            .state
-            .clone()
-            .dispatch_events(events.clone().into_iter().map(|data| CEvent {
+    pub fn handle_events(&mut self, events: impl Iterator<Item = component_events::Data> + Clone) {
+        let poly_events = events.filter_map(|data| {
+            EventData::try_from(data).ok().map(|data| Event {
                 sample_offset: 0,
                 data,
-            }))
-        {
+            })
+        });
+
+        for (v, ev) in self.state.clone().dispatch_events(poly_events.clone()) {
             self.voices[v].handle_event(&ev.data);
         }
 
-        self.state.update(events.into_iter().map(|data| CEvent {
-            sample_offset: 0,
-            data,
-        }));
+        self.state.update(poly_events);
     }
 
     /// Renders the audio for the synth.
@@ -142,7 +186,18 @@ impl<V: Voice> Poly<V> {
     /// For any voices with active notes, [`Voice::process`] will be called.
     pub fn process(
         &mut self,
-        events: impl Iterator<Item = CEvent> + Clone,
+        events: impl Iterator<Item = component_events::Event> + Clone,
+        params: &impl synth::SynthParamBufferStates,
+        shared_data: &V::SharedData<'_>,
+        output: &mut impl BufferMut,
+    ) {
+        let poly_events = events.filter_map(|e| Event::try_from(e).ok());
+        self.process_inner(poly_events, params, shared_data, output);
+    }
+
+    fn process_inner(
+        &mut self,
+        events: impl Iterator<Item = Event> + Clone,
         params: &impl synth::SynthParamBufferStates,
         shared_data: &V::SharedData<'_>,
         output: &mut impl BufferMut,

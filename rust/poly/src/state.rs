@@ -1,4 +1,5 @@
-use conformal_component::events::{self as events, NoteData, NoteID};
+use crate::{Event, EventData};
+use conformal_component::events::{NoteData, NoteID};
 
 #[derive(Clone, Debug, PartialEq)]
 enum VoicePlayingState {
@@ -23,15 +24,15 @@ pub struct State {
 struct EventStreamStep {
     voice: usize,
     sample_offset: usize,
-    first: Option<events::Data>,
-    second: Option<events::Data>,
+    first: Option<EventData>,
+    second: Option<EventData>,
 }
 
 impl Iterator for EventStreamStep {
-    type Item = (usize, events::Event);
+    type Item = (usize, Event);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let first: Option<events::Data> = self.first.take();
+        let first: Option<EventData> = self.first.take();
         let second = self.second.take();
         match (first, second) {
             (Some(first), Some(second)) => {
@@ -39,7 +40,7 @@ impl Iterator for EventStreamStep {
                 self.second = None;
                 Some((
                     self.voice,
-                    events::Event {
+                    Event {
                         sample_offset: self.sample_offset,
                         data: first,
                     },
@@ -49,7 +50,7 @@ impl Iterator for EventStreamStep {
                 self.first = None;
                 Some((
                     self.voice,
-                    events::Event {
+                    Event {
                         sample_offset: self.sample_offset,
                         data: first,
                     },
@@ -64,7 +65,7 @@ impl Iterator for EventStreamStep {
 }
 
 impl EventStreamStep {
-    fn new1(voice: usize, first: events::Event) -> Self {
+    fn new1(voice: usize, first: Event) -> Self {
         Self {
             voice,
             sample_offset: first.sample_offset,
@@ -72,7 +73,7 @@ impl EventStreamStep {
             second: None,
         }
     }
-    fn new2(voice: usize, first: events::Event, second: events::Data) -> Self {
+    fn new2(voice: usize, first: Event, second: EventData) -> Self {
         Self {
             voice,
             sample_offset: first.sample_offset,
@@ -90,8 +91,8 @@ impl EventStreamStep {
     }
 }
 
-fn synthetic_note_off(id: NoteID, pitch: u8) -> events::Data {
-    events::Data::NoteOff {
+fn synthetic_note_off(id: NoteID, pitch: u8) -> EventData {
+    EventData::NoteOff {
         data: NoteData {
             id,
             pitch,
@@ -125,19 +126,19 @@ impl State {
     /// Note that the events must be sorted by time!
     pub fn dispatch_events(
         mut self,
-        events: impl IntoIterator<Item = events::Event>,
-    ) -> impl IntoIterator<Item = (usize, events::Event)> {
+        events: impl IntoIterator<Item = Event>,
+    ) -> impl IntoIterator<Item = (usize, Event)> {
         events
             .into_iter()
             .flat_map(move |event| self.update_state_and_dispatch_for_event(&event))
     }
 
-    fn update_state_and_dispatch_for_event(&mut self, event: &events::Event) -> EventStreamStep {
+    fn update_state_and_dispatch_for_event(&mut self, event: &Event) -> EventStreamStep {
         match &event.data {
-            events::Data::NoteOn { data } => {
+            EventData::NoteOn { data } => {
                 self.update_state_and_dispatch_for_note_on(event.sample_offset, data)
             }
-            events::Data::NoteOff { data } => {
+            EventData::NoteOff { data } => {
                 self.update_state_and_dispatch_for_note_off(event.sample_offset, data)
             }
         }
@@ -168,9 +169,9 @@ impl State {
                 (VoicePlayingState::Note { id, .. }, _) if data.id == *id => {
                     return EventStreamStep::new1(
                         index,
-                        events::Event {
+                        Event {
                             sample_offset,
-                            data: events::Data::NoteOn { data: *data },
+                            data: EventData::NoteOn { data: *data },
                         },
                     );
                 }
@@ -221,18 +222,18 @@ impl State {
         if let Some(extra_off) = extra_off {
             EventStreamStep::new2(
                 open_index,
-                events::Event {
+                Event {
                     sample_offset,
                     data: extra_off,
                 },
-                events::Data::NoteOn { data: *data },
+                EventData::NoteOn { data: *data },
             )
         } else {
             EventStreamStep::new1(
                 open_index,
-                events::Event {
+                Event {
                     sample_offset,
-                    data: events::Data::NoteOn { data: *data },
+                    data: EventData::NoteOn { data: *data },
                 },
             )
         }
@@ -261,9 +262,9 @@ impl State {
                     voice_state.playing = VoicePlayingState::Idle { order };
                     return EventStreamStep::new1(
                         index,
-                        events::Event {
+                        Event {
                             sample_offset,
-                            data: events::Data::NoteOff { data: *data },
+                            data: EventData::NoteOff { data: *data },
                         },
                     );
                 }
@@ -338,7 +339,7 @@ impl State {
     }
 
     /// Note that the events must be sorted by time!
-    pub fn update(&mut self, events: impl IntoIterator<Item = events::Event>) {
+    pub fn update(&mut self, events: impl IntoIterator<Item = Event>) {
         for event in events {
             self.update_state_and_dispatch_for_event(&event);
         }
@@ -352,7 +353,8 @@ impl State {
 #[cfg(test)]
 mod tests {
     use super::State;
-    use conformal_component::events::{self as events, NoteData, NoteID, NoteIDInternals};
+    use crate::{Event, EventData};
+    use conformal_component::events::{NoteData, NoteID, NoteIDInternals};
 
     fn example_note_data(pitch: u8) -> NoteData {
         NoteData {
@@ -365,44 +367,44 @@ mod tests {
         }
     }
 
-    fn example_note_on(time: usize, pitch: u8) -> events::Event {
-        events::Event {
+    fn example_note_on(time: usize, pitch: u8) -> Event {
+        Event {
             sample_offset: time,
-            data: events::Data::NoteOn {
+            data: EventData::NoteOn {
                 data: example_note_data(pitch),
             },
         }
     }
 
-    fn example_note_off(time: usize, pitch: u8) -> events::Event {
-        events::Event {
+    fn example_note_off(time: usize, pitch: u8) -> Event {
+        Event {
             sample_offset: time,
-            data: events::Data::NoteOff {
+            data: EventData::NoteOff {
                 data: example_note_data(pitch),
             },
         }
     }
 
-    fn expected_note_on(time: usize, pitch: u8) -> events::Event {
-        events::Event {
+    fn expected_note_on(time: usize, pitch: u8) -> Event {
+        Event {
             sample_offset: time,
-            data: events::Data::NoteOn {
+            data: EventData::NoteOn {
                 data: example_note_data(pitch),
             },
         }
     }
 
-    fn expected_note_off(time: usize, pitch: u8) -> events::Event {
-        events::Event {
+    fn expected_note_off(time: usize, pitch: u8) -> Event {
+        Event {
             sample_offset: time,
-            data: events::Data::NoteOff {
+            data: EventData::NoteOff {
                 data: example_note_data(pitch),
             },
         }
     }
 
     // Note that we always allow the voice state logic to shuffle the voices!
-    fn assert_events_match(expected: Vec<Vec<events::Event>>, mut actual: Vec<Vec<events::Event>>) {
+    fn assert_events_match(expected: Vec<Vec<Event>>, mut actual: Vec<Vec<Event>>) {
         let actual_original = actual.clone();
         assert_eq!(expected.len(), actual.len());
         for events in expected {
@@ -415,8 +417,8 @@ mod tests {
     fn gather_events(
         state: &State,
         num_voices: usize,
-        events: Vec<events::Event>,
-    ) -> Vec<Vec<events::Event>> {
+        events: Vec<Event>,
+    ) -> Vec<Vec<Event>> {
         (0..num_voices)
             .into_iter()
             .map(|voice_index| {
@@ -457,9 +459,9 @@ mod tests {
     }
 
     fn cat_events(
-        a: Vec<Vec<events::Event>>,
-        b: Vec<Vec<events::Event>>,
-    ) -> Vec<Vec<events::Event>> {
+        a: Vec<Vec<Event>>,
+        b: Vec<Vec<Event>>,
+    ) -> Vec<Vec<Event>> {
         a.into_iter()
             .zip(b)
             .map(|(mut a, b)| {
