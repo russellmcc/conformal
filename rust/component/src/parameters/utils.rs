@@ -226,6 +226,9 @@ macro_rules! pzip_part {
             $params.get_switch_global_expression(SwitchGlobalExpression::$variant),
         )
     }};
+    (external_numeric $expr:tt $params:ident) => {{
+        $crate::parameters::decompose_numeric($expr)
+    }};
 }
 
 #[macro_export]
@@ -245,6 +248,9 @@ macro_rules! pzip_value_type {
     };
     (global_expression_switch) => {
         bool
+    };
+    (external_numeric) => {
+        f32
     };
 }
 
@@ -446,6 +452,40 @@ macro_rules! pzip_collect {
 /// ]).take(1).collect();
 ///
 /// assert_eq!(samples, vec![(0.5, 0.0, false)]);
+/// ```
+///
+/// # External Numeric Parameters
+///
+/// You can also inject a [`NumericBufferState`](crate::parameters::NumericBufferState)
+/// from outside the params object using `external_numeric`. The expression must
+/// be wrapped in parentheses.
+///
+/// ```
+/// # use conformal_component::pzip;
+/// # use conformal_component::parameters::{ConstantBufferStates, StaticInfoRef, TypeSpecificInfoRef, InternalValue, NumericBufferState};
+/// let params = ConstantBufferStates::new_defaults(
+///   vec![
+///     StaticInfoRef {
+///       title: "Gain",
+///       short_title: "Gain",
+///       unique_id: "gain",
+///       flags: Default::default(),
+///       type_specific: TypeSpecificInfoRef::Numeric {
+///         default: 0.5,
+///         valid_range: 0.0..=1.0,
+///         units: None,
+///       },
+///     },
+///   ],
+/// );
+///
+/// let external: NumericBufferState<std::iter::Empty<_>> = NumericBufferState::Constant(0.75);
+/// let samples: Vec<_> = pzip!(params[
+///   numeric "gain",
+///   external_numeric (external)
+/// ]).take(2).collect();
+///
+/// assert_eq!(samples, vec![(0.5, 0.75), (0.5, 0.75)]);
 /// ```
 #[macro_export]
 macro_rules! pzip {
