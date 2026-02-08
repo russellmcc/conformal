@@ -6,6 +6,7 @@
   ],
   "scripts": {
     "bootstrap": "conformal-scripts bootstrap",
+    "bootstrap-rust-toolchain": "conformal-scripts bootstrap-rust-toolchain",
     "ci": "conformal-scripts ci",
     "check-lfs": "conformal-scripts check-lfs",
     "check-todo": "conformal-scripts check-todo",

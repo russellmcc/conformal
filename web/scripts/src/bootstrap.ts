@@ -238,3 +238,27 @@ export const addBootstrapCommand = (command: Command) =>
     .action(async (options) => {
       await bootstrap(options);
     });
+
+/**
+ * Install only the Rust toolchain. this is helpful in CI, because we can't
+ * start the rust cache until we have selected our rust version.
+ */
+export const bootstrapRustToolchain = async (options: {
+  rustVersion?: string;
+}) => {
+  const version = options.rustVersion ?? RUST_VERSION;
+  await $`rustup toolchain install ${version}`;
+  await $`rustup default ${version}`;
+};
+
+export const addBootstrapRustToolchainCommand = (command: Command) =>
+  command
+    .command("bootstrap-rust-toolchain")
+    .description("Install only the Rust toolchain")
+    .option(
+      "--rust-version <version>",
+      `The version of Rust to use (default: ${RUST_VERSION})`,
+    )
+    .action(async (options) => {
+      await bootstrapRustToolchain(options);
+    });

@@ -30,6 +30,12 @@ runs:
         echo "VST3_SDK_DIR=/tmp/vst3sdk" >> .env
       shell: bash
 
+    - run: bun run bootstrap-rust-toolchain
+      shell: bash
+
+    - name: Rust cache
+      uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+
     - run: bun run bootstrap
       shell: bash
 
@@ -41,6 +47,3 @@ runs:
           cp -r "$VST3_DIR" /tmp/vst3sdk
         fi
       shell: bash
-
-    - name: Rust cache
-      uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
