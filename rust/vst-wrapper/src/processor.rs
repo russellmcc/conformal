@@ -613,8 +613,8 @@ struct EffectProcessContext<P> {
 impl<P: BufferStates + Clone> conformal_component::effect::ProcessContext
     for EffectProcessContext<P>
 {
-    fn parameters(&self) -> impl BufferStates {
-        self.parameters.clone()
+    fn parameters(&self) -> &impl BufferStates {
+        &self.parameters
     }
 }
 
@@ -625,8 +625,8 @@ struct EffectHandleParametersContext<P> {
 impl<P: conformal_component::parameters::States + Clone>
     conformal_component::effect::HandleParametersContext for EffectHandleParametersContext<P>
 {
-    fn parameters(&self) -> impl conformal_component::parameters::States {
-        self.parameters.clone()
+    fn parameters(&self) -> &impl conformal_component::parameters::States {
+        &self.parameters
     }
 }
 
@@ -1218,8 +1218,8 @@ impl<E: Iterator<Item = Event> + Clone, P: SynthParamBufferStates + Clone>
     fn events(&self) -> Events<impl Iterator<Item = Event> + Clone> {
         self.events.clone()
     }
-    fn parameters(&self) -> impl SynthParamBufferStates {
-        self.parameters.clone()
+    fn parameters(&self) -> &impl SynthParamBufferStates {
+        &self.parameters
     }
 }
 
@@ -1234,8 +1234,8 @@ impl<E: Iterator<Item = conformal_component::events::Data> + Clone, P: SynthPara
     fn events(&self) -> impl Iterator<Item = conformal_component::events::Data> + Clone {
         self.events.clone()
     }
-    fn parameters(&self) -> impl SynthParamStates {
-        self.parameters.clone()
+    fn parameters(&self) -> &impl SynthParamStates {
+        &self.parameters
     }
 }
 

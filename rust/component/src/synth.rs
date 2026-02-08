@@ -135,7 +135,7 @@ pub trait HandleEventsContext {
     fn events(&self) -> impl Iterator<Item = events::Data> + Clone;
 
     /// Parameter state
-    fn parameters(&self) -> impl SynthParamStates;
+    fn parameters(&self) -> &impl SynthParamStates;
 }
 
 /// Extension to the [`parameters::BufferStates`] trait for synths.
@@ -170,7 +170,7 @@ pub trait ProcessContext {
     /// In order to consume the parameters, you can use the [`crate::pzip`] macro
     /// to convert the parameters into an iterator of tuples that represent
     /// the state of the parameters at each sample.
-    fn parameters(&self) -> impl SynthParamBufferStates;
+    fn parameters(&self) -> &impl SynthParamBufferStates;
 }
 
 /// A trait for synthesizers

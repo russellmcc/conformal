@@ -7,7 +7,7 @@ use crate::parameters::{BufferStates, States};
 /// A trait for metadata during an audio processing call
 pub trait HandleParametersContext {
     /// The parameters to handle
-    fn parameters(&self) -> impl States;
+    fn parameters(&self) -> &impl States;
 }
 
 /// A trait for metadata during an audio processing call
@@ -17,7 +17,7 @@ pub trait ProcessContext {
     /// In order to consume the parameters, you can use the [`crate::pzip`] macro
     /// to convert the parameters into an iterator of tuples that represent
     /// the state of the parameters at each sample.
-    fn parameters(&self) -> impl BufferStates;
+    fn parameters(&self) -> &impl BufferStates;
 }
 
 /// A trait for audio effects

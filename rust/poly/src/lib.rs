@@ -375,7 +375,7 @@ impl<V: Voice> Poly<V> {
             .events()
             .into_iter()
             .filter_map(|e| Event::try_from(e).ok());
-        self.process_inner(poly_events, &params, shared_data, output);
+        self.process_inner(poly_events, params, shared_data, output);
     }
 
     fn process_inner(
