@@ -3,9 +3,44 @@ description: "Get ready to run ci or release"
 runs:
   using: "composite"
   steps:
-    - run: brew install oven-sh/bun/bun
-      shell: bash
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+
+    - name: Cache bun dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.bun/install/cache
+        key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+        restore-keys: bun-${{ runner.os }}-
+
     - run: bun install --frozen-lockfile
       shell: bash
+
+    - name: Cache VST3 SDK
+      id: vst3-cache
+      uses: actions/cache@v4
+      with:
+        path: /tmp/vst3sdk
+        key: vst3-${{ runner.os }}-v3.8.0_build_66
+
+    - name: Set VST3_SDK_DIR from cache
+      if: steps.vst3-cache.outputs.cache-hit == 'true'
+      run: |
+        echo "VST3_SDK_DIR=/tmp/vst3sdk" >> "$GITHUB_ENV"
+        echo "VST3_SDK_DIR=/tmp/vst3sdk" >> .env
+      shell: bash
+
     - run: bun run bootstrap
       shell: bash
+
+    - name: Persist VST3 SDK for caching
+      if: steps.vst3-cache.outputs.cache-hit != 'true'
+      run: |
+        VST3_DIR=$(grep "^VST3_SDK_DIR=" .env 2>/dev/null | tail -1 | cut -d= -f2-)
+        if [ -n "$VST3_DIR" ] && [ -d "$VST3_DIR" ] && [ "$VST3_DIR" != "/tmp/vst3sdk" ]; then
+          cp -r "$VST3_DIR" /tmp/vst3sdk
+        fi
+      shell: bash
+
+    - name: Rust cache
+      uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
