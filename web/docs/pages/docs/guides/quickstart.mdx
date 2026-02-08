@@ -15,9 +15,9 @@ This guide is a concise list of steps to get started building with Conformal. Fo
 brew install oven-sh/bun/bun
 ```
 
-### Install the VST SDK
+### Install the VST SDK (Recommended)
 
-We require the VST SDK to build plug-ins.
+While the VST SDK is not required to build plug-ins, we use it for validating plug-in correctness.
 
 ```sh copy
 mkdir -p ~/SDKs && git clone https://github.com/steinbergmedia/vst3sdk.git ~/SDKs/vst3sdk --branch v3.8.0_build_66 --recurse-submodules
