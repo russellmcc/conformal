@@ -607,9 +607,6 @@ enum QueueResult {
         last_value: cp::InternalValue,
     },
 
-    /// A queue that violates some pre-condition
-    Invalid,
-
     /// A valid queue that didn't change anything
     Unchanged { value: cp::InternalValue },
 
@@ -630,14 +627,8 @@ unsafe fn check_queue(
         sample_offset,
     } in raw_iterator_from_queue(value_queue)
     {
-        // If we're negative or outside of the buffer, we're invalid!
-        if sample_offset < 0 {
-            return QueueResult::Invalid;
-        }
-
-        if !(0.0..=1.0).contains(&raw_value) {
-            return QueueResult::Invalid;
-        }
+        debug_assert!(sample_offset >= 0);
+        debug_assert!((0.0..=1.0).contains(&raw_value));
         let value = convert_value(raw_value, metadatum);
         if value == last_value {
             continue;
@@ -1069,9 +1060,7 @@ unsafe fn check_changes_and_update_scratch_and_store<'a>(
     unsafe {
         let param_count = changes.getParameterCount();
         let mut change_status = ChangesStatus::NoChanges;
-        if param_count < 0 {
-            return None;
-        }
+        debug_assert!(param_count >= 0);
         // Clear all the checker flags
         for v in scratch.data.values_mut() {
             *v = None;
@@ -1080,40 +1069,28 @@ unsafe fn check_changes_and_update_scratch_and_store<'a>(
             let param_queue = changes.getParameterData(idx);
             ComRef::from_raw(param_queue).is_some_and(|q| {
                 let parameter_id = cp::id_hash_from_internal_hash(q.getParameterId());
-                let point_count = q.getPointCount();
-                if point_count < 0 {
-                    return false;
-                }
+                debug_assert!(q.getPointCount() >= 0);
                 match (
                     scratch.data.get_mut(&parameter_id),
                     store.metadata.data.get(&parameter_id),
                     store.get_by_hash(parameter_id),
                 ) {
                     (Some(scratch_v), Some(metadatum), Some(old_value)) => {
-                        if scratch_v.is_some() {
-                            return false;
-                        }
+                        debug_assert!(scratch_v.is_none());
                         match check_queue(q, metadatum, old_value) {
-                            QueueResult::Invalid => {
-                                return false;
-                            }
                             QueueResult::Ok {
                                 initial_value,
                                 last_value,
                             } => {
-                                // Check downstream invariants for this queue.
-                                if !check_downstream_invariants(
+                                debug_assert!(check_downstream_invariants(
                                     initial_value,
                                     metadatum,
                                     q,
                                     buffer_size,
-                                ) {
-                                    return false;
-                                }
+                                ));
 
-                                if !store.set(parameter_id, last_value) {
-                                    return false;
-                                }
+                                let set_ok = store.set(parameter_id, last_value);
+                                debug_assert!(set_ok);
 
                                 *scratch_v = Some(ValueOrQueue::Queue(QueueImpl {
                                     initial_value,
@@ -1125,9 +1102,8 @@ unsafe fn check_changes_and_update_scratch_and_store<'a>(
                                 *scratch_v = Some(ValueOrQueue::Value(value));
                             }
                             QueueResult::Constant { value } => {
-                                if !store.set(parameter_id, value) {
-                                    return false;
-                                }
+                                let set_ok = store.set(parameter_id, value);
+                                debug_assert!(set_ok);
 
                                 *scratch_v = Some(ValueOrQueue::Value(value));
                                 change_status = ChangesStatus::Changes;
