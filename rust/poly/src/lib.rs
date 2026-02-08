@@ -187,7 +187,7 @@ fn note_changes_iter(
                 })
             }
         }
-        _ => None,
+        EventData::NoteOff { .. } => None,
     })
 }
 

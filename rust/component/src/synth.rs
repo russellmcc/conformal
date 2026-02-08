@@ -94,6 +94,7 @@ pub enum NumericPerNoteExpression {
 }
 
 /// Get the valid range for a numeric per-note expression.
+#[must_use]
 pub fn valid_range_for_per_note_expression(
     expression: NumericPerNoteExpression,
 ) -> RangeInclusive<f32> {
