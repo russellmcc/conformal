@@ -22,3 +22,6 @@ type_complexity = "allow"
 cast_sign_loss = "allow"
 cast_possible_wrap = "allow"
 default_trait_access = "allow"
+
+[profile.release]
+lto = "thin"
