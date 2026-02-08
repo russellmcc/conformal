@@ -314,7 +314,7 @@ fn from_utf16_buffer(buffer: &[u16]) -> Option<String> {
 /// }
 ///
 /// impl EffectTrait for Effect {
-///     fn handle_parameters(&mut self, _context: impl conformal_component::effect::HandleParametersContext) {}
+///     fn handle_parameters(&mut self, _context: &impl conformal_component::effect::HandleParametersContext) {}
 ///     fn process(
 ///         &mut self,
 ///         context: &impl conformal_component::effect::ProcessContext,

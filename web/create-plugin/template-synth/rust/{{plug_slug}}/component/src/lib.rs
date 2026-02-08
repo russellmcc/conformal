@@ -53,8 +53,8 @@ impl Processor for Synth {
 }
 
 impl SynthTrait for Synth {
-    fn handle_events(&mut self, context: impl HandleEventsContext) {
-        self.poly.handle_events(&context);
+    fn handle_events(&mut self, context: &impl HandleEventsContext) {
+        self.poly.handle_events(context);
     }
 
     fn process(&mut self, context: &impl ProcessContext, output: &mut impl BufferMut) {

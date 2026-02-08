@@ -1403,7 +1403,7 @@ mod tests {
     }
 
     impl Synth for DummySynth {
-        fn handle_events(&mut self, _context: impl HandleEventsContext) {}
+        fn handle_events(&mut self, _context: &impl HandleEventsContext) {}
 
         fn process(&mut self, _context: &impl ProcessContext, _output: &mut impl BufferMut) {}
     }

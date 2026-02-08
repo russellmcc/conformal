@@ -36,7 +36,7 @@ impl Processor for Effect {
 }
 
 impl EffectTrait for Effect {
-    fn handle_parameters(&mut self, _context: impl HandleParametersContext) {}
+    fn handle_parameters(&mut self, _context: &impl HandleParametersContext) {}
     fn process(
         &mut self,
         context: &impl ProcessContext,

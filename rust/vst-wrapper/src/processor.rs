@@ -695,10 +695,9 @@ impl<P: Effect> ActiveProcessor<P> for ActiveEffectProcessor {
                 unsafe { parameters::no_audio_param_changes_from_vst3(vst_parameters, params) }
             {
                 if change_status == parameters::ChangesStatus::Changes {
-                    let context = EffectHandleParametersContext {
+                    processor.handle_parameters(&EffectHandleParametersContext {
                         parameters: param_states,
-                    };
-                    processor.handle_parameters(context);
+                    });
                 }
             } else {
                 return vst3::Steinberg::kInvalidArgument;
@@ -1379,19 +1378,17 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
                 if change_status == parameters::ChangesStatus::Changes || e.is_some() {
                     if let Some(e) = e {
                         {
-                            let context = SynthHandleEventsContext {
+                            processor.handle_events(&SynthHandleEventsContext {
                                 events: e,
                                 parameters: param_states,
-                            };
-                            processor.handle_events(context);
+                            });
                         }
                     } else {
                         {
-                            let context = SynthHandleEventsContext {
+                            processor.handle_events(&SynthHandleEventsContext {
                                 events: std::iter::empty(),
                                 parameters: param_states,
-                            };
-                            processor.handle_events(context);
+                            });
                         }
                     }
                 }
@@ -1400,11 +1397,10 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
             }
         } else if let Some(e) = e {
             let param_states = unsafe { parameters::existing_synth_params(params, &self.mpe) };
-            let context = SynthHandleEventsContext {
+            processor.handle_events(&SynthHandleEventsContext {
                 events: e.clone(),
                 parameters: param_states.clone(),
-            };
-            processor.handle_events(context);
+            });
         }
         vst3::Steinberg::kResultOk
     }
@@ -1708,7 +1704,10 @@ mod tests {
     }
 
     impl<'a> Synth for FakeSynth<'a> {
-        fn handle_events(&mut self, context: impl conformal_component::synth::HandleEventsContext) {
+        fn handle_events(
+            &mut self,
+            context: &impl conformal_component::synth::HandleEventsContext,
+        ) {
             for event in context.events() {
                 match event {
                     Data::NoteOn { data } => {
@@ -1909,7 +1908,7 @@ mod tests {
     impl Effect for FakeEffect {
         fn handle_parameters(
             &mut self,
-            _context: impl conformal_component::effect::HandleParametersContext,
+            _context: &impl conformal_component::effect::HandleParametersContext,
         ) {
         }
 
@@ -4359,7 +4358,7 @@ mod tests {
     impl Synth for IncompatibleSynth {
         fn handle_events(
             &mut self,
-            _context: impl conformal_component::synth::HandleEventsContext,
+            _context: &impl conformal_component::synth::HandleEventsContext,
         ) {
         }
 
@@ -4438,7 +4437,7 @@ mod tests {
     impl Synth for NewerSynth {
         fn handle_events(
             &mut self,
-            _context: impl conformal_component::synth::HandleEventsContext,
+            _context: &impl conformal_component::synth::HandleEventsContext,
         ) {
         }
 

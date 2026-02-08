@@ -29,7 +29,7 @@ pub trait Effect: Processor {
     /// Handle parameter changes without processing any audio data.
     ///
     /// Must not allocate or block.
-    fn handle_parameters(&mut self, context: impl HandleParametersContext);
+    fn handle_parameters(&mut self, context: &impl HandleParametersContext);
 
     /// Actually process audio data.
     ///

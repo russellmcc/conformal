@@ -180,7 +180,7 @@ pub trait ProcessContext {
 pub trait Synth: Processor {
     /// Handle parameter changes and events without processing any data.
     /// Must not allocate or block.
-    fn handle_events(&mut self, context: impl HandleEventsContext);
+    fn handle_events(&mut self, context: &impl HandleEventsContext);
 
     /// Process a buffer of events into a buffer of audio. Must not allocate or block.
     ///
