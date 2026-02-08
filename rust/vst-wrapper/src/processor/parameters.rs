@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     ops::RangeInclusive,
     sync::{
         Arc,
@@ -71,9 +70,9 @@ pub struct MainStore {
     /// Note that this only includes parameters exposed by the component,
     /// that is, controller parameters or parameters added to work around host quirks
     /// are not included.
-    unhash_for_snapshot: HashMap<cp::IdHash, String>,
+    unhash_for_snapshot: cp::IdHashMap<String>,
 
-    data: Arc<HashMap<cp::IdHash, AtomicValue>>,
+    data: Arc<cp::IdHashMap<AtomicValue>>,
     cached_write_snapshot: Option<Arc<cc::Snapshot>>,
     write_generation: u64,
 
@@ -89,7 +88,7 @@ pub struct MainStore {
 /// This represents the "core" of the processing side of the store.
 /// This is separated from the `scratch` for convenience.
 struct ProcessingStoreCore {
-    data: Arc<HashMap<cp::IdHash, AtomicValue>>,
+    data: Arc<cp::IdHashMap<AtomicValue>>,
 
     /// This is written here.
     read_generation: Arc<AtomicU64>,
@@ -184,8 +183,8 @@ static CHANNEL_BOUNDS: usize = 50;
 
 fn make_unhash<'a, S: AsRef<str> + 'a, Iter: IntoIterator<Item = cp::InfoRef<'a, S>>>(
     iter: Iter,
-) -> HashMap<cp::IdHash, String> {
-    let mut unhash = HashMap::new();
+) -> cp::IdHashMap<String> {
+    let mut unhash = cp::IdHashMap::default();
     for info in iter {
         match unhash.entry(cp::hash_id(info.unique_id)) {
             std::collections::hash_map::Entry::Occupied(_) => {
@@ -219,7 +218,7 @@ pub fn create_stores<
 >(
     iter: Iter,
 ) -> (MainStore, ProcessingStore) {
-    let data = Arc::<HashMap<cp::IdHash, AtomicValue>>::new(
+    let data = Arc::<cp::IdHashMap<AtomicValue>>::new(
         iter.clone()
             .into_iter()
             .map(|info| {
@@ -534,7 +533,7 @@ enum ValueOrQueue {
 }
 
 struct Scratch {
-    data: HashMap<cp::IdHash, Option<ValueOrQueue>>,
+    data: cp::IdHashMap<Option<ValueOrQueue>>,
 }
 
 impl Scratch {
@@ -546,7 +545,7 @@ impl Scratch {
 }
 
 struct Metadata {
-    data: HashMap<cp::IdHash, Metadatum>,
+    data: cp::IdHashMap<Metadatum>,
 }
 
 impl Metadata {
@@ -672,7 +671,7 @@ pub enum ChangesStatus {
 #[derive(Clone)]
 struct InitializedScratch<'a> {
     metadata: &'a Metadata,
-    data: &'a HashMap<cp::IdHash, Option<ValueOrQueue>>,
+    data: &'a cp::IdHashMap<Option<ValueOrQueue>>,
     buffer_size: usize,
 }
 

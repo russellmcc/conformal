@@ -465,9 +465,42 @@ pub struct IdHash {
     internal_hash: u32,
 }
 
+const FXHASH_SEED32: u32 = 0x2722_0a95;
+
+const fn fxhash_word(hash: u32, word: u32) -> u32 {
+    (hash.rotate_left(5) ^ word).wrapping_mul(FXHASH_SEED32)
+}
+
+/// Const reimplementation of `fxhash::hash32::<str>` for little-endian targets.
+///
+/// Replicates the exact sequence of operations that `fxhash::hash32` performs
+/// when hashing a `&str` via the `Hash` trait: `write(bytes)` then `write_u8(0xff)`,
+/// where `write` processes 4-byte little-endian chunks via `hash_word`, then
+/// remaining bytes individually.
+#[cfg(target_endian = "little")]
+const fn fxhash32_str(s: &str) -> u32 {
+    let bytes = s.as_bytes();
+    let len = bytes.len();
+    let mut hash: u32 = 0;
+    let mut i = 0;
+    while i + 4 <= len {
+        let n = (bytes[i] as u32)
+            | ((bytes[i + 1] as u32) << 8)
+            | ((bytes[i + 2] as u32) << 16)
+            | ((bytes[i + 3] as u32) << 24);
+        hash = fxhash_word(hash, n);
+        i += 4;
+    }
+    while i < len {
+        hash = fxhash_word(hash, bytes[i] as u32);
+        i += 1;
+    }
+    fxhash_word(hash, 0xff)
+}
+
 #[doc(hidden)]
 #[must_use]
-pub fn id_hash_from_internal_hash(internal_hash: u32) -> IdHash {
+pub const fn id_hash_from_internal_hash(internal_hash: u32) -> IdHash {
     IdHash {
         internal_hash: internal_hash & 0x7fff_ffff,
     }
@@ -492,9 +525,36 @@ impl IdHash {
 /// let hash = hash_id("my_parameter");
 /// ```
 #[must_use]
-pub fn hash_id(unique_id: &str) -> IdHash {
-    id_hash_from_internal_hash(fxhash::hash32(unique_id) & 0x7fff_ffff)
+pub const fn hash_id(unique_id: &str) -> IdHash {
+    id_hash_from_internal_hash(fxhash32_str(unique_id) & 0x7fff_ffff)
 }
+
+/// Identity hasher for [`IdHash`] keys.
+///
+/// Since [`IdHash`] already contains a well-distributed hash value
+/// (from `FxHash`), re-hashing it through the default `SipHash` is
+/// redundant. This hasher passes the value through directly.
+#[derive(Default)]
+pub struct IdHashHasher(u64);
+
+impl core::hash::Hasher for IdHashHasher {
+    fn write(&mut self, _bytes: &[u8]) {
+        unreachable!()
+    }
+    fn write_u32(&mut self, i: u32) {
+        self.0 = u64::from(i);
+    }
+    fn finish(&self) -> u64 {
+        self.0
+    }
+}
+
+/// A [`HashMap`](std::collections::HashMap) using [`IdHash`] keys with an identity hasher.
+///
+/// This avoids redundant re-hashing since `IdHash` already contains a
+/// well-distributed hash value.
+pub type IdHashMap<V> =
+    std::collections::HashMap<IdHash, V, core::hash::BuildHasherDefault<IdHashHasher>>;
 
 /// A value of a parameter used in performance-critical ocntexts.
 ///
@@ -1422,4 +1482,28 @@ mod tests {
             .is_none()
         )
     }
+
+    #[test]
+    fn const_hash_matches_fxhash() {
+        use super::fxhash32_str;
+        for s in [
+            "",
+            "a",
+            "ab",
+            "abc",
+            "gain",
+            "abcde",
+            "bypass",
+            "abcdefgh",
+            "my special switch",
+        ] {
+            assert_eq!(
+                fxhash32_str(s),
+                fxhash::hash32(s),
+                "const hash mismatch for '{s}'"
+            );
+        }
+    }
+
+    const _: () = assert!(hash_id("gain").internal_hash != 0);
 }

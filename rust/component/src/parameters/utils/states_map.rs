@@ -7,7 +7,9 @@ use crate::{
     },
 };
 
-use super::super::{IdHash, InfoRef, InternalValue, States, TypeSpecificInfoRef, hash_id};
+use super::super::{
+    IdHash, IdHashMap, InfoRef, InternalValue, States, TypeSpecificInfoRef, hash_id,
+};
 
 /// Helper function to get a map of param values based on the default values from a list of `Info`s.
 ///
@@ -76,7 +78,7 @@ pub fn override_defaults<'a, S: AsRef<str> + 'a, H: BuildHasher>(
 /// to a component outside of a Conformal wrapper.
 #[derive(Clone, Debug, Default)]
 pub struct StatesMap {
-    map: HashMap<IdHash, InternalValue>,
+    map: IdHashMap<InternalValue>,
 }
 
 impl<S: AsRef<str>> From<HashMap<S, InternalValue>> for StatesMap {
