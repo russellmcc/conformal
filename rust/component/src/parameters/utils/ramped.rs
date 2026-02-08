@@ -557,8 +557,8 @@ impl SynthRampedStatesMap {
     ///
     /// Panics if `start_overrides` or `end_overrides` do not match the type of the parameter
     /// specified in `infos`.
-    pub fn new<'a, 'b: 'a>(
-        infos: impl IntoIterator<Item = InfoRef<'a, &'b str>> + 'a,
+    pub fn new<'a, S: AsRef<str> + 'a>(
+        infos: impl IntoIterator<Item = InfoRef<'a, S>> + 'a,
         SynthRampedOverrides {
             start_params,
             end_params,
@@ -636,8 +636,8 @@ impl SynthRampedStatesMap {
     ///   _ => panic!("Expected a ramped value"),
     /// };
     /// ```
-    pub fn new_with_per_note<'a, 'b: 'a>(
-        infos: impl IntoIterator<Item = InfoRef<'a, &'b str>> + 'a,
+    pub fn new_with_per_note<'a, S: AsRef<str> + 'a>(
+        infos: impl IntoIterator<Item = InfoRef<'a, S>> + 'a,
         SynthRampedOverrides {
             start_params,
             end_params,
@@ -710,8 +710,8 @@ impl SynthRampedStatesMap {
     ///   _ => panic!("Expected constant value of 0.0"),
     /// };
     /// ```
-    pub fn new_const<'a, 'b: 'a>(
-        infos: impl IntoIterator<Item = InfoRef<'a, &'b str>> + 'a,
+    pub fn new_const<'a, S: AsRef<str> + 'a>(
+        infos: impl IntoIterator<Item = InfoRef<'a, S>> + 'a,
         overrides: &HashMap<&'_ str, InternalValue>,
         numeric_expression_overrides: &HashMap<NumericGlobalExpression, f32>,
         switch_expression_overrides: &HashMap<SwitchGlobalExpression, bool>,
@@ -777,8 +777,8 @@ impl SynthRampedStatesMap {
     ///   _ => panic!("Expected constant value of 1.5"),
     /// };
     /// ```
-    pub fn new_const_with_per_note<'a, 'b: 'a>(
-        infos: impl IntoIterator<Item = InfoRef<'a, &'b str>> + 'a,
+    pub fn new_const_with_per_note<'a, S: AsRef<str> + 'a>(
+        infos: impl IntoIterator<Item = InfoRef<'a, S>> + 'a,
         overrides: &HashMap<&'_ str, InternalValue>,
         numeric_expression_overrides: &HashMap<NumericGlobalExpression, f32>,
         switch_expression_overrides: &HashMap<SwitchGlobalExpression, bool>,

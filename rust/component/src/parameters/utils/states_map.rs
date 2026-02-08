@@ -230,8 +230,8 @@ impl SynthStatesMap {
     /// // Other parameters get their default values
     /// assert_eq!(states.get_numeric_global_expression(NumericGlobalExpression::PitchBend), 0.0);
     /// ```
-    pub fn new_override_defaults<'a, 'b: 'a>(
-        infos: impl IntoIterator<Item = InfoRef<'a, &'b str>> + 'a,
+    pub fn new_override_defaults<'a, S: AsRef<str> + 'a>(
+        infos: impl IntoIterator<Item = InfoRef<'a, S>> + 'a,
         overrides: &HashMap<&'_ str, InternalValue>,
         numeric_expression_overrides: &HashMap<NumericGlobalExpression, f32>,
         switch_expression_overrides: &HashMap<SwitchGlobalExpression, bool>,
@@ -284,8 +284,8 @@ impl SynthStatesMap {
     ///
     /// assert_eq!(states.get_numeric_expression_for_note(NumericPerNoteExpression::PitchBend, note_id), 1.5);
     /// ```
-    pub fn new_with_per_note<'a, 'b: 'a>(
-        infos: impl IntoIterator<Item = InfoRef<'a, &'b str>> + 'a,
+    pub fn new_with_per_note<'a, S: AsRef<str> + 'a>(
+        infos: impl IntoIterator<Item = InfoRef<'a, S>> + 'a,
         overrides: &HashMap<&'_ str, InternalValue>,
         numeric_expression_overrides: &HashMap<NumericGlobalExpression, f32>,
         switch_expression_overrides: &HashMap<SwitchGlobalExpression, bool>,
@@ -330,8 +330,8 @@ impl SynthStatesMap {
     /// // Controller parameters will also be included
     /// assert_eq!(states.get_numeric_global_expression(NumericGlobalExpression::ModWheel), 0.0);
     /// ```
-    pub fn new_defaults<'a, 'b: 'a>(
-        infos: impl IntoIterator<Item = InfoRef<'a, &'b str>> + 'a,
+    pub fn new_defaults<'a, S: AsRef<str> + 'a>(
+        infos: impl IntoIterator<Item = InfoRef<'a, S>> + 'a,
     ) -> Self {
         Self::new_override_defaults(
             infos,
