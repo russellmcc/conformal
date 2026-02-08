@@ -60,7 +60,7 @@ jobs:
           DEVELOPER_ID_INSTALLER: $\{{ secrets.DEVELOPER_ID_INSTALLER }}
           NOTARYTOOL_CREDENTIALS_KEYCHAIN_ITEM: $\{{ secrets.NOTARYTOOL_CREDENTIALS_KEYCHAIN_ITEM }}
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
           prerelease: $\{{ contains(github.ref, '-') }}
           body: "Release $\{{ github.ref_name }}" # Prevent auto generation of release notes
