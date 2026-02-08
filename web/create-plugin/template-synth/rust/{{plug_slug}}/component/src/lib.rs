@@ -2,11 +2,10 @@ use conformal_component::audio::BufferMut;
 use conformal_component::events::NoteData;
 use conformal_component::parameters::{self, Flags, InfoRef, TypeSpecificInfoRef};
 use conformal_component::synth::{
-    HandleEventsContext, ProcessContext, Synth as SynthTrait, SynthParamBufferStates,
+    HandleEventsContext, NumericPerNoteExpression, ProcessContext, Synth as SynthTrait,
 };
 use conformal_component::{Component as ComponentTrait, ProcessingEnvironment, Processor, pzip};
-use conformal_poly::{self, EventData, Poly, Voice as VoiceTrait};
-use itertools::izip;
+use conformal_poly::{self, EventData, Poly, Voice as VoiceTrait, VoiceProcessContext};
 
 const PARAMETERS: [InfoRef<'static, &'static str>; 1] = [InfoRef {
     title: "Gain",
@@ -55,21 +54,18 @@ impl Processor for Synth {
 
 impl SynthTrait for Synth {
     fn handle_events(&mut self, context: impl HandleEventsContext) {
-        self.poly.handle_events(context.events());
+        self.poly.handle_events(&context);
     }
 
     fn process(&mut self, context: &impl ProcessContext, output: &mut impl BufferMut) {
-        let events = context.events();
-        let parameters = context.parameters();
-        self.poly
-            .process(events.into_iter(), &parameters, &Default::default(), output);
+        self.poly.process(context, &Default::default(), output);
     }
 }
 
 impl VoiceTrait for Voice {
     type SharedData<'a> = SharedData;
 
-    fn new(_max_samples_per_process_call: usize, sampling_rate: f32) -> Self {
+    fn new(_voice_index: usize, _max_samples_per_process_call: usize, sampling_rate: f32) -> Self {
         Self {
             pitch: None,
             phase: 0.,
@@ -91,22 +87,18 @@ impl VoiceTrait for Voice {
         }
     }
 
-    fn process(
+    fn process<'a>(
         &mut self,
-        events: impl IntoIterator<Item = conformal_poly::Event>,
-        params: &impl SynthParamBufferStates,
-        note_expressions: conformal_poly::NoteExpressionCurve<
-            impl Iterator<Item = conformal_poly::NoteExpressionPoint> + Clone,
-        >,
-        _data: Self::SharedData<'_>,
+        context: &impl VoiceProcessContext<SharedData = Self::SharedData<'a>>,
         output: &mut [f32],
     ) {
-        let mut events = events.into_iter().peekable();
-        for ((index, sample), (gain, global_pitch_bend), expression) in izip!(
-            output.iter_mut().enumerate(),
-            pzip!(params[numeric "gain", global_expression_numeric PitchBend]),
-            note_expressions.iter_by_sample(),
-        ) {
+        let mut events = context.events().peekable();
+        let params = context.parameters();
+        let per_note_pitch_bend = context.per_note_expression(NumericPerNoteExpression::PitchBend);
+        for ((index, sample), (gain, global_pitch_bend, note_pitch_bend)) in
+            output.iter_mut().enumerate().zip(
+            pzip!(params[numeric "gain", global_expression_numeric PitchBend, external_numeric (per_note_pitch_bend)]))
+        {
             while let Some(conformal_poly::Event {
                 sample_offset,
                 data,
@@ -119,7 +111,7 @@ impl VoiceTrait for Voice {
                 events.next();
             }
             if let Some(pitch) = self.pitch {
-                let total_pitch_bend = global_pitch_bend * PITCH_BEND_WIDTH + expression.pitch_bend;
+                let total_pitch_bend = global_pitch_bend * PITCH_BEND_WIDTH + note_pitch_bend;
                 let adjusted_pitch = pitch + total_pitch_bend;
                 let increment = increment(adjusted_pitch, self.sampling_rate);
                 *sample = (self.phase * std::f32::consts::TAU).sin() * gain / 100.;

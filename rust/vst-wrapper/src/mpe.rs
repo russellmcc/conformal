@@ -21,7 +21,6 @@
 
 use std::collections::{HashMap, VecDeque};
 use std::iter::once;
-use std::ops::RangeInclusive;
 
 use conformal_component::parameters::{
     self, NumericBufferState, PiecewiseLinearCurve, PiecewiseLinearCurvePoint, left_numeric_buffer,
@@ -32,7 +31,6 @@ use conformal_component::{
     events::{NoteID, NoteIDInternals},
     synth::{NumericGlobalExpression, NumericPerNoteExpression, SwitchGlobalExpression},
 };
-use itertools::Either;
 pub mod quirks;
 
 #[derive(Default, Debug, Clone)]

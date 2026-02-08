@@ -281,8 +281,6 @@ impl<E: Iterator<Item = Event> + Clone, P: synth::SynthParamBufferStates, SD: Cl
     }
 }
 
-// TODO - use new context API from conformal-component
-
 /// A helper struct for implementing polyphonic synths.
 ///
 /// This struct handles common tasks such as routing events to voices, updating note expression curves,
@@ -330,8 +328,8 @@ impl<V: Voice> Poly<V> {
     /// Handles a set of events without rendering audio.
     ///
     /// This can be used to implement [`conformal_component::synth::Synth::handle_events`].
-    pub fn handle_events(&mut self, events: impl Iterator<Item = component_events::Data> + Clone) {
-        let poly_events = events.filter_map(|data| {
+    pub fn handle_events(&mut self, context: &impl synth::HandleEventsContext) {
+        let poly_events = context.events().filter_map(|data| {
             EventData::try_from(data).ok().map(|data| Event {
                 sample_offset: 0,
                 data,
@@ -351,13 +349,16 @@ impl<V: Voice> Poly<V> {
     /// For any voices with active notes, [`Voice::process`] will be called.
     pub fn process(
         &mut self,
-        events: impl Iterator<Item = component_events::Event> + Clone,
-        params: &impl synth::SynthParamBufferStates,
+        context: &impl synth::ProcessContext,
         shared_data: &V::SharedData<'_>,
         output: &mut impl BufferMut,
     ) {
-        let poly_events = events.filter_map(|e| Event::try_from(e).ok());
-        self.process_inner(poly_events, params, shared_data, output);
+        let params = context.parameters();
+        let poly_events = context
+            .events()
+            .into_iter()
+            .filter_map(|e| Event::try_from(e).ok());
+        self.process_inner(poly_events, &params, shared_data, output);
     }
 
     fn process_inner(
@@ -376,7 +377,6 @@ impl<V: Voice> Poly<V> {
                 .state
                 .clone()
                 .dispatch_events(events.clone())
-                .into_iter()
                 .filter_map(|(i, event)| if i == index { Some(event) } else { None });
             if voice_events.clone().next().is_none() && voice.quiescent() {
                 voice.skip_samples(buffer_size);
