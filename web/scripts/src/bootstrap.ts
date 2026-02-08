@@ -57,9 +57,14 @@ const rust = (options: {
           expectedVersion: string,
           toolName = "cargo",
         ): Promise<boolean> => {
-          const installedVersion = (await $`${{ raw: command }}`.text())
-            .split(" ")[1]
-            ?.trim();
+          const result = await $`${{ raw: command }}`.nothrow().quiet();
+          if (result.exitCode !== 0) {
+            console.warn(
+              `\`${command}\` failed (exit code ${result.exitCode}): ${result.stderr.toString().trim() || result.stdout.toString().trim() || "(no output)"}`,
+            );
+            return false;
+          }
+          const installedVersion = result.text().split(" ")[1]?.trim();
           if (installedVersion !== expectedVersion) {
             console.warn(
               installedVersion
@@ -118,7 +123,11 @@ const rust = (options: {
       await $`rustup target add x86_64-apple-darwin`;
       await $`rustup component add rustfmt`;
       await $`rustup component add clippy`;
-      await $`cargo install --locked cargo-about --version ${cargoAboutVersion}`;
+      // --force is needed because Swatinem/rust-cache removes cached binaries
+      // before saving, so stale metadata in .crates2.json can trick binstall
+      // into thinking cargo-about is installed when the binary is actually gone.
+      // See: https://github.com/Swatinem/rust-cache/blob/779680da715d629ac1d338a641029a2f4372abb5/src/cleanup.ts#L99-L112
+      await $`cargo binstall --no-confirm --force cargo-about@${cargoAboutVersion}`;
     },
   };
 };
@@ -181,6 +190,15 @@ const vst3Validator = (): Tool => ({
   },
 });
 
+const cargoBinstall = (): Tool => ({
+  name: "cargo-binstall",
+  check: async () =>
+    (await $`command -v cargo-binstall`.nothrow().quiet()).exitCode == 0,
+  install: async () => {
+    await $`curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash`;
+  },
+});
+
 const cmake = () => brew("cmake");
 
 export type BootstrapOptions = {
@@ -198,6 +216,7 @@ export const bootstrap = async (
     cmake(),
     vst3Validator(),
     rustup(),
+    cargoBinstall(),
     rustNightly(),
     rust({
       rustVersion: options.rustVersion,
@@ -237,4 +256,28 @@ export const addBootstrapCommand = (command: Command) =>
     )
     .action(async (options) => {
       await bootstrap(options);
+    });
+
+/**
+ * Install only the Rust toolchain. this is helpful in CI, because we can't
+ * start the rust cache until we have selected our rust version.
+ */
+export const bootstrapRustToolchain = async (options: {
+  rustVersion?: string;
+}) => {
+  const version = options.rustVersion ?? RUST_VERSION;
+  await $`rustup toolchain install ${version}`;
+  await $`rustup default ${version}`;
+};
+
+export const addBootstrapRustToolchainCommand = (command: Command) =>
+  command
+    .command("bootstrap-rust-toolchain")
+    .description("Install only the Rust toolchain")
+    .option(
+      "--rust-version <version>",
+      `The version of Rust to use (default: ${RUST_VERSION})`,
+    )
+    .action(async (options) => {
+      await bootstrapRustToolchain(options);
     });

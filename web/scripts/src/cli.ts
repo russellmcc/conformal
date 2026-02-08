@@ -2,7 +2,10 @@ import { addCheckLfsCommand } from "./checkLfs";
 import { addCheckTodoCommand } from "./checkTodo";
 import { addCheckFormatCommand } from "./checkFormat";
 import { addFormatCommand } from "./format";
-import { addBootstrapCommand } from "./bootstrap";
+import {
+  addBootstrapCommand,
+  addBootstrapRustToolchainCommand,
+} from "./bootstrap";
 import { Command } from "@commander-js/extra-typings";
 import { addPackageCommand } from "./package";
 import { addValidateCommand } from "./validate";
@@ -18,6 +21,7 @@ export const command = () => {
   );
 
   addBootstrapCommand(command);
+  addBootstrapRustToolchainCommand(command);
   addCheckLfsCommand(command);
   addCheckTodoCommand(command);
   addCheckFormatCommand(command);
