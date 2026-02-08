@@ -87,9 +87,10 @@ impl VoiceTrait for Voice {
         }
     }
 
-    fn process<'a>(
+    fn process(
         &mut self,
-        context: &impl VoiceProcessContext<SharedData = Self::SharedData<'a>>,
+        context: &impl VoiceProcessContext,
+        _shared_data: &Self::SharedData<'_>,
         output: &mut [f32],
     ) {
         let mut events = context.events().peekable();

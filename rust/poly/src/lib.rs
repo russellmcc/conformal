@@ -85,9 +85,6 @@ fn mul_constant_in_place(x: f32, y: &mut [f32]) {
 ///
 /// This includes events that occur during the buffer, as well as relevant parameter values.
 pub trait VoiceProcessContext {
-    /// The type of shared data shared between all voices.
-    type SharedData: Clone;
-
     /// Returns an iterator of events that occurred for this voice during the processing call.
     fn events(&self) -> impl Iterator<Item = Event> + Clone;
 
@@ -103,9 +100,6 @@ pub trait VoiceProcessContext {
         &self,
         expression: synth::NumericPerNoteExpression,
     ) -> NumericBufferState<impl Iterator<Item = PiecewiseLinearCurvePoint> + Clone>;
-
-    /// Returns the shared data for this processing call.
-    fn shared_data(&self) -> &Self::SharedData;
 }
 
 /// A single voice in a polyphonic synth.
@@ -126,9 +120,10 @@ pub trait Voice {
     ///
     /// Audio for the voice will be written into the `output` buffer, which will
     /// start out filled with silence.
-    fn process<'a>(
+    fn process(
         &mut self,
-        context: &impl VoiceProcessContext<SharedData = Self::SharedData<'a>>,
+        context: &impl VoiceProcessContext,
+        shared_data: &Self::SharedData<'_>,
         output: &mut [f32],
     );
 
@@ -151,11 +146,10 @@ pub trait Voice {
     fn reset(&mut self);
 }
 
-struct ProcessContextImpl<'a, E, P, SD> {
+struct ProcessContextImpl<'a, E, P> {
     initial_note_id: Option<NoteID>,
     events: E,
     parameters: &'a P,
-    shared_data: &'a SD,
     buffer_size: usize,
 }
 
@@ -209,21 +203,15 @@ fn keep_last_per_sample(
     })
 }
 
-impl<E: Iterator<Item = Event> + Clone, P: synth::SynthParamBufferStates, SD: Clone>
-    VoiceProcessContext for ProcessContextImpl<'_, E, P, SD>
+impl<E: Iterator<Item = Event> + Clone, P: synth::SynthParamBufferStates> VoiceProcessContext
+    for ProcessContextImpl<'_, E, P>
 {
-    type SharedData = SD;
-
     fn events(&self) -> impl Iterator<Item = Event> + Clone {
         self.events.clone()
     }
 
     fn parameters(&self) -> &impl synth::SynthParamBufferStates {
         self.parameters
-    }
-
-    fn shared_data(&self) -> &Self::SharedData {
-        self.shared_data
     }
 
     fn per_note_expression(
@@ -418,9 +406,9 @@ impl<V: Voice> Poly<V> {
                     initial_note_id: self.state.note_id_for_voice(index),
                     events: voice_events,
                     parameters: params,
-                    shared_data,
                     buffer_size: output.num_frames(),
                 },
+                shared_data,
                 &mut self.voice_scratch_buffer[0..output.num_frames()],
             );
             mul_constant_in_place(voice_scale, &mut self.voice_scratch_buffer);
