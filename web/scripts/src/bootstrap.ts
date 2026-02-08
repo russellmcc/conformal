@@ -118,7 +118,7 @@ const rust = (options: {
       await $`rustup target add x86_64-apple-darwin`;
       await $`rustup component add rustfmt`;
       await $`rustup component add clippy`;
-      await $`cargo install --locked cargo-about --version ${cargoAboutVersion}`;
+      await $`cargo binstall --no-confirm --locked cargo-about@${cargoAboutVersion}`;
     },
   };
 };
@@ -181,6 +181,15 @@ const vst3Validator = (): Tool => ({
   },
 });
 
+const cargoBinstall = (): Tool => ({
+  name: "cargo-binstall",
+  check: async () =>
+    (await $`command -v cargo-binstall`.nothrow().quiet()).exitCode == 0,
+  install: async () => {
+    await $`curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash`;
+  },
+});
+
 const cmake = () => brew("cmake");
 
 export type BootstrapOptions = {
@@ -198,6 +207,7 @@ export const bootstrap = async (
     cmake(),
     vst3Validator(),
     rustup(),
+    cargoBinstall(),
     rustNightly(),
     rust({
       rustVersion: options.rustVersion,
