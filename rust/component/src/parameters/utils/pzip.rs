@@ -291,4 +291,10 @@ macro_rules! pzip {
             []
         )
     };
+    ($expr_head:ident $(. $expr_part:ident $( ( $($args:tt)* ) )? )+ [$($kind:ident $path:tt),+]) => {
+        {
+            let __pzip_params = $expr_head $(. $expr_part $( ( $($args)* ) )? )+;
+            $crate::pzip!(__pzip_params[$($kind $path),+])
+        }
+    };
 }

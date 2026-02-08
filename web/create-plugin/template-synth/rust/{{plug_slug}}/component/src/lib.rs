@@ -94,11 +94,10 @@ impl VoiceTrait for Voice {
         output: &mut [f32],
     ) {
         let mut events = context.events().peekable();
-        let params = context.parameters();
         let per_note_pitch_bend = context.per_note_expression(NumericPerNoteExpression::PitchBend);
         for ((index, sample), (gain, global_pitch_bend, note_pitch_bend)) in
             output.iter_mut().enumerate().zip(
-            pzip!(params[numeric "gain", global_expression_numeric PitchBend, external_numeric (per_note_pitch_bend)]))
+            pzip!(context.parameters()[numeric "gain", global_expression_numeric PitchBend, external_numeric (per_note_pitch_bend)]))
         {
             while let Some(conformal_poly::Event {
                 sample_offset,
