@@ -3,15 +3,27 @@
 macro_rules! pzip_part {
     (numeric $path:literal $params:ident) => {{
         use $crate::parameters::BufferStates;
-        $crate::parameters::decompose_numeric($params.get_numeric($path).unwrap())
+        $crate::parameters::decompose_numeric(
+            $params
+                .numeric_by_hash(const { $crate::parameters::hash_id($path) })
+                .unwrap(),
+        )
     }};
     (enum $path:literal $params:ident) => {{
         use $crate::parameters::BufferStates;
-        $crate::parameters::decompose_enum($params.get_enum($path).unwrap())
+        $crate::parameters::decompose_enum(
+            $params
+                .enum_by_hash(const { $crate::parameters::hash_id($path) })
+                .unwrap(),
+        )
     }};
     (switch $path:literal $params:ident) => {{
         use $crate::parameters::BufferStates;
-        $crate::parameters::decompose_switch($params.get_switch($path).unwrap())
+        $crate::parameters::decompose_switch(
+            $params
+                .switch_by_hash(const { $crate::parameters::hash_id($path) })
+                .unwrap(),
+        )
     }};
     (global_expression_numeric $variant:ident $params:ident) => {{
         use $crate::synth::{NumericGlobalExpression, SynthParamBufferStates};

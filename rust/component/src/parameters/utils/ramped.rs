@@ -14,9 +14,9 @@ use crate::{
 };
 
 use super::super::{
-    BufferState, BufferStates, EnumBufferState, IdHash, InfoRef, InternalValue, NumericBufferState,
-    PiecewiseLinearCurve, PiecewiseLinearCurvePoint, SwitchBufferState, TimedEnumValues,
-    TimedSwitchValues, TimedValue, TypeSpecificInfoRef, hash_id,
+    BufferState, BufferStates, EnumBufferState, IdHash, IdHashMap, InfoRef, InternalValue,
+    NumericBufferState, PiecewiseLinearCurve, PiecewiseLinearCurvePoint, SwitchBufferState,
+    TimedEnumValues, TimedSwitchValues, TimedValue, TypeSpecificInfoRef, hash_id,
 };
 
 #[derive(Clone, Debug)]
@@ -57,7 +57,7 @@ enum RampedState {
 #[derive(Clone, Debug, Default)]
 pub struct RampedStatesMap {
     buffer_size: usize,
-    map: HashMap<IdHash, RampedState>,
+    map: IdHashMap<RampedState>,
 }
 
 fn ramped_numeric(start: f32, end: f32, range: RangeInclusive<f32>) -> RampedState {

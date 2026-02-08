@@ -73,7 +73,7 @@ fn as_deserialization(info: &parameters::Info) -> ReadInfoRef<impl Iterator<Item
 }
 
 struct ParameterStore {
-    unhash: HashMap<parameters::IdHash, String>,
+    unhash: parameters::IdHashMap<String>,
 
     /// Parameters actually exposed by the component
     component_parameter_infos: HashMap<String, parameters::Info>,
@@ -109,7 +109,7 @@ struct Initialized {
 
 fn lookup_by_hash<'a, T>(
     hash: parameters::IdHash,
-    hash_to_id: &HashMap<parameters::IdHash, String>,
+    hash_to_id: &parameters::IdHashMap<String>,
     values: &'a HashMap<String, T>,
 ) -> Option<&'a T> {
     hash_to_id.get(&hash).and_then(|id| values.get(id))
@@ -533,8 +533,8 @@ impl IPluginBaseTrait for EditController {
 
 fn hash_parameter_ids<'a, S: AsRef<str> + 'a, I: IntoIterator<Item = InfoRef<'a, S>>>(
     parameter_info: I,
-) -> Option<HashMap<parameters::IdHash, String>> {
-    let mut hash_to_id = HashMap::new();
+) -> Option<parameters::IdHashMap<String>> {
+    let mut hash_to_id = parameters::IdHashMap::default();
     for info in parameter_info {
         let hash = parameters::hash_id(info.unique_id);
         match hash_to_id.entry(hash) {
