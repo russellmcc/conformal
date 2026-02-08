@@ -1,16 +1,23 @@
 #![doc = include_str!("../docs_boilerplate.md")]
 #![doc = include_str!("../README.md")]
 
+use crate::splice::{TimedStateChange, splice_numeric_buffer_states};
+
 use self::state::State;
 use conformal_component::{
     ProcessingEnvironment,
     audio::{BufferMut, channels_mut},
-    events as component_events,
-    parameters::{NumericBufferState, PiecewiseLinearCurvePoint},
-    synth,
+    events::{self as component_events, NoteID},
+    parameters::{
+        NumericBufferState, PiecewiseLinearCurvePoint, left_numeric_buffer, right_numeric_buffer,
+    },
+    synth::{self, valid_range_for_per_note_expression},
 };
 
 pub use conformal_component::events::NoteData;
+
+mod splice;
+mod state;
 
 /// The data associated with an event, independent of the time it occurred.
 #[derive(Clone, Debug, PartialEq)]
@@ -82,16 +89,20 @@ pub trait VoiceProcessContext {
     type SharedData: Clone;
 
     /// Returns an iterator of events that occurred for this voice during the processing call.
-    fn events(&self) -> impl Iterator<Item = Event>;
+    fn events(&self) -> impl Iterator<Item = Event> + Clone;
 
     /// Returns the parameter states for this processing call.
     fn parameters(&self) -> &impl synth::SynthParamBufferStates;
 
-    // TODO
-    // fn per_note_expression(
-    //     &self,
-    //     expression: synth::NumericPerNoteExpression,
-    // ) -> NumericBufferState<impl Iterator<Item = PiecewiseLinearCurvePoint> + Clone>;
+    /// Returns the state of per-note expression routed to this voice.
+    ///
+    /// Note that most of the time, this will include data for just one note.
+    /// However in some cases, a voice will have to play multiple notes within one buffer,
+    /// which is handled by this call.
+    fn per_note_expression(
+        &self,
+        expression: synth::NumericPerNoteExpression,
+    ) -> NumericBufferState<impl Iterator<Item = PiecewiseLinearCurvePoint> + Clone>;
 
     /// Returns the shared data for this processing call.
     fn shared_data(&self) -> &Self::SharedData;
@@ -104,7 +115,7 @@ pub trait Voice {
     type SharedData<'a>: Clone;
 
     /// Creates a new voice.
-    fn new(max_samples_per_process_call: usize, sampling_rate: f32) -> Self;
+    fn new(voice_index: usize, max_samples_per_process_call: usize, sampling_rate: f32) -> Self;
 
     /// Handles a single event outside of audio processing.
     ///
@@ -141,18 +152,52 @@ pub trait Voice {
 }
 
 struct ProcessContextImpl<'a, E, P, SD> {
-    events_fn: E,
+    initial_note_id: Option<NoteID>,
+    events: E,
     parameters: &'a P,
     shared_data: &'a SD,
+    buffer_size: usize,
 }
 
-impl<EI: Iterator<Item = Event>, E: Fn() -> EI, P: synth::SynthParamBufferStates, SD: Clone>
+#[derive(Clone, Debug, PartialEq)]
+struct TimedNoteChange {
+    note_id: NoteID,
+    sample_offset: usize,
+}
+
+// Returns an iterator of _changes_ in note id from the given initial note id in an event stream.
+//
+// Note offs do not change the effective note id, so they are ignored.
+//
+// Note ons only represent note _changes_ if they represent a change from the previous note id.
+fn note_changes(
+    initial_note_id: Option<NoteID>,
+    events: impl Iterator<Item = Event> + Clone,
+) -> impl Iterator<Item = TimedNoteChange> + Clone {
+    let mut last_note_id = initial_note_id;
+    events.filter_map(move |e| match e.data {
+        EventData::NoteOn { data } => {
+            if Some(data.id) == last_note_id {
+                None
+            } else {
+                last_note_id = Some(data.id);
+                Some(TimedNoteChange {
+                    note_id: data.id,
+                    sample_offset: e.sample_offset,
+                })
+            }
+        }
+        _ => None,
+    })
+}
+
+impl<E: Iterator<Item = Event> + Clone, P: synth::SynthParamBufferStates, SD: Clone>
     VoiceProcessContext for ProcessContextImpl<'_, E, P, SD>
 {
     type SharedData = SD;
 
-    fn events(&self) -> impl Iterator<Item = Event> {
-        (self.events_fn)()
+    fn events(&self) -> impl Iterator<Item = Event> + Clone {
+        self.events.clone()
     }
 
     fn parameters(&self) -> &impl synth::SynthParamBufferStates {
@@ -162,7 +207,81 @@ impl<EI: Iterator<Item = Event>, E: Fn() -> EI, P: synth::SynthParamBufferStates
     fn shared_data(&self) -> &Self::SharedData {
         self.shared_data
     }
+
+    fn per_note_expression(
+        &self,
+        expression: synth::NumericPerNoteExpression,
+    ) -> NumericBufferState<impl Iterator<Item = PiecewiseLinearCurvePoint> + Clone> {
+        // There are two cases to consider:
+        //  1) The note does not change during the buffer (common case). We can make one
+        //     query to the parameter state to get the buffer state for this expression.
+        //     in this case we use the "left" branch.
+        //  2) We have a note change during the buffer and we have to splice buffer states.
+        //     this is a much more awkward case, and we use the "splice" helper and the "right"
+        //     branch.
+
+        let mut note_changes = note_changes(self.initial_note_id, self.events());
+        let first_change = note_changes.next();
+
+        let note_change_to_state_change =
+            move |TimedNoteChange {
+                      note_id,
+                      sample_offset,
+                  }| TimedStateChange {
+                sample_offset,
+                state: self
+                    .parameters
+                    .get_numeric_expression_for_note(expression, note_id),
+            };
+        match (self.initial_note_id, first_change) {
+            // Easy case - we have a note playing, and we received no events. In this case,
+            // we just grab the state of the note we started with.
+            (Some(initial_note_id), None) => left_numeric_buffer(
+                self.parameters
+                    .get_numeric_expression_for_note(expression, initial_note_id),
+            ),
+            // Easy case - we have no note playing, and we received no events. In this case,
+            // we just return a constant zero. Note that this is in range for all expression types.
+            (None, None) => NumericBufferState::Constant(Default::default()),
+            // In this case, we definitely have to splice
+            (Some(initial_note_id), Some(first_change)) => {
+                right_numeric_buffer(splice_numeric_buffer_states(
+                    self.parameters
+                        .get_numeric_expression_for_note(expression, initial_note_id),
+                    std::iter::once(first_change)
+                        .chain(note_changes)
+                        .map(note_change_to_state_change),
+                    self.buffer_size,
+                    valid_range_for_per_note_expression(expression),
+                ))
+            }
+            // In this case, we started without a note but got at least one note change.
+            // In this case, we might be able to get away with a single lookup if there was
+            // only a single change!
+            (None, Some(first_change)) => {
+                let next_change = note_changes.next();
+                match next_change {
+                    // TODO - actually ensure preconditions of splice are met here.
+                    Some(next_change) => right_numeric_buffer(splice_numeric_buffer_states(
+                        self.parameters
+                            .get_numeric_expression_for_note(expression, first_change.note_id),
+                        std::iter::once(next_change)
+                            .chain(note_changes)
+                            .map(note_change_to_state_change),
+                        self.buffer_size,
+                        valid_range_for_per_note_expression(expression),
+                    )),
+                    None => left_numeric_buffer(
+                        self.parameters
+                            .get_numeric_expression_for_note(expression, first_change.note_id),
+                    ),
+                }
+            }
+        }
+    }
 }
+
+// TODO - use new context API from conformal-component
 
 /// A helper struct for implementing polyphonic synths.
 ///
@@ -186,20 +305,19 @@ impl<V: std::fmt::Debug> std::fmt::Debug for Poly<V> {
     }
 }
 
-mod state;
-
 impl<V: Voice> Poly<V> {
     /// Creates a new [`Poly`] struct.
     #[must_use]
     pub fn new(environment: &ProcessingEnvironment, max_voices: usize) -> Self {
-        let voices = std::iter::repeat_with(|| {
-            V::new(
-                environment.max_samples_per_process_call,
-                environment.sampling_rate,
-            )
-        })
-        .take(max_voices)
-        .collect();
+        let voices = (0..max_voices)
+            .map(|voice_index| {
+                V::new(
+                    voice_index,
+                    environment.max_samples_per_process_call,
+                    environment.sampling_rate,
+                )
+            })
+            .collect();
         let state = State::new(max_voices);
 
         Self {
@@ -254,22 +372,25 @@ impl<V: Voice> Poly<V> {
         let voice_scale = 1f32 / self.voices.len() as f32;
         let mut cleared = false;
         for (index, voice) in self.voices.iter_mut().enumerate() {
-            let voice_events = || {
-                self.state
-                    .clone()
-                    .dispatch_events(events.clone())
-                    .into_iter()
-                    .filter_map(|(i, event)| if i == index { Some(event) } else { None })
-            };
-            if voice_events().next().is_none() && voice.quiescent() {
+            let voice_events = self
+                .state
+                .clone()
+                .dispatch_events(events.clone())
+                .into_iter()
+                .filter_map(|(i, event)| if i == index { Some(event) } else { None });
+            if voice_events.clone().next().is_none() && voice.quiescent() {
                 voice.skip_samples(buffer_size);
+                // Clear the "prev note" id for this voice since it's no longer active.
+                self.state.clear_prev_note_id_for_voice(index);
                 continue;
             }
             voice.process(
                 &ProcessContextImpl {
-                    events_fn: voice_events,
+                    initial_note_id: self.state.note_id_for_voice(index),
+                    events: voice_events,
                     parameters: params,
                     shared_data,
+                    buffer_size: output.num_frames(),
                 },
                 &mut self.voice_scratch_buffer[0..output.num_frames()],
             );

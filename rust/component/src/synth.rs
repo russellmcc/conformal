@@ -1,5 +1,7 @@
 //! Abstractions for processors that generate audio.
 
+use std::ops::RangeInclusive;
+
 use crate::{
     Processor,
     audio::BufferMut,
@@ -89,6 +91,16 @@ pub enum NumericPerNoteExpression {
     /// affects all notes. The total effect must be a combination of this per-note note
     /// expression and the global controller.
     Aftertouch,
+}
+
+/// Get the valid range for a numeric per-note expression.
+pub fn valid_range_for_per_note_expression(
+    expression: NumericPerNoteExpression,
+) -> RangeInclusive<f32> {
+    match expression {
+        NumericPerNoteExpression::PitchBend => -128.0..=128.0,
+        NumericPerNoteExpression::Timbre | NumericPerNoteExpression::Aftertouch => 0.0..=1.0,
+    }
 }
 
 /// Switch expression controllers available on each synth.

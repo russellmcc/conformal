@@ -9,7 +9,7 @@ use crate::{
     events::NoteID,
     synth::{
         NumericGlobalExpression, NumericPerNoteExpression, SwitchGlobalExpression,
-        SynthParamBufferStates,
+        SynthParamBufferStates, valid_range_for_per_note_expression,
     },
 };
 
@@ -18,15 +18,6 @@ use super::super::{
     PiecewiseLinearCurve, PiecewiseLinearCurvePoint, SwitchBufferState, TimedEnumValues,
     TimedSwitchValues, TimedValue, TypeSpecificInfoRef, hash_id,
 };
-
-fn valid_range_for_per_note_expression(
-    expression: NumericPerNoteExpression,
-) -> RangeInclusive<f32> {
-    match expression {
-        NumericPerNoteExpression::PitchBend => -128.0..=128.0,
-        NumericPerNoteExpression::Timbre | NumericPerNoteExpression::Aftertouch => 0.0..=1.0,
-    }
-}
 
 #[derive(Clone, Debug)]
 struct RampedNumeric {

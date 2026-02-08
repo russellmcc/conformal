@@ -3,8 +3,15 @@ use conformal_component::events::{NoteData, NoteID};
 
 #[derive(Clone, Debug, PartialEq)]
 enum VoicePlayingState {
-    Idle { order: usize },
-    Note { order: usize, id: NoteID, pitch: u8 },
+    Idle {
+        order: usize,
+        prev_note_id: Option<NoteID>,
+    },
+    Note {
+        order: usize,
+        id: NoteID,
+        pitch: u8,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -21,6 +28,7 @@ pub struct State {
     voices_compress_order_scratch: arrayvec::ArrayVec<(usize, usize), MAX_VOICES>,
 }
 
+#[derive(Clone, Debug, PartialEq)]
 struct EventStreamStep {
     voice: usize,
     sample_offset: usize,
@@ -108,10 +116,32 @@ impl State {
         Self {
             voices: (0..max_voices)
                 .map(|i| Voice {
-                    playing: VoicePlayingState::Idle { order: i },
+                    playing: VoicePlayingState::Idle {
+                        order: i,
+                        prev_note_id: None,
+                    },
                 })
                 .collect(),
             voices_compress_order_scratch: Default::default(),
+        }
+    }
+
+    pub fn note_id_for_voice(&self, voice_index: usize) -> Option<NoteID> {
+        self.voices
+            .get(voice_index)
+            .and_then(|voice| match &voice.playing {
+                VoicePlayingState::Note { id, .. } => Some(*id),
+                VoicePlayingState::Idle { prev_note_id, .. } => *prev_note_id,
+            })
+    }
+
+    pub fn clear_prev_note_id_for_voice(&mut self, voice_index: usize) {
+        if let Some(VoicePlayingState::Idle { prev_note_id, .. }) = self
+            .voices
+            .get_mut(voice_index)
+            .map(|voice| &mut voice.playing)
+        {
+            *prev_note_id = None;
         }
     }
 
@@ -119,15 +149,18 @@ impl State {
         let num_voices = self.voices.len();
         self.voices.clear();
         self.voices.extend((0..num_voices).map(|i| Voice {
-            playing: VoicePlayingState::Idle { order: i },
+            playing: VoicePlayingState::Idle {
+                order: i,
+                prev_note_id: None,
+            },
         }));
     }
 
     /// Note that the events must be sorted by time!
     pub fn dispatch_events(
         mut self,
-        events: impl IntoIterator<Item = Event>,
-    ) -> impl IntoIterator<Item = (usize, Event)> {
+        events: impl Iterator<Item = Event> + Clone,
+    ) -> impl Iterator<Item = (usize, Event)> + Clone {
         events
             .into_iter()
             .flat_map(move |event| self.update_state_and_dispatch_for_event(&event))
@@ -156,11 +189,11 @@ impl State {
         let mut new_voice_order = None;
         for (index, Voice { playing }) in self.voices.iter_mut().enumerate() {
             match (playing, open_index_order) {
-                (VoicePlayingState::Idle { order }, None) => {
+                (VoicePlayingState::Idle { order, .. }, None) => {
                     open_index = Some(index);
                     open_index_order = Some(*order);
                 }
-                (VoicePlayingState::Idle { order }, Some(open_index_order_))
+                (VoicePlayingState::Idle { order, .. }, Some(open_index_order_))
                     if *order < open_index_order_ =>
                 {
                     open_index = Some(index);
@@ -248,7 +281,7 @@ impl State {
             .voices
             .iter()
             .filter_map(|x| {
-                if let VoicePlayingState::Idle { order } = x.playing {
+                if let VoicePlayingState::Idle { order, .. } = x.playing {
                     Some(order)
                 } else {
                     None
@@ -259,7 +292,10 @@ impl State {
         for (index, voice_state) in self.voices.iter_mut().enumerate() {
             match voice_state.playing {
                 VoicePlayingState::Note { id, .. } if data.id == id => {
-                    voice_state.playing = VoicePlayingState::Idle { order };
+                    voice_state.playing = VoicePlayingState::Idle {
+                        order,
+                        prev_note_id: Some(id),
+                    };
                     return EventStreamStep::new1(
                         index,
                         Event {
@@ -280,7 +316,7 @@ impl State {
             self.voices
                 .iter()
                 .filter_map(|voice_state| {
-                    if let VoicePlayingState::Idle { order } = voice_state.playing {
+                    if let VoicePlayingState::Idle { order, .. } = voice_state.playing {
                         Some(order)
                     } else {
                         None
@@ -296,7 +332,7 @@ impl State {
         self.voices
             .iter_mut()
             .filter_map(|voice_state| {
-                if let VoicePlayingState::Idle { ref mut order } = voice_state.playing {
+                if let VoicePlayingState::Idle { ref mut order, .. } = voice_state.playing {
                     Some(order)
                 } else {
                     None
@@ -414,11 +450,7 @@ mod tests {
         }
     }
 
-    fn gather_events(
-        state: &State,
-        num_voices: usize,
-        events: Vec<Event>,
-    ) -> Vec<Vec<Event>> {
+    fn gather_events(state: &State, num_voices: usize, events: Vec<Event>) -> Vec<Vec<Event>> {
         (0..num_voices)
             .into_iter()
             .map(|voice_index| {
@@ -458,10 +490,7 @@ mod tests {
         );
     }
 
-    fn cat_events(
-        a: Vec<Vec<Event>>,
-        b: Vec<Vec<Event>>,
-    ) -> Vec<Vec<Event>> {
+    fn cat_events(a: Vec<Vec<Event>>, b: Vec<Vec<Event>>) -> Vec<Vec<Event>> {
         a.into_iter()
             .zip(b)
             .map(|(mut a, b)| {

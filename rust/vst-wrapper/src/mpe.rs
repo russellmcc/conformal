@@ -27,6 +27,7 @@ use conformal_component::parameters::{
     self, NumericBufferState, PiecewiseLinearCurve, PiecewiseLinearCurvePoint, left_numeric_buffer,
     right_numeric_buffer,
 };
+use conformal_component::synth::valid_range_for_per_note_expression;
 use conformal_component::{
     events::{NoteID, NoteIDInternals},
     synth::{NumericGlobalExpression, NumericPerNoteExpression, SwitchGlobalExpression},
@@ -179,15 +180,6 @@ pub struct NoteEvent {
 pub struct NoteEvents<I> {
     events: I,
     buffer_size: usize,
-}
-
-fn valid_range_for_per_note_expression(
-    expression: NumericPerNoteExpression,
-) -> RangeInclusive<f32> {
-    match expression {
-        NumericPerNoteExpression::PitchBend => -120.0..=120.0,
-        NumericPerNoteExpression::Timbre | NumericPerNoteExpression::Aftertouch => 0.0..=1.0,
-    }
 }
 
 fn check_note_events_invariants<I: Iterator<Item = NoteEvent>>(

@@ -220,6 +220,7 @@ name = "conformal_poly"
 version = "0.3.7"
 dependencies = [
  "arrayvec",
+ "assert_approx_eq",
  "conformal_component",
 ]
 
