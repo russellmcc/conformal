@@ -170,7 +170,7 @@ struct TimedNoteChange {
 // Note offs do not change the effective note id, so they are ignored.
 //
 // Note ons only represent note _changes_ if they represent a change from the previous note id.
-fn note_changes(
+fn note_changes_iter(
     initial_note_id: Option<NoteID>,
     events: impl Iterator<Item = Event> + Clone,
 ) -> impl Iterator<Item = TimedNoteChange> + Clone {
@@ -188,6 +188,24 @@ fn note_changes(
             }
         }
         _ => None,
+    })
+}
+
+fn keep_last_per_sample(
+    iter: impl Iterator<Item = TimedNoteChange> + Clone,
+) -> impl Iterator<Item = TimedNoteChange> + Clone {
+    let mut iter = iter.peekable();
+    std::iter::from_fn(move || {
+        loop {
+            let current = iter.next()?;
+            if iter
+                .peek()
+                .is_some_and(|next| next.sample_offset == current.sample_offset)
+            {
+                continue;
+            }
+            return Some(current);
+        }
     })
 }
 
@@ -220,8 +238,20 @@ impl<E: Iterator<Item = Event> + Clone, P: synth::SynthParamBufferStates, SD: Cl
         //     this is a much more awkward case, and we use the "splice" helper and the "right"
         //     branch.
 
-        let mut note_changes = note_changes(self.initial_note_id, self.events());
+        // Note that we keep only the last note change per sample. This is because the splice
+        // implementation requires no more than one change per sample, and there's no such
+        // rule for our voice event stream - we could have multiple note ons per sample in
+        // extreme cases...
+        let mut note_changes =
+            keep_last_per_sample(note_changes_iter(self.initial_note_id, self.events()));
         let first_change = note_changes.next();
+
+        // We requires no "changes" at sample 0 — absorb any sample-0 change (which could happen
+        // if a note on happened at the start of the buffer)into the effective initial note.
+        let (effective_initial_note_id, first_change) = match first_change {
+            Some(c) if c.sample_offset == 0 => (Some(c.note_id), note_changes.next()),
+            other => (self.initial_note_id, other),
+        };
 
         let note_change_to_state_change =
             move |TimedNoteChange {
@@ -233,7 +263,7 @@ impl<E: Iterator<Item = Event> + Clone, P: synth::SynthParamBufferStates, SD: Cl
                     .parameters
                     .get_numeric_expression_for_note(expression, note_id),
             };
-        match (self.initial_note_id, first_change) {
+        match (effective_initial_note_id, first_change) {
             // Easy case - we have a note playing, and we received no events. In this case,
             // we just grab the state of the note we started with.
             (Some(initial_note_id), None) => left_numeric_buffer(
@@ -261,7 +291,6 @@ impl<E: Iterator<Item = Event> + Clone, P: synth::SynthParamBufferStates, SD: Cl
             (None, Some(first_change)) => {
                 let next_change = note_changes.next();
                 match next_change {
-                    // TODO - actually ensure preconditions of splice are met here.
                     Some(next_change) => right_numeric_buffer(splice_numeric_buffer_states(
                         self.parameters
                             .get_numeric_expression_for_note(expression, first_change.note_id),
