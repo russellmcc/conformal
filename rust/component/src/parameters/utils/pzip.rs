@@ -298,3 +298,83 @@ macro_rules! pzip {
         }
     };
 }
+
+/// Grab an instantaneous snapshot of parameter values at the start of the buffer.
+///
+/// This has the same syntax as [`pzip!`] but instead of returning a per-sample
+/// iterator, it returns the values from the first sample as a tuple.
+///
+/// This is useful for parameters that don't need to be modulated every
+/// sample.
+///
+/// # Examples
+///
+/// ```
+/// # use conformal_component::pgrab;
+/// # use conformal_component::parameters::{ConstantBufferStates, StaticInfoRef, TypeSpecificInfoRef, InternalValue};
+/// let params = ConstantBufferStates::new_defaults(
+///   vec![
+///     StaticInfoRef {
+///       title: "Gain",
+///       short_title: "Gain",
+///       unique_id: "gain",
+///       flags: Default::default(),
+///       type_specific: TypeSpecificInfoRef::Numeric {
+///         default: 0.5,
+///         valid_range: 0.0..=1.0,
+///         units: None,
+///       },
+///     },
+///     StaticInfoRef {
+///       title: "Switch",
+///       short_title: "Switch",
+///       unique_id: "enabled",
+///       flags: Default::default(),
+///       type_specific: TypeSpecificInfoRef::Switch {
+///         default: true,
+///       },
+///     },
+///   ],
+/// );
+///
+/// let (gain, enabled) = pgrab!(params[numeric "gain", switch "enabled"]);
+/// assert_eq!(gain, 0.5);
+/// assert_eq!(enabled, true);
+/// ```
+///
+/// It also works with a single parameter:
+///
+/// ```
+/// # use conformal_component::pgrab;
+/// # use conformal_component::parameters::{ConstantBufferStates, StaticInfoRef, TypeSpecificInfoRef, InternalValue};
+/// let params = ConstantBufferStates::new_defaults(
+///   vec![
+///     StaticInfoRef {
+///       title: "Gain",
+///       short_title: "Gain",
+///       unique_id: "gain",
+///       flags: Default::default(),
+///       type_specific: TypeSpecificInfoRef::Numeric {
+///         default: 0.75,
+///         valid_range: 0.0..=1.0,
+///         units: None,
+///       },
+///     },
+///   ],
+/// );
+///
+/// let gain = pgrab!(params[numeric "gain"]);
+/// assert_eq!(gain, 0.75);
+/// ```
+#[macro_export]
+macro_rules! pgrab {
+    ($params:ident[$($kind:ident $path:tt),+]) => {
+        $crate::pzip!($params[$($kind $path),+]).next().unwrap()
+    };
+    ($expr_head:ident $(. $expr_part:ident $( ( $($args:tt)* ) )? )+ [$($kind:ident $path:tt),+]) => {
+        {
+            let __pgrab_params = $expr_head $(. $expr_part $( ( $($args)* ) )? )+;
+            $crate::pgrab!(__pgrab_params[$($kind $path),+])
+        }
+    };
+}
