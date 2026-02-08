@@ -1,5 +1,17 @@
 # create-conformal
 
+## 0.9.0
+
+### Minor Changes
+
+- 5244201: Update to new processing API
+
+### Patch Changes
+
+- Updated dependencies [9dd82bc]
+- Updated dependencies [4ab21bf]
+  - @conformal/create-plugin@0.9.0
+
 ## 0.8.2
 
 ### Patch Changes
