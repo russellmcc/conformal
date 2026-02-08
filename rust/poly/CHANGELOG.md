@@ -1,3 +1,10 @@
+## 0.4.0 (2026-02-08)
+
+### Breaking Changes
+
+- New API for mpe
+- Support new global expression API
+
 ## 0.3.7 (2025-09-23)
 
 ### Features

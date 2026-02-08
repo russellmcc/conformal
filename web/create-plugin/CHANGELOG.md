@@ -1,5 +1,12 @@
 # @conformal/create-plugin
 
+## 0.9.0
+
+### Minor Changes
+
+- 9dd82bc: Support new process API
+- 4ab21bf: Support new global expression API
+
 ## 0.8.2
 
 ### Patch Changes

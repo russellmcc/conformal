@@ -1,3 +1,17 @@
+## 0.4.0 (2026-02-08)
+
+### Breaking Changes
+
+- Add dependency to zlib licensed code
+- Change API for NoteID for format adapters (should not affect plug-in writers)
+- New API for mpe
+- New more extensible context-based api for process
+- We now always piecewise-linear interpolate MPE expression events
+
+### Fixes
+
+- Optimizations to mpe handling
+
 ## 0.3.10 (2026-01-26)
 
 ### Fixes

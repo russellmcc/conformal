@@ -192,7 +192,7 @@ dependencies = [
 
 [[package]]
 name = "conformal_component"
-version = "0.3.6"
+version = "0.4.0"
 dependencies = [
  "assert_approx_eq",
  "fxhash",
@@ -217,7 +217,7 @@ dependencies = [
 
 [[package]]
 name = "conformal_poly"
-version = "0.3.7"
+version = "0.4.0"
 dependencies = [
  "arrayvec",
  "assert_approx_eq",
@@ -251,7 +251,7 @@ dependencies = [
 
 [[package]]
 name = "conformal_vst_wrapper"
-version = "0.3.10"
+version = "0.4.0"
 dependencies = [
  "assert_approx_eq",
  "conformal_component",
