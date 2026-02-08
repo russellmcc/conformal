@@ -8,8 +8,9 @@ use vst3::{
 
 use conformal_component::{
     ProcessingMode,
-    events::{Data, Event, NoteExpressionData, to_vst_note_channel_for_mpe_quirks, to_vst_note_id},
+    events::{NoteID, NoteIDInternals},
     parameters::hash_id,
+    synth::NumericPerNoteExpression,
 };
 
 use super::PartialProcessingEnvironment;
@@ -232,13 +233,43 @@ impl Class for ParameterChangesImpl {
     type Interfaces = (IParameterChanges,);
 }
 
-struct EventList {
-    events: Vec<Event>,
+#[derive(Clone, Debug, PartialEq)]
+pub enum MockData {
+    NoteOn {
+        id: NoteID,
+        pitch: u8,
+        velocity: f32,
+        tuning: f32,
+    },
+    NoteOff {
+        id: NoteID,
+        pitch: u8,
+        velocity: f32,
+        tuning: f32,
+    },
+    NoteExpressionChange {
+        id: NoteID,
+        expression: NumericPerNoteExpression,
+        value: f32,
+    },
+}
+pub struct MockEvent {
+    pub sample_offset: usize,
+    pub data: MockData,
 }
 
-fn event_to_vst3_event(event: &Event) -> vst3::Steinberg::Vst::Event {
-    match &event.data {
-        Data::NoteOn { data } => vst3::Steinberg::Vst::Event {
+struct EventList {
+    events: Vec<MockEvent>,
+}
+
+fn event_to_vst3_event(event: &MockEvent) -> vst3::Steinberg::Vst::Event {
+    match event.data {
+        MockData::NoteOn {
+            id,
+            pitch,
+            velocity,
+            tuning,
+        } => vst3::Steinberg::Vst::Event {
             busIndex: 0,
             sampleOffset: event.sample_offset as i32,
             ppqPosition: 0f64,
@@ -246,16 +277,27 @@ fn event_to_vst3_event(event: &Event) -> vst3::Steinberg::Vst::Event {
             r#type: vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOnEvent as u16,
             __field0: vst3::Steinberg::Vst::Event__type0 {
                 noteOn: vst3::Steinberg::Vst::NoteOnEvent {
-                    channel: to_vst_note_channel_for_mpe_quirks(data.id),
-                    pitch: data.pitch as i16,
-                    tuning: data.tuning,
-                    velocity: data.velocity,
+                    channel: match id.internals {
+                        NoteIDInternals::NoteIDFromChannelID(channel) => channel,
+                        _ => 0,
+                    },
+                    pitch: pitch as i16,
+                    tuning,
+                    velocity,
                     length: 0,
-                    noteId: to_vst_note_id(data.id),
+                    noteId: match id.internals {
+                        NoteIDInternals::NoteIDWithID(id) => id,
+                        _ => -1,
+                    },
                 },
             },
         },
-        Data::NoteOff { data } => vst3::Steinberg::Vst::Event {
+        MockData::NoteOff {
+            id,
+            pitch,
+            velocity,
+            tuning,
+        } => vst3::Steinberg::Vst::Event {
             busIndex: 0,
             sampleOffset: event.sample_offset as i32,
             ppqPosition: 0f64,
@@ -263,46 +305,57 @@ fn event_to_vst3_event(event: &Event) -> vst3::Steinberg::Vst::Event {
             r#type: vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOffEvent as u16,
             __field0: vst3::Steinberg::Vst::Event__type0 {
                 noteOff: vst3::Steinberg::Vst::NoteOffEvent {
-                    channel: to_vst_note_channel_for_mpe_quirks(data.id),
-                    pitch: data.pitch as i16,
-                    tuning: data.tuning,
-                    velocity: data.velocity,
-                    noteId: to_vst_note_id(data.id),
-                },
-            },
-        },
-        Data::NoteExpression {
-            data: NoteExpressionData { id, expression },
-        } => vst3::Steinberg::Vst::Event {
-            busIndex: 0,
-            sampleOffset: event.sample_offset as i32,
-            ppqPosition: 0f64,
-            flags: 0,
-            r#type: vst3::Steinberg::Vst::Event_::EventTypes_::kNoteExpressionValueEvent as u16,
-            __field0: vst3::Steinberg::Vst::Event__type0 {
-                noteExpressionValue: vst3::Steinberg::Vst::NoteExpressionValueEvent {
-                    noteId: to_vst_note_id(*id),
-                    value: match expression {
-                        conformal_component::events::NoteExpression::PitchBend(x) => {
-                            (*x / 240.0 + 0.5) as f64
-                        }
-                        conformal_component::events::NoteExpression::Timbre(x) => *x as f64,
-                        conformal_component::events::NoteExpression::Aftertouch(x) => *x as f64,
+                    channel: match id.internals {
+                        NoteIDInternals::NoteIDFromChannelID(channel) => channel,
+                        _ => 0,
                     },
-                    typeId: match expression {
-                        conformal_component::events::NoteExpression::PitchBend(_) => {
-                            vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID
-                        }
-                        conformal_component::events::NoteExpression::Timbre(_) => {
-                            vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kCustomStart
-                        }
-                        conformal_component::events::NoteExpression::Aftertouch(_) => {
-                            vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kCustomStart + 1
-                        }
+                    pitch: pitch as i16,
+                    tuning,
+                    velocity,
+                    noteId: match id.internals {
+                        NoteIDInternals::NoteIDWithID(id) => id,
+                        _ => -1,
                     },
                 },
             },
         },
+        MockData::NoteExpressionChange {
+            id,
+            expression,
+            value,
+        } => {
+            let (value, type_id) = match expression {
+                NumericPerNoteExpression::PitchBend => (
+                    (value / 240.0 + 0.5) as f64,
+                    vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID,
+                ),
+                NumericPerNoteExpression::Timbre => (
+                    value as f64,
+                    vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kCustomStart,
+                ),
+                NumericPerNoteExpression::Aftertouch => (
+                    value as f64,
+                    vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kCustomStart + 1,
+                ),
+            };
+            vst3::Steinberg::Vst::Event {
+                busIndex: 0,
+                sampleOffset: event.sample_offset as i32,
+                ppqPosition: 0f64,
+                flags: 0,
+                r#type: vst3::Steinberg::Vst::Event_::EventTypes_::kNoteExpressionValueEvent as u16,
+                __field0: vst3::Steinberg::Vst::Event__type0 {
+                    noteExpressionValue: vst3::Steinberg::Vst::NoteExpressionValueEvent {
+                        noteId: match id.internals {
+                            NoteIDInternals::NoteIDWithID(id) => id,
+                            _ => -1,
+                        },
+                        value,
+                        typeId: type_id,
+                    },
+                },
+            }
+        }
     }
 }
 
@@ -342,7 +395,7 @@ pub unsafe fn mock_process_mod<
     F: FnOnce(&mut vst3::Steinberg::Vst::ProcessData) -> (),
 >(
     channel_count: usize,
-    events: Vec<Event>,
+    events: Vec<MockEvent>,
     params: Vec<ParameterValueQueueImpl>,
     processor: &D,
     mod_data: F,
@@ -393,7 +446,7 @@ pub unsafe fn mock_process_mod<
 
 pub unsafe fn mock_process<D: IAudioProcessorTrait>(
     channel_count: usize,
-    events: Vec<Event>,
+    events: Vec<MockEvent>,
     params: Vec<ParameterValueQueueImpl>,
     processor: &D,
 ) -> Option<Vec<Vec<f32>>> {
@@ -467,7 +520,7 @@ pub struct MockNoAudioProcessData {
 }
 
 pub unsafe fn mock_no_audio_process_data(
-    events: Vec<Event>,
+    events: Vec<MockEvent>,
     parameters: Vec<ParameterValueQueueImpl>,
 ) -> MockNoAudioProcessData {
     let input_parameter_changes = ComWrapper::new(ParameterChangesImpl::new(parameters))

@@ -194,6 +194,7 @@ dependencies = [
 name = "conformal_component"
 version = "0.3.6"
 dependencies = [
+ "assert_approx_eq",
  "fxhash",
  "itertools",
 ]
@@ -219,6 +220,7 @@ name = "conformal_poly"
 version = "0.3.7"
 dependencies = [
  "arrayvec",
+ "assert_approx_eq",
  "conformal_component",
 ]
 

@@ -1,5 +1,7 @@
 //! Abstractions for processors that generate audio.
 
+use std::ops::RangeInclusive;
+
 use crate::{
     Processor,
     audio::BufferMut,
@@ -9,7 +11,7 @@ use crate::{
     },
 };
 
-/// Numeric expression controllers available on each synth.
+/// Numeric expression controllers that affect all playing notes of the synth.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum NumericGlobalExpression {
     /// The global pitch bend.
@@ -56,6 +58,52 @@ pub enum NumericGlobalExpression {
     Timbre,
 }
 
+/// Numeric expression controllers that affect a single note of the synth.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum NumericPerNoteExpression {
+    /// Pitch bend note expression.
+    ///
+    /// This corresponds to the [`NumericGlobalExpression::PitchBend`] controller and should
+    /// change the tuning of the note.
+    ///
+    /// This is expressed in semitones away from the root note of the note (which may itself
+    /// be tuned).
+    PitchBend,
+
+    /// Vertical movement note expression, meant to control some sort of timbre of the synth.
+    ///
+    /// This is called "slide" in some DAW UIs.
+    ///
+    /// This corresponds to the [`NumericGlobalExpression::Timbre`] controller, and
+    /// its effects must be combined with the global controller.
+    ///
+    /// This value varies from 0->1, 0 being the bottommost position,
+    /// and 1 being the topmost position.
+    Timbre,
+
+    /// Depthwise note expression.
+    ///
+    /// This is called "Pressure" in some DAW UIs.
+    ///
+    /// This value varies from 0->1, 0 being neutral, and 1 being the maximum depth.
+    ///
+    /// This corresponds to the [`NumericGlobalExpression::Aftertouch`] controller which
+    /// affects all notes. The total effect must be a combination of this per-note note
+    /// expression and the global controller.
+    Aftertouch,
+}
+
+/// Get the valid range for a numeric per-note expression.
+#[must_use]
+pub fn valid_range_for_per_note_expression(
+    expression: NumericPerNoteExpression,
+) -> RangeInclusive<f32> {
+    match expression {
+        NumericPerNoteExpression::PitchBend => -128.0..=128.0,
+        NumericPerNoteExpression::Timbre | NumericPerNoteExpression::Aftertouch => 0.0..=1.0,
+    }
+}
+
 /// Switch expression controllers available on each synth.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SwitchGlobalExpression {
@@ -72,6 +120,13 @@ pub trait SynthParamStates: parameters::States {
 
     /// Get the current value of a switch global expression controller.
     fn get_switch_global_expression(&self, expression: SwitchGlobalExpression) -> bool;
+
+    /// Get the current value of a numeric per-note expression controller.
+    fn get_numeric_expression_for_note(
+        &self,
+        expression: NumericPerNoteExpression,
+        note_id: events::NoteID,
+    ) -> f32;
 }
 
 /// A trait for metadata during an audio processing call
@@ -80,7 +135,7 @@ pub trait HandleEventsContext {
     fn events(&self) -> impl Iterator<Item = events::Data> + Clone;
 
     /// Parameter state
-    fn parameters(&self) -> impl SynthParamStates;
+    fn parameters(&self) -> &impl SynthParamStates;
 }
 
 /// Extension to the [`parameters::BufferStates`] trait for synths.
@@ -96,6 +151,13 @@ pub trait SynthParamBufferStates: parameters::BufferStates {
         &self,
         expression: SwitchGlobalExpression,
     ) -> SwitchBufferState<impl Iterator<Item = TimedValue<bool>> + Clone>;
+
+    /// Get the current value of a numeric per-note expression controller.
+    fn get_numeric_expression_for_note(
+        &self,
+        expression: NumericPerNoteExpression,
+        note_id: events::NoteID,
+    ) -> NumericBufferState<impl Iterator<Item = PiecewiseLinearCurvePoint> + Clone>;
 }
 
 /// A trait for metadata during an audio processing call
@@ -108,7 +170,7 @@ pub trait ProcessContext {
     /// In order to consume the parameters, you can use the [`crate::pzip`] macro
     /// to convert the parameters into an iterator of tuples that represent
     /// the state of the parameters at each sample.
-    fn parameters(&self) -> impl SynthParamBufferStates;
+    fn parameters(&self) -> &impl SynthParamBufferStates;
 }
 
 /// A trait for synthesizers
@@ -118,7 +180,7 @@ pub trait ProcessContext {
 pub trait Synth: Processor {
     /// Handle parameter changes and events without processing any data.
     /// Must not allocate or block.
-    fn handle_events(&mut self, context: impl HandleEventsContext);
+    fn handle_events(&mut self, context: &impl HandleEventsContext);
 
     /// Process a buffer of events into a buffer of audio. Must not allocate or block.
     ///

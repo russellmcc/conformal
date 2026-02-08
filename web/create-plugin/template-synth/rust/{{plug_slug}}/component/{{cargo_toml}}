@@ -8,6 +8,5 @@ publish = false
 workspace = true
 
 [dependencies]
-itertools = "0.13.0"
 conformal_component = "{{{conformal_component_version}}}"
 conformal_poly = "{{{conformal_poly_version}}}"

@@ -38,9 +38,9 @@ use vst3::{
 };
 
 use crate::{
-    HostInfo, ParameterModel,
+    ParameterModel,
     io::StreamWrite,
-    mpe_quirks::{self, Support, aftertouch_param_id, pitch_param_id, timbre_param_id},
+    mpe::quirks::{aftertouch_param_id, pitch_param_id, timbre_param_id},
 };
 
 use super::{
@@ -102,7 +102,6 @@ struct SharedStore {
 }
 
 struct Initialized {
-    host_info: HostInfo,
     store: SharedStore,
     parameter_model: ParameterModel,
     pref_domain: String,
@@ -436,10 +435,12 @@ impl IPluginBaseTrait for EditController {
                     let parameter_infos = {
                         let mut infos = (parameter_model.parameter_infos)(&host_info);
                         if Kind::Synth() == self.kind {
-                            infos.extend(CONTROLLER_PARAMETERS.iter().map(parameters::Info::from));
-                            if mpe_quirks::should_support(&host_info) == Support::SupportQuirks {
-                                infos.extend(mpe_quirks::parameters());
-                            }
+                            infos.extend(
+                                CONTROLLER_PARAMETERS
+                                    .iter()
+                                    .map(parameters::Info::from)
+                                    .chain(crate::mpe::quirks::parameters()),
+                            );
                         }
                         infos
                     };
@@ -479,7 +480,6 @@ impl IPluginBaseTrait for EditController {
                         .map(|(id, info)| (id.clone(), info.clone()))
                         .collect();
                     let s = State::Initialized(Initialized {
-                    host_info,
                     store: SharedStore {store: rc::Rc::new(RefCell::new(ParameterStore {
                         unhash: hash_parameter_ids(parameter_infos.iter().map(Into::into)).expect("Duplicate parameter ID hash! This could be caused by duplicate parameter IDs or a hash collision."),
                         host_parameter_infos: parameters,
@@ -1061,9 +1061,7 @@ impl IMidiMappingTrait for EditController {
         id: *mut vst3::Steinberg::Vst::ParamID,
     ) -> vst3::Steinberg::tresult {
         unsafe {
-            if let State::Initialized(Initialized { host_info, .. }) =
-                self.s.borrow().as_ref().unwrap()
-            {
+            if let State::Initialized(Initialized { .. }) = self.s.borrow().as_ref().unwrap() {
                 // Effects don't have midi mappings
                 if let Kind::Effect { .. } = self.kind {
                     return vst3::Steinberg::kResultFalse;
@@ -1072,29 +1070,23 @@ impl IMidiMappingTrait for EditController {
                     return vst3::Steinberg::kResultFalse;
                 }
                 if channel_index != 0 {
-                    if mpe_quirks::should_support(host_info) == Support::SupportQuirks {
-                        (match midi_controller_number.try_into() {
-                            Ok(vst3::Steinberg::Vst::ControllerNumbers_::kPitchBend) => {
-                                Some(pitch_param_id(channel_index))
-                            }
-                            Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlFilterResonance) => {
-                                Some(timbre_param_id(channel_index))
-                            }
-                            Ok(vst3::Steinberg::Vst::ControllerNumbers_::kAfterTouch) => {
-                                Some(aftertouch_param_id(channel_index))
-                            }
-                            _ => None,
-                        })
-                        .map_or(
-                            vst3::Steinberg::kResultFalse,
-                            |param_id| {
-                                *id = parameters::hash_id(&param_id).internal_hash();
-                                vst3::Steinberg::kResultOk
-                            },
-                        )
-                    } else {
-                        vst3::Steinberg::kResultFalse
-                    }
+                    // Supply MPE quirks mappings for hosts like Ableton that use "quirks" MPE.
+                    (match midi_controller_number.try_into() {
+                        Ok(vst3::Steinberg::Vst::ControllerNumbers_::kPitchBend) => {
+                            Some(pitch_param_id(channel_index))
+                        }
+                        Ok(vst3::Steinberg::Vst::ControllerNumbers_::kCtrlFilterResonance) => {
+                            Some(timbre_param_id(channel_index))
+                        }
+                        Ok(vst3::Steinberg::Vst::ControllerNumbers_::kAfterTouch) => {
+                            Some(aftertouch_param_id(channel_index))
+                        }
+                        _ => None,
+                    })
+                    .map_or(vst3::Steinberg::kResultFalse, |param_id| {
+                        *id = parameters::hash_id(&param_id).internal_hash();
+                        vst3::Steinberg::kResultOk
+                    })
                 } else {
                     (match midi_controller_number.try_into() {
                         Ok(vst3::Steinberg::Vst::ControllerNumbers_::kPitchBend) => {
@@ -1411,7 +1403,7 @@ mod tests {
     }
 
     impl Synth for DummySynth {
-        fn handle_events(&mut self, _context: impl HandleEventsContext) {}
+        fn handle_events(&mut self, _context: &impl HandleEventsContext) {}
 
         fn process(&mut self, _context: &impl ProcessContext, _output: &mut impl BufferMut) {}
     }

@@ -1,7 +1,8 @@
 //! Contains data structures representing _events_ sent to [`crate::synth::Synth`]s
 
+#[doc(hidden)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-enum NoteIDInternals {
+pub enum NoteIDInternals {
     NoteIDWithID(i32),
     NoteIDFromPitch(u8),
     NoteIDFromChannelID(i16),
@@ -13,61 +14,35 @@ enum NoteIDInternals {
 /// that is playing.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct NoteID {
-    internals: NoteIDInternals,
+    /// This is only for use by implementors of format adaptors, do not look into this
+    /// as a plug-in writer.
+    #[doc(hidden)]
+    pub internals: NoteIDInternals,
 }
 
 impl NoteID {
-    /// Create a new `NoteID` from a numeric ID.
-    ///
-    /// Note that the `NoteID`s will be considered equal if they come from
-    /// the same numeric ID, and different if they come from different numeric IDs.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use conformal_component::events::NoteID;
-    /// assert_eq!(NoteID::from_id(42), NoteID::from_id(42));
-    /// assert_ne!(NoteID::from_id(42), NoteID::from_id(43));
-    /// ```
+    /// Create a note ID from a pitch.
     #[must_use]
-    pub const fn from_id(id: i32) -> Self {
-        Self {
-            internals: NoteIDInternals::NoteIDWithID(id),
-        }
-    }
-
-    #[doc(hidden)]
-    #[must_use]
-    pub const fn from_pitch(pitch: u8) -> Self {
+    pub fn from_pitch(pitch: u8) -> Self {
         Self {
             internals: NoteIDInternals::NoteIDFromPitch(pitch),
         }
     }
 
-    #[doc(hidden)]
+    /// Create a note ID from a channel ID.
     #[must_use]
-    pub const fn from_channel_for_mpe_quirks(id: i16) -> Self {
+    pub fn from_channel_id(channel_id: i16) -> Self {
         Self {
-            internals: NoteIDInternals::NoteIDFromChannelID(id),
+            internals: NoteIDInternals::NoteIDFromChannelID(channel_id),
         }
     }
-}
 
-#[doc(hidden)]
-#[must_use]
-pub fn to_vst_note_id(note_id: NoteID) -> i32 {
-    match note_id.internals {
-        NoteIDInternals::NoteIDWithID(id) => id,
-        NoteIDInternals::NoteIDFromPitch(_) | NoteIDInternals::NoteIDFromChannelID(_) => -1,
-    }
-}
-
-#[doc(hidden)]
-#[must_use]
-pub fn to_vst_note_channel_for_mpe_quirks(note_id: NoteID) -> i16 {
-    match note_id.internals {
-        NoteIDInternals::NoteIDFromChannelID(id) => id,
-        NoteIDInternals::NoteIDFromPitch(_) | NoteIDInternals::NoteIDWithID(_) => 0,
+    /// Create a note ID from a VST Node ID.
+    #[must_use]
+    pub fn from_id(id: i32) -> Self {
+        Self {
+            internals: NoteIDInternals::NoteIDWithID(id),
+        }
     }
 }
 
@@ -87,52 +62,6 @@ pub struct NoteData {
     pub tuning: f32,
 }
 
-/// A specific type of note expression.
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum NoteExpression {
-    /// Pitch bend note expression.
-    ///
-    /// This corresponds to the [`crate::synth::NumericGlobalExpression::PitchBend`] controller and should
-    /// change the tuning of the note.
-    ///
-    /// This is expressed in semitones away from the root note of the note (which may itself
-    /// be affected by the global [`crate::synth::NumericGlobalExpression::PitchBend`] controller).
-    PitchBend(f32),
-
-    /// Vertical movement note expression, meant to control some sort of timbre of the synth.
-    ///
-    /// This is called "slide" in some DAW UIs.
-    ///
-    /// This corresponds to the "timbre" controller ([`crate::synth::NumericGlobalExpression::Timbre`]), and
-    /// its effects must be combined with the global controller.
-    ///
-    /// This value varies from 0->1, 0 being the bottommost position,
-    /// and 1 being the topmost position.
-    Timbre(f32),
-
-    /// Depthwise note expression.
-    ///
-    /// This is called "Pressure" in some DAW UIs.
-    ///
-    /// This value varies from 0->1, 0 being neutral, and 1 being the maximum depth.
-    ///
-    /// This corresponds to the [`crate::synth::NumericGlobalExpression::Aftertouch`] controller which
-    /// affects all notes. The total effect must be a combination of this per-note note
-    /// expression and the global controller.
-    Aftertouch(f32),
-}
-
-/// Contains data about note expression.
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct NoteExpressionData {
-    /// Opaque ID of the note. This will always refer to a note that is
-    /// currently "on".
-    pub id: NoteID,
-
-    /// The expression that is being sent.
-    pub expression: NoteExpression,
-}
-
 /// The data associated with an event, independent of the time it occurred.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Data {
@@ -150,14 +79,6 @@ pub enum Data {
     NoteOff {
         /// Data associated with the note.
         data: NoteData,
-    },
-
-    /// A note expression was sent.
-    ///
-    /// This will never be sent while a note with the same ID is not playing.
-    NoteExpression {
-        /// Data associated with the note expression.
-        data: NoteExpressionData,
     },
 }
 
@@ -224,7 +145,9 @@ mod tests {
     use super::{Data, Event, Events, NoteData, NoteID};
 
     static EXAMPLE_NOTE: NoteData = NoteData {
-        id: NoteID::from_pitch(60),
+        id: NoteID {
+            internals: super::NoteIDInternals::NoteIDFromPitch(60),
+        },
         pitch: 60,
         velocity: 1.0,
         tuning: 0.0,

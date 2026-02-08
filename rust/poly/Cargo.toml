@@ -14,3 +14,6 @@ workspace = true
 [dependencies]
 conformal_component = { workspace = true }
 arrayvec = { workspace = true }
+
+[dev-dependencies]
+assert_approx_eq = { workspace = true }

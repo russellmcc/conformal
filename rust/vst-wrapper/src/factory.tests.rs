@@ -20,7 +20,7 @@ impl Processor for DummySynth {
 }
 
 impl Synth for DummySynth {
-    fn handle_events(&mut self, _context: impl HandleEventsContext) {
+    fn handle_events(&mut self, _context: &impl HandleEventsContext) {
         unimplemented!()
     }
 

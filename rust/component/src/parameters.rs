@@ -641,7 +641,7 @@ pub trait States {
 }
 
 /// Represents a single point of a piecewise linear curve.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PiecewiseLinearCurvePoint {
     /// The number of samples from the start of the buffer this point occurs at.
     pub sample_offset: usize,
@@ -780,6 +780,14 @@ impl<I: IntoIterator<Item = PiecewiseLinearCurvePoint> + Clone> PiecewiseLinearC
             })
         } else {
             None
+        }
+    }
+
+    #[doc(hidden)]
+    pub unsafe fn from_parts_unchecked(points: I, buffer_size: usize) -> Self {
+        Self {
+            points,
+            buffer_size,
         }
     }
 }
