@@ -1,3 +1,9 @@
+## 0.4.1 (2026-02-08)
+
+### Features
+
+- Added pgrab macro
+
 ## 0.4.0 (2026-02-08)
 
 ### Breaking Changes
