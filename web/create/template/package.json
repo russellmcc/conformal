@@ -18,7 +18,7 @@
     "web-build": "conformal-scripts web-script -s build",
     "web-lint": "conformal-scripts web-script -s lint",
     "web-test": "bun test",
-    "rust-miri": "PROPTEST_DISABLE_FAILURE_PERSISTENCE=true MIRIFLAGS='-Zmiri-env-forward=PROPTEST_DISABLE_FAILURE_PERSISTENCE' conformal-scripts cargo +nightly miri test",
+    "rust-miri": "CARGO_TARGET_DIR=target/miri PROPTEST_DISABLE_FAILURE_PERSISTENCE=true MIRIFLAGS='-Zmiri-env-forward=PROPTEST_DISABLE_FAILURE_PERSISTENCE' conformal-scripts cargo +nightly miri test",
     "rust-build": "conformal-scripts cargo build",
     "rust-lint": "conformal-scripts cargo clippy",
     "rust-test": "conformal-scripts cargo test",
