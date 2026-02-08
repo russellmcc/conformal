@@ -593,7 +593,7 @@ impl SynthRampedStatesMap {
     /// ```
     /// # use conformal_component::parameters::{StaticInfoRef, InternalValue, TypeSpecificInfoRef, SynthRampedStatesMap, NumericBufferState, BufferStates, SynthRampedOverrides};
     /// # use conformal_component::synth::{SynthParamBufferStates, NumericGlobalExpression, NumericPerNoteExpression};
-    /// # use conformal_component::events::{NoteID, NoteIDInternals};
+    /// # use conformal_component::events::{NoteID};
     /// let infos = vec![
     ///   StaticInfoRef {
     ///     title: "Numeric",
@@ -608,7 +608,7 @@ impl SynthRampedStatesMap {
     ///   },
     /// ];
     ///
-    /// let note_id = NoteID { internals: NoteIDInternals::NoteIDFromPitch(60) };
+    /// let note_id = NoteID::from_pitch(60);
     /// let start_per_note = vec![
     ///   ((NumericPerNoteExpression::PitchBend, note_id), 0.0),
     /// ].into_iter().collect();
@@ -743,7 +743,7 @@ impl SynthRampedStatesMap {
     /// ```
     /// # use conformal_component::parameters::{StaticInfoRef, InternalValue, TypeSpecificInfoRef, SynthRampedStatesMap, NumericBufferState, BufferStates};
     /// # use conformal_component::synth::{SynthParamBufferStates, NumericGlobalExpression, NumericPerNoteExpression};
-    /// # use conformal_component::events::{NoteID, NoteIDInternals};
+    /// # use conformal_component::events::{NoteID};
     ///
     /// let infos = vec![
     ///   StaticInfoRef {
@@ -759,7 +759,7 @@ impl SynthRampedStatesMap {
     ///   },
     /// ];
     ///
-    /// let note_id = NoteID { internals: NoteIDInternals::NoteIDFromPitch(60) };
+    /// let note_id = NoteID::from_pitch(60);
     /// let per_note_overrides = vec![
     ///   ((NumericPerNoteExpression::PitchBend, note_id), 1.5),
     /// ].into_iter().collect();

@@ -4,7 +4,7 @@ use vst3::{
 };
 
 use conformal_component::{
-    events::{Data, Event, NoteData, NoteID, NoteIDInternals},
+    events::{Data, Event, NoteData, NoteID},
     synth::NumericPerNoteExpression,
 };
 
@@ -57,19 +57,11 @@ unsafe fn convert_event(event: &vst3::Steinberg::Vst::Event) -> Option<Event> {
                             tuning: event.__field0.noteOn.tuning,
                             velocity: event.__field0.noteOn.velocity,
                             id: if channel != 0 {
-                                NoteID {
-                                    internals: NoteIDInternals::NoteIDFromChannelID(channel),
-                                }
+                                NoteID::from_channel_id(channel)
                             } else if event.__field0.noteOn.noteId == -1 {
-                                NoteID {
-                                    internals: NoteIDInternals::NoteIDFromPitch(pitch),
-                                }
+                                NoteID::from_pitch(pitch)
                             } else {
-                                NoteID {
-                                    internals: NoteIDInternals::NoteIDWithID(
-                                        event.__field0.noteOn.noteId,
-                                    ),
-                                }
+                                NoteID::from_id(event.__field0.noteOn.noteId)
                             },
                         },
                     },
@@ -86,19 +78,11 @@ unsafe fn convert_event(event: &vst3::Steinberg::Vst::Event) -> Option<Event> {
                             tuning: event.__field0.noteOff.tuning,
                             velocity: event.__field0.noteOff.velocity,
                             id: if channel != 0 {
-                                NoteID {
-                                    internals: NoteIDInternals::NoteIDFromChannelID(channel),
-                                }
+                                NoteID::from_channel_id(channel)
                             } else if event.__field0.noteOff.noteId == -1 {
-                                NoteID {
-                                    internals: NoteIDInternals::NoteIDFromPitch(pitch),
-                                }
+                                NoteID::from_pitch(pitch)
                             } else {
-                                NoteID {
-                                    internals: NoteIDInternals::NoteIDWithID(
-                                        event.__field0.noteOff.noteId,
-                                    ),
-                                }
+                                NoteID::from_id(event.__field0.noteOff.noteId)
                             },
                         },
                     },

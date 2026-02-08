@@ -390,13 +390,11 @@ impl State {
 mod tests {
     use super::State;
     use crate::{Event, EventData};
-    use conformal_component::events::{NoteData, NoteID, NoteIDInternals};
+    use conformal_component::events::{NoteData, NoteID};
 
     fn example_note_data(pitch: u8) -> NoteData {
         NoteData {
-            id: NoteID {
-                internals: NoteIDInternals::NoteIDFromPitch(pitch),
-            },
+            id: NoteID::from_pitch(pitch),
             pitch,
             velocity: 1.0,
             tuning: 0.0,

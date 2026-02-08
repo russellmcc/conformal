@@ -20,6 +20,32 @@ pub struct NoteID {
     pub internals: NoteIDInternals,
 }
 
+impl NoteID {
+    /// Create a note ID from a pitch.
+    #[must_use]
+    pub fn from_pitch(pitch: u8) -> Self {
+        Self {
+            internals: NoteIDInternals::NoteIDFromPitch(pitch),
+        }
+    }
+
+    /// Create a note ID from a channel ID.
+    #[must_use]
+    pub fn from_channel_id(channel_id: i16) -> Self {
+        Self {
+            internals: NoteIDInternals::NoteIDFromChannelID(channel_id),
+        }
+    }
+
+    /// Create a note ID from a VST Node ID.
+    #[must_use]
+    pub fn from_id(id: i32) -> Self {
+        Self {
+            internals: NoteIDInternals::NoteIDWithID(id),
+        }
+    }
+}
+
 /// Contains data common to both `NoteOn` and `NoteOff` events.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct NoteData {

@@ -1627,7 +1627,7 @@ mod tests {
     use crate::{dummy_host, from_utf16_buffer};
     use assert_approx_eq::assert_approx_eq;
     use conformal_component::audio::{BufferMut, channels, channels_mut};
-    use conformal_component::events::{Data, NoteID, NoteIDInternals};
+    use conformal_component::events::{Data, NoteID};
     use conformal_component::parameters::{
         BufferStates, Flags, InfoRef, StaticInfoRef, TypeSpecificInfoRef,
     };
@@ -2999,9 +2999,7 @@ mod tests {
                     MockEvent {
                         sample_offset: 0,
                         data: MockData::NoteOn {
-                            id: NoteID {
-                                internals: NoteIDInternals::NoteIDWithID(0),
-                            },
+                            id: NoteID::from_id(0),
                             pitch: 64,
                             velocity: 0.5,
                             tuning: 0f32,
@@ -3010,9 +3008,7 @@ mod tests {
                     MockEvent {
                         sample_offset: 100,
                         data: MockData::NoteOff {
-                            id: NoteID {
-                                internals: NoteIDInternals::NoteIDWithID(0),
-                            },
+                            id: NoteID::from_id(0),
                             pitch: 64,
                             velocity: 0.5,
                             tuning: 0f32,
@@ -3021,9 +3017,7 @@ mod tests {
                     MockEvent {
                         sample_offset: 200,
                         data: MockData::NoteOn {
-                            id: NoteID {
-                                internals: NoteIDInternals::NoteIDWithID(0),
-                            },
+                            id: NoteID::from_id(0),
                             pitch: 64,
                             velocity: 0.5,
                             tuning: 0f32,
@@ -3032,9 +3026,7 @@ mod tests {
                     MockEvent {
                         sample_offset: 200,
                         data: MockData::NoteOn {
-                            id: NoteID {
-                                internals: NoteIDInternals::NoteIDWithID(1),
-                            },
+                            id: NoteID::from_id(1),
                             pitch: 65,
                             velocity: 0.5,
                             tuning: 0f32,
@@ -3065,9 +3057,7 @@ mod tests {
                     MockEvent {
                         sample_offset: 0,
                         data: MockData::NoteOn {
-                            id: NoteID {
-                                internals: NoteIDInternals::NoteIDWithID(0),
-                            },
+                            id: NoteID::from_id(0),
                             pitch: 64,
                             velocity: 0.5,
                             tuning: 0f32,
@@ -3076,9 +3066,7 @@ mod tests {
                     MockEvent {
                         sample_offset: 10,
                         data: MockData::NoteExpressionChange {
-                            id: NoteID {
-                                internals: NoteIDInternals::NoteIDWithID(0),
-                            },
+                            id: NoteID::from_id(0),
                             expression: NumericPerNoteExpression::PitchBend,
                             value: 12.0,
                         },
@@ -3087,9 +3075,7 @@ mod tests {
                     MockEvent {
                         sample_offset: 11,
                         data: MockData::NoteExpressionChange {
-                            id: NoteID {
-                                internals: NoteIDInternals::NoteIDWithID(4),
-                            },
+                            id: NoteID::from_id(4),
                             expression: NumericPerNoteExpression::PitchBend,
                             value: 24.0,
                         },
@@ -3097,9 +3083,7 @@ mod tests {
                     MockEvent {
                         sample_offset: 15,
                         data: MockData::NoteExpressionChange {
-                            id: NoteID {
-                                internals: NoteIDInternals::NoteIDWithID(0),
-                            },
+                            id: NoteID::from_id(0),
                             expression: NumericPerNoteExpression::Timbre,
                             value: 0.0,
                         },
@@ -3107,9 +3091,7 @@ mod tests {
                     MockEvent {
                         sample_offset: 16,
                         data: MockData::NoteExpressionChange {
-                            id: NoteID {
-                                internals: NoteIDInternals::NoteIDWithID(0),
-                            },
+                            id: NoteID::from_id(0),
                             expression: NumericPerNoteExpression::Timbre,
                             value: 0.6,
                         },
@@ -3117,9 +3099,7 @@ mod tests {
                     MockEvent {
                         sample_offset: 19,
                         data: MockData::NoteExpressionChange {
-                            id: NoteID {
-                                internals: NoteIDInternals::NoteIDWithID(0),
-                            },
+                            id: NoteID::from_id(0),
                             expression: NumericPerNoteExpression::Aftertouch,
                             value: 0.0,
                         },
@@ -3127,9 +3107,7 @@ mod tests {
                     MockEvent {
                         sample_offset: 20,
                         data: MockData::NoteExpressionChange {
-                            id: NoteID {
-                                internals: NoteIDInternals::NoteIDWithID(0),
-                            },
+                            id: NoteID::from_id(0),
                             expression: NumericPerNoteExpression::Aftertouch,
                             value: 0.7,
                         },
@@ -3137,9 +3115,7 @@ mod tests {
                     MockEvent {
                         sample_offset: 89,
                         data: MockData::NoteExpressionChange {
-                            id: NoteID {
-                                internals: NoteIDInternals::NoteIDWithID(0),
-                            },
+                            id: NoteID::from_id(0),
                             expression: NumericPerNoteExpression::PitchBend,
                             value: 12.0,
                         },
@@ -3147,9 +3123,7 @@ mod tests {
                     MockEvent {
                         sample_offset: 89,
                         data: MockData::NoteExpressionChange {
-                            id: NoteID {
-                                internals: NoteIDInternals::NoteIDWithID(0),
-                            },
+                            id: NoteID::from_id(0),
                             expression: NumericPerNoteExpression::Timbre,
                             value: 0.6,
                         },
@@ -3157,9 +3131,7 @@ mod tests {
                     MockEvent {
                         sample_offset: 89,
                         data: MockData::NoteExpressionChange {
-                            id: NoteID {
-                                internals: NoteIDInternals::NoteIDWithID(0),
-                            },
+                            id: NoteID::from_id(0),
                             expression: NumericPerNoteExpression::Aftertouch,
                             value: 0.7,
                         },
@@ -3167,9 +3139,7 @@ mod tests {
                     MockEvent {
                         sample_offset: 90,
                         data: MockData::NoteExpressionChange {
-                            id: NoteID {
-                                internals: NoteIDInternals::NoteIDWithID(0),
-                            },
+                            id: NoteID::from_id(0),
                             expression: NumericPerNoteExpression::PitchBend,
                             value: 0.0,
                         },
@@ -3177,9 +3147,7 @@ mod tests {
                     MockEvent {
                         sample_offset: 90,
                         data: MockData::NoteExpressionChange {
-                            id: NoteID {
-                                internals: NoteIDInternals::NoteIDWithID(0),
-                            },
+                            id: NoteID::from_id(0),
                             expression: NumericPerNoteExpression::Timbre,
                             value: 0.0,
                         },
@@ -3187,9 +3155,7 @@ mod tests {
                     MockEvent {
                         sample_offset: 90,
                         data: MockData::NoteExpressionChange {
-                            id: NoteID {
-                                internals: NoteIDInternals::NoteIDWithID(0),
-                            },
+                            id: NoteID::from_id(0),
                             expression: NumericPerNoteExpression::Aftertouch,
                             value: 0.0,
                         },
@@ -3197,9 +3163,7 @@ mod tests {
                     MockEvent {
                         sample_offset: 100,
                         data: MockData::NoteOff {
-                            id: NoteID {
-                                internals: NoteIDInternals::NoteIDWithID(0),
-                            },
+                            id: NoteID::from_id(0),
                             pitch: 64,
                             velocity: 0.5,
                             tuning: 0f32,
@@ -3292,9 +3256,7 @@ mod tests {
                     vec![MockEvent {
                         sample_offset: SAMPLE_COUNT + 1000,
                         data: MockData::NoteOn {
-                            id: NoteID {
-                                internals: NoteIDInternals::NoteIDWithID(0),
-                            },
+                            id: NoteID::from_id(0),
                             pitch: 64,
                             velocity: 0.5,
                             tuning: 0f32,
@@ -3323,9 +3285,7 @@ mod tests {
                         MockEvent {
                             sample_offset: 200,
                             data: MockData::NoteOn {
-                                id: NoteID {
-                                    internals: NoteIDInternals::NoteIDWithID(0),
-                                },
+                                id: NoteID::from_id(0),
                                 pitch: 64,
                                 velocity: 0.5,
                                 tuning: 0f32,
@@ -3334,9 +3294,7 @@ mod tests {
                         MockEvent {
                             sample_offset: 100,
                             data: MockData::NoteOff {
-                                id: NoteID {
-                                    internals: NoteIDInternals::NoteIDWithID(0),
-                                },
+                                id: NoteID::from_id(0),
                                 pitch: 64,
                                 velocity: 0.5,
                                 tuning: 0f32,
@@ -3379,9 +3337,7 @@ mod tests {
                 vec![MockEvent {
                     sample_offset: 100,
                     data: MockData::NoteOn {
-                        id: NoteID {
-                            internals: NoteIDInternals::NoteIDWithID(0),
-                        },
+                        id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
                         tuning: 0f32,
@@ -3410,9 +3366,7 @@ mod tests {
                     MockEvent {
                         sample_offset: 0,
                         data: MockData::NoteOn {
-                            id: NoteID {
-                                internals: NoteIDInternals::NoteIDWithID(0),
-                            },
+                            id: NoteID::from_id(0),
                             pitch: 64,
                             velocity: 0.5,
                             tuning: 0f32,
@@ -3421,9 +3375,7 @@ mod tests {
                     MockEvent {
                         sample_offset: 0,
                         data: MockData::NoteOn {
-                            id: NoteID {
-                                internals: NoteIDInternals::NoteIDWithID(1),
-                            },
+                            id: NoteID::from_id(1),
                             pitch: 64,
                             velocity: 0.5,
                             tuning: 0f32,
@@ -3440,9 +3392,7 @@ mod tests {
                 vec![MockEvent {
                     sample_offset: 0,
                     data: MockData::NoteOff {
-                        id: NoteID {
-                            internals: NoteIDInternals::NoteIDWithID(0),
-                        },
+                        id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
                         tuning: 0f32,
@@ -3461,9 +3411,7 @@ mod tests {
                 vec![MockEvent {
                     sample_offset: 100,
                     data: MockData::NoteOff {
-                        id: NoteID {
-                            internals: NoteIDInternals::NoteIDWithID(1),
-                        },
+                        id: NoteID::from_id(1),
                         pitch: 64,
                         velocity: 0.5,
                         tuning: 0f32,
@@ -3507,9 +3455,7 @@ mod tests {
                     MockEvent {
                         sample_offset: 0,
                         data: MockData::NoteOn {
-                            id: NoteID {
-                                internals: NoteIDInternals::NoteIDWithID(0),
-                            },
+                            id: NoteID::from_id(0),
                             pitch: 64,
                             velocity: 0.5,
                             tuning: 0f32,
@@ -3518,9 +3464,7 @@ mod tests {
                     MockEvent {
                         sample_offset: 0,
                         data: MockData::NoteOn {
-                            id: NoteID {
-                                internals: NoteIDInternals::NoteIDWithID(1),
-                            },
+                            id: NoteID::from_id(1),
                             pitch: 64,
                             velocity: 0.5,
                             tuning: 0f32,
@@ -3546,9 +3490,7 @@ mod tests {
                 vec![MockEvent {
                     sample_offset: 0,
                     data: MockData::NoteOn {
-                        id: NoteID {
-                            internals: NoteIDInternals::NoteIDWithID(0),
-                        },
+                        id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
                         tuning: 0f32,
@@ -3623,9 +3565,7 @@ mod tests {
                 vec![MockEvent {
                     sample_offset: 0,
                     data: MockData::NoteOn {
-                        id: NoteID {
-                            internals: NoteIDInternals::NoteIDWithID(0),
-                        },
+                        id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
                         tuning: 0f32,
@@ -3667,9 +3607,7 @@ mod tests {
                 vec![MockEvent {
                     sample_offset: 0,
                     data: MockData::NoteOn {
-                        id: NoteID {
-                            internals: NoteIDInternals::NoteIDWithID(0),
-                        },
+                        id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
                         tuning: 0f32,
@@ -3701,9 +3639,7 @@ mod tests {
                 vec![MockEvent {
                     sample_offset: 0,
                     data: MockData::NoteOn {
-                        id: NoteID {
-                            internals: NoteIDInternals::NoteIDWithID(0),
-                        },
+                        id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
                         tuning: 0f32,
@@ -3733,9 +3669,7 @@ mod tests {
                 vec![MockEvent {
                     sample_offset: 0,
                     data: MockData::NoteOn {
-                        id: NoteID {
-                            internals: NoteIDInternals::NoteIDWithID(0),
-                        },
+                        id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
                         tuning: 0f32,
@@ -3774,9 +3708,7 @@ mod tests {
                 vec![MockEvent {
                     sample_offset: 0,
                     data: MockData::NoteOn {
-                        id: NoteID {
-                            internals: NoteIDInternals::NoteIDWithID(0),
-                        },
+                        id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
                         tuning: 0f32,
@@ -3814,9 +3746,7 @@ mod tests {
                 vec![MockEvent {
                     sample_offset: 0,
                     data: MockData::NoteOn {
-                        id: NoteID {
-                            internals: NoteIDInternals::NoteIDWithID(0),
-                        },
+                        id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
                         tuning: 0f32,
@@ -3848,9 +3778,7 @@ mod tests {
                 vec![MockEvent {
                     sample_offset: 0,
                     data: MockData::NoteOn {
-                        id: NoteID {
-                            internals: NoteIDInternals::NoteIDWithID(0),
-                        },
+                        id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
                         tuning: 0f32,
@@ -3974,9 +3902,7 @@ mod tests {
                 vec![MockEvent {
                     sample_offset: 0,
                     data: MockData::NoteOn {
-                        id: NoteID {
-                            internals: NoteIDInternals::NoteIDWithID(0),
-                        },
+                        id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
                         tuning: 0f32,
@@ -4164,9 +4090,7 @@ mod tests {
                 vec![MockEvent {
                     sample_offset: 10,
                     data: MockData::NoteOn {
-                        id: NoteID {
-                            internals: NoteIDInternals::NoteIDWithID(0),
-                        },
+                        id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
                         tuning: 0f32,
@@ -4289,9 +4213,7 @@ mod tests {
                 vec![MockEvent {
                     sample_offset: 10,
                     data: MockData::NoteOn {
-                        id: NoteID {
-                            internals: NoteIDInternals::NoteIDWithID(0),
-                        },
+                        id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
                         tuning: 0f32,
@@ -4573,9 +4495,7 @@ mod tests {
                 vec![MockEvent {
                     sample_offset: 10,
                     data: MockData::NoteOn {
-                        id: NoteID {
-                            internals: NoteIDInternals::NoteIDWithID(0),
-                        },
+                        id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
                         tuning: 0f32,
@@ -4661,9 +4581,7 @@ mod tests {
                 vec![MockEvent {
                     sample_offset: 100,
                     data: MockData::NoteOn {
-                        id: NoteID {
-                            internals: NoteIDInternals::NoteIDWithID(0),
-                        },
+                        id: NoteID::from_id(0),
                         pitch: 64,
                         velocity: 0.5,
                         tuning: 0f32,
@@ -4691,9 +4609,7 @@ mod tests {
                 vec![MockEvent {
                     sample_offset: 10,
                     data: MockData::NoteOn {
-                        id: NoteID {
-                            internals: NoteIDInternals::NoteIDFromChannelID(1),
-                        },
+                        id: NoteID::from_channel_id(1),
                         pitch: 64,
                         velocity: 0.5,
                         tuning: 0f32,
@@ -4726,9 +4642,7 @@ mod tests {
                         vec![MockEvent {
                             sample_offset: 0,
                             data: MockData::NoteOn {
-                                id: NoteID {
-                                    internals: NoteIDInternals::NoteIDFromChannelID(1),
-                                },
+                                id: NoteID::from_channel_id(1),
                                 pitch: 64,
                                 velocity: 0.5,
                                 tuning: 0f32,

@@ -579,9 +579,7 @@ mod tests {
         let mpe = State::default();
         let timbre = mpe.get_numeric_expression_for_note(
             NumericPerNoteExpression::Timbre,
-            NoteID {
-                internals: NoteIDInternals::NoteIDFromChannelID(1),
-            },
+            NoteID::from_channel_id(1),
             &state,
         );
         assert_approx_eq!(timbre, 0.5);
@@ -596,9 +594,7 @@ mod tests {
         let mpe = State::default();
         let timbre = mpe.get_numeric_expression_for_note_buffer(
             NumericPerNoteExpression::Timbre,
-            NoteID {
-                internals: NoteIDInternals::NoteIDFromChannelID(1),
-            },
+            NoteID::from_channel_id(1),
             &state,
             Some(NoteEvents::new(vec![].into_iter(), 100).unwrap()),
         );
@@ -642,9 +638,7 @@ mod tests {
             ConstantBufferStates::new(StatesMap::from(HashMap::<String, InternalValue>::new()));
         let timbre = mpe.get_numeric_expression_for_note_buffer(
             NumericPerNoteExpression::Timbre,
-            NoteID {
-                internals: NoteIDInternals::NoteIDWithID(42),
-            },
+            NoteID::from_id(42),
             &state,
             Some(events),
         );
@@ -680,9 +674,7 @@ mod tests {
 
         let timbre = mpe.get_numeric_expression_for_note_buffer(
             NumericPerNoteExpression::Timbre,
-            NoteID {
-                internals: NoteIDInternals::NoteIDWithID(1),
-            },
+            NoteID::from_id(1),
             &empty_params,
             Some(NoteEvents::new(vec![].into_iter(), 100).unwrap()),
         );
@@ -714,9 +706,7 @@ mod tests {
 
         let pitch_bend = mpe.get_numeric_expression_for_note_buffer(
             NumericPerNoteExpression::PitchBend,
-            NoteID {
-                internals: NoteIDInternals::NoteIDWithID(1),
-            },
+            NoteID::from_id(1),
             &empty_params,
             Some(NoteEvents::new(vec![].into_iter(), 100).unwrap()),
         );
@@ -757,9 +747,7 @@ mod tests {
 
         let aftertouch = mpe.get_numeric_expression_for_note_buffer(
             NumericPerNoteExpression::Aftertouch,
-            NoteID {
-                internals: NoteIDInternals::NoteIDWithID(5),
-            },
+            NoteID::from_id(5),
             &empty_params,
             Some(NoteEvents::new(vec![].into_iter(), 100).unwrap()),
         );

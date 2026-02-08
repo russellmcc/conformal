@@ -254,7 +254,7 @@ impl SynthStatesMap {
     /// ```
     /// # use conformal_component::parameters::{StaticInfoRef, InternalValue, TypeSpecificInfoRef, SynthStatesMap, States};
     /// # use conformal_component::synth::{SynthParamStates, NumericGlobalExpression, NumericPerNoteExpression};
-    /// # use conformal_component::events::{NoteID, NoteIDInternals};
+    /// # use conformal_component::events::{NoteID};
     /// let infos = vec![
     ///   StaticInfoRef {
     ///     title: "Numeric",
@@ -269,7 +269,7 @@ impl SynthStatesMap {
     ///   },
     /// ];
     ///
-    /// let note_id = NoteID { internals: NoteIDInternals::NoteIDFromPitch(60) };
+    /// let note_id = NoteID::from_pitch(60);
     /// let per_note_overrides = vec![
     ///   ((NumericPerNoteExpression::PitchBend, note_id), 1.5),
     /// ].into_iter().collect();
