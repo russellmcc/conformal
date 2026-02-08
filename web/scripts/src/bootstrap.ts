@@ -57,9 +57,14 @@ const rust = (options: {
           expectedVersion: string,
           toolName = "cargo",
         ): Promise<boolean> => {
-          const installedVersion = (await $`${{ raw: command }}`.text())
-            .split(" ")[1]
-            ?.trim();
+          const result = await $`${{ raw: command }}`.nothrow().quiet();
+          if (result.exitCode !== 0) {
+            console.warn(
+              `\`${command}\` failed (exit code ${result.exitCode}): ${result.stderr.toString().trim() || result.stdout.toString().trim() || "(no output)"}`,
+            );
+            return false;
+          }
+          const installedVersion = result.text().split(" ")[1]?.trim();
           if (installedVersion !== expectedVersion) {
             console.warn(
               installedVersion
