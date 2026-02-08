@@ -62,7 +62,7 @@ macro_rules! pzip_collect {
         [ $($acc_name:ident $acc_kind:ident $acc_path:tt)* ] // Accumulated
     ) => {
         {
-            #[allow(unused_parens, non_snake_case)]
+            #[allow(unused_parens, non_snake_case, clippy::too_many_arguments)]
             fn pzip_impl<
                 $($acc_name: Iterator<Item = $crate::pzip_value_type!($acc_kind)> + Clone),*
             >(
