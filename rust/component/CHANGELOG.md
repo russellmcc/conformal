@@ -1,3 +1,9 @@
+## 0.4.2 (2026-02-09)
+
+### Features
+
+- Make hash_id `const`, optimize pzip to not hash at runtime
+
 ## 0.4.1 (2026-02-08)
 
 ### Features
