@@ -309,6 +309,12 @@ fn from_internal(
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SyncFromMainThreadResult {
+    Changes,
+    NoChanges,
+}
+
 impl ProcessingStoreCore {
     fn drop_garbage(&self, snapshot: Arc<cc::Snapshot>) {
         // If we failed to send the garbage down the chute, drop it ourselves!
@@ -317,7 +323,7 @@ impl ProcessingStoreCore {
     }
 
     /// Must be called on every process call!
-    fn sync_from_main_thread(&mut self) {
+    fn sync_from_main_thread(&mut self) -> SyncFromMainThreadResult {
         let most_recent_data = {
             let mut most_recent_data: Option<SnapshotMessage> = None;
             while let Ok(msg) = self.snapshot_rx.try_recv() {
@@ -338,6 +344,9 @@ impl ProcessingStoreCore {
                 .store(msg.generation, std::sync::atomic::Ordering::Release);
 
             self.drop_garbage(msg.snapshot);
+            SyncFromMainThreadResult::Changes
+        } else {
+            SyncFromMainThreadResult::NoChanges
         }
     }
 
@@ -365,8 +374,10 @@ impl ProcessingStoreCore {
 impl ProcessingStore {
     /// Must be called on every process call. This synchronizes any data
     /// changes from the main thread (e.g., setting and loading state)
-    pub fn sync_from_main_thread(&mut self) {
-        self.core.sync_from_main_thread();
+    ///
+    /// Returns whether any parameters may have changed.
+    pub fn sync_from_main_thread(&mut self) -> SyncFromMainThreadResult {
+        self.core.sync_from_main_thread()
     }
 }
 
@@ -614,7 +625,7 @@ enum QueueResult {
     Constant { value: cp::InternalValue },
 }
 
-unsafe fn check_queue(
+unsafe fn process_queue(
     value_queue: ComRef<'_, IParamValueQueue>,
     metadatum: &Metadatum,
     mut initial_value: cp::InternalValue,
@@ -1056,82 +1067,85 @@ unsafe fn check_changes_and_update_scratch_and_store<'a>(
     scratch: &'a mut Scratch,
     store: &'a ProcessingStoreCore,
     buffer_size: usize,
-) -> Option<(ChangesStatus, InitializedScratch<'a>)> {
+    full_refresh: bool,
+) -> (ChangesStatus, InitializedScratch<'a>) {
     unsafe {
         let param_count = changes.getParameterCount();
         let mut change_status = ChangesStatus::NoChanges;
         debug_assert!(param_count >= 0);
-        // Clear all the checker flags
-        for v in scratch.data.values_mut() {
-            *v = None;
+        if full_refresh {
+            for v in scratch.data.values_mut() {
+                *v = None;
+            }
+        } else {
+            for v in scratch.data.values_mut() {
+                if matches!(v, Some(ValueOrQueue::Queue(_))) {
+                    *v = None;
+                }
+            }
         }
-        if !(0..param_count).all(|idx| {
+        for idx in 0..param_count {
             let param_queue = changes.getParameterData(idx);
-            ComRef::from_raw(param_queue).is_some_and(|q| {
+            if let Some(q) = ComRef::from_raw(param_queue) {
                 let parameter_id = cp::id_hash_from_internal_hash(q.getParameterId());
                 debug_assert!(q.getPointCount() >= 0);
-                match (
+                if let (Some(scratch_v), Some(metadatum), Some(old_value)) = (
                     scratch.data.get_mut(&parameter_id),
                     store.metadata.data.get(&parameter_id),
                     store.get_by_hash(parameter_id),
                 ) {
-                    (Some(scratch_v), Some(metadatum), Some(old_value)) => {
-                        debug_assert!(scratch_v.is_none());
-                        match check_queue(q, metadatum, old_value) {
-                            QueueResult::Ok {
+                    match process_queue(q, metadatum, old_value) {
+                        QueueResult::Ok {
+                            initial_value,
+                            last_value,
+                        } => {
+                            debug_assert!(check_downstream_invariants(
                                 initial_value,
-                                last_value,
-                            } => {
-                                debug_assert!(check_downstream_invariants(
-                                    initial_value,
-                                    metadatum,
-                                    q,
-                                    buffer_size,
-                                ));
+                                metadatum,
+                                q,
+                                buffer_size,
+                            ));
 
-                                let set_ok = store.set(parameter_id, last_value);
-                                debug_assert!(set_ok);
+                            let set_ok = store.set(parameter_id, last_value);
+                            debug_assert!(set_ok);
 
-                                *scratch_v = Some(ValueOrQueue::Queue(QueueImpl {
-                                    initial_value,
-                                    com_ptr: param_queue,
-                                }));
-                                change_status = ChangesStatus::Changes;
-                            }
-                            QueueResult::Unchanged { value } => {
-                                *scratch_v = Some(ValueOrQueue::Value(value));
-                            }
-                            QueueResult::Constant { value } => {
-                                let set_ok = store.set(parameter_id, value);
-                                debug_assert!(set_ok);
-
-                                *scratch_v = Some(ValueOrQueue::Value(value));
-                                change_status = ChangesStatus::Changes;
-                            }
+                            *scratch_v = Some(ValueOrQueue::Queue(QueueImpl {
+                                initial_value,
+                                com_ptr: param_queue,
+                            }));
+                            change_status = ChangesStatus::Changes;
                         }
-                        true
+                        QueueResult::Unchanged { value } => {
+                            *scratch_v = Some(ValueOrQueue::Value(value));
+                        }
+                        QueueResult::Constant { value } => {
+                            let set_ok = store.set(parameter_id, value);
+                            debug_assert!(set_ok);
+
+                            *scratch_v = Some(ValueOrQueue::Value(value));
+                            change_status = ChangesStatus::Changes;
+                        }
                     }
-                    _ => false,
+                } else {
+                    debug_assert!(false, "Host sent unknown parameter");
                 }
-            })
-        }) {
-            return None;
+            }
         }
 
         for (k, v) in &mut scratch.data {
             if v.is_none() {
                 // Initialize any unchanged parameters to their current store value.
-                *v = Some(ValueOrQueue::Value(store.get_by_hash(*k)?));
+                *v = Some(ValueOrQueue::Value(store.get_by_hash(*k).unwrap()));
             }
         }
-        Some((
+        (
             change_status,
             InitializedScratch {
                 data: &scratch.data,
                 metadata: &store.metadata,
                 buffer_size,
             },
-        ))
+        )
     }
 }
 
@@ -1139,15 +1153,18 @@ unsafe fn internal_param_changes_from_vst3<'a>(
     com_changes: ComRef<'a, IParameterChanges>,
     store: &'a mut ProcessingStore,
     buffer_size: usize,
-) -> Option<InitializedScratch<'a>> {
+    changes_from_main_thread: SyncFromMainThreadResult,
+) -> InitializedScratch<'a> {
+    let full_refresh = matches!(changes_from_main_thread, SyncFromMainThreadResult::Changes);
     unsafe {
         let (_, states) = check_changes_and_update_scratch_and_store(
             com_changes,
             &mut store.scratch,
             &store.core,
             buffer_size,
-        )?;
-        Some(states)
+            full_refresh,
+        );
+        states
     }
 }
 
@@ -1155,8 +1172,11 @@ pub unsafe fn param_changes_from_vst3<'a>(
     com_changes: ComRef<'a, IParameterChanges>,
     store: &'a mut ProcessingStore,
     buffer_size: usize,
-) -> Option<impl BufferStates + Clone> {
-    unsafe { internal_param_changes_from_vst3(com_changes, store, buffer_size) }
+    changes_from_main_thread: SyncFromMainThreadResult,
+) -> impl BufferStates + Clone {
+    unsafe {
+        internal_param_changes_from_vst3(com_changes, store, buffer_size, changes_from_main_thread)
+    }
 }
 
 /// Only safe to call if the store was initialized with extra synth parameters!
@@ -1166,51 +1186,60 @@ pub unsafe fn synth_param_changes_from_vst3<'a>(
     buffer_size: usize,
     mpe: &'a mpe::State,
     mpe_events: Option<mpe::NoteEvents<impl Iterator<Item = mpe::NoteEvent> + Clone>>,
-) -> Option<impl SynthParamBufferStates + Clone> {
-    let scratch = unsafe { internal_param_changes_from_vst3(com_changes, store, buffer_size) }?;
-    Some(InitializedScratchWithMpe {
+    changes_from_main_thread: SyncFromMainThreadResult,
+) -> impl SynthParamBufferStates + Clone {
+    let scratch = unsafe {
+        internal_param_changes_from_vst3(com_changes, store, buffer_size, changes_from_main_thread)
+    };
+    InitializedScratchWithMpe {
         scratch,
         mpe,
         mpe_events,
-    })
+    }
 }
 
 unsafe fn no_audio_param_changes_from_vst3_internal<'a>(
     com_changes: ComRef<'a, IParameterChanges>,
     store: &'a mut ProcessingStore,
-) -> Option<(ChangesStatus, &'a ProcessingStoreCore)> {
+    changes_from_main_thread: SyncFromMainThreadResult,
+) -> (ChangesStatus, &'a ProcessingStoreCore) {
+    let full_refresh = matches!(changes_from_main_thread, SyncFromMainThreadResult::Changes);
     unsafe {
         let (status, scratch) = check_changes_and_update_scratch_and_store(
             com_changes,
             &mut store.scratch,
             &store.core,
             0,
-        )?;
+            full_refresh,
+        );
         for scratch_value in scratch.data.values().flatten() {
-            if let ValueOrQueue::Queue(_) = scratch_value {
-                return None;
-            }
+            debug_assert!(!matches!(scratch_value, ValueOrQueue::Queue(_)));
         }
-        Some((status, &store.core))
+        (status, &store.core)
     }
 }
 
 pub unsafe fn no_audio_param_changes_from_vst3<'a>(
     com_changes: ComRef<'a, IParameterChanges>,
     store: &'a mut ProcessingStore,
-) -> Option<(ChangesStatus, impl cp::States + Clone)> {
-    unsafe { no_audio_param_changes_from_vst3_internal(com_changes, store) }
+    changes_from_main_thread: SyncFromMainThreadResult,
+) -> (ChangesStatus, impl cp::States + Clone) {
+    unsafe {
+        no_audio_param_changes_from_vst3_internal(com_changes, store, changes_from_main_thread)
+    }
 }
 
 pub unsafe fn no_audio_synth_param_changes_from_vst3<'a>(
     com_changes: ComRef<'a, IParameterChanges>,
     store: &'a mut ProcessingStore,
     mpe: &'a mpe::State,
-) -> Option<(ChangesStatus, impl SynthParamStates + Clone)> {
-    let (change_status, core) =
-        unsafe { no_audio_param_changes_from_vst3_internal(com_changes, store) }?;
+    changes_from_main_thread: SyncFromMainThreadResult,
+) -> (ChangesStatus, impl SynthParamStates + Clone) {
+    let (change_status, core) = unsafe {
+        no_audio_param_changes_from_vst3_internal(com_changes, store, changes_from_main_thread)
+    };
 
-    Some((change_status, CoreWithMpe { core, mpe }))
+    (change_status, CoreWithMpe { core, mpe })
 }
 
 pub unsafe fn existing_synth_params<'a>(
