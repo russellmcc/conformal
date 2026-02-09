@@ -19,13 +19,19 @@ pub struct Voice {
     playing: VoicePlayingState,
 }
 
-const MAX_VOICES: usize = 32;
+pub(crate) const MAX_VOICES: usize = 32;
+
+/// Scratch space used by [`State::update`] to avoid repeated allocation.
+///
+/// This is separated from [`State`] so that it is not included in clones of `State`.
+#[derive(Default)]
+pub struct UpdateScratch {
+    buf: arrayvec::ArrayVec<(usize, usize), MAX_VOICES>,
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct State {
     voices: arrayvec::ArrayVec<Voice, MAX_VOICES>,
-
-    voices_compress_order_scratch: arrayvec::ArrayVec<(usize, usize), MAX_VOICES>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -122,7 +128,6 @@ impl State {
                     },
                 })
                 .collect(),
-            voices_compress_order_scratch: Default::default(),
         }
     }
 
@@ -310,9 +315,9 @@ impl State {
         EventStreamStep::new0()
     }
 
-    fn compress_idle_order(&mut self) {
-        self.voices_compress_order_scratch.clear();
-        self.voices_compress_order_scratch.extend(
+    fn compress_idle_order(&mut self, scratch: &mut UpdateScratch) {
+        scratch.buf.clear();
+        scratch.buf.extend(
             self.voices
                 .iter()
                 .filter_map(|voice_state| {
@@ -324,11 +329,11 @@ impl State {
                 })
                 .enumerate(),
         );
-        self.voices_compress_order_scratch.sort_by_key(|x| x.1);
-        for (o, (_, vo)) in self.voices_compress_order_scratch.iter_mut().enumerate() {
+        scratch.buf.sort_by_key(|x| x.1);
+        for (o, (_, vo)) in scratch.buf.iter_mut().enumerate() {
             *vo = o;
         }
-        self.voices_compress_order_scratch.sort_by_key(|x| x.0);
+        scratch.buf.sort_by_key(|x| x.0);
         self.voices
             .iter_mut()
             .filter_map(|voice_state| {
@@ -338,13 +343,13 @@ impl State {
                     None
                 }
             })
-            .zip(self.voices_compress_order_scratch.iter().map(|x| x.1))
+            .zip(scratch.buf.iter().map(|x| x.1))
             .for_each(|(order, new_order)| *order = new_order);
     }
 
-    fn compress_note_order(&mut self) {
-        self.voices_compress_order_scratch.clear();
-        self.voices_compress_order_scratch.extend(
+    fn compress_note_order(&mut self, scratch: &mut UpdateScratch) {
+        scratch.buf.clear();
+        scratch.buf.extend(
             self.voices
                 .iter_mut()
                 .filter_map(|voice_state| {
@@ -356,11 +361,11 @@ impl State {
                 })
                 .enumerate(),
         );
-        self.voices_compress_order_scratch.sort_by_key(|x| x.1);
-        for (o, (_, vo)) in self.voices_compress_order_scratch.iter_mut().enumerate() {
+        scratch.buf.sort_by_key(|x| x.1);
+        for (o, (_, vo)) in scratch.buf.iter_mut().enumerate() {
             *vo = o;
         }
-        self.voices_compress_order_scratch.sort_by_key(|x| x.0);
+        scratch.buf.sort_by_key(|x| x.0);
         self.voices
             .iter_mut()
             .filter_map(|voice_state| {
@@ -370,19 +375,23 @@ impl State {
                     None
                 }
             })
-            .zip(self.voices_compress_order_scratch.iter().map(|x| x.1))
+            .zip(scratch.buf.iter().map(|x| x.1))
             .for_each(|(order, new_order)| *order = new_order);
     }
 
     /// Note that the events must be sorted by time!
-    pub fn update(&mut self, events: impl IntoIterator<Item = Event>) {
+    pub fn update(
+        &mut self,
+        events: impl IntoIterator<Item = Event>,
+        scratch: &mut UpdateScratch,
+    ) {
         for event in events {
             self.update_state_and_dispatch_for_event(&event);
         }
 
         // compress orders - this keeps the `order` member bounded between buffers.
-        self.compress_idle_order();
-        self.compress_note_order();
+        self.compress_idle_order(scratch);
+        self.compress_note_order(scratch);
     }
 }
 
@@ -503,7 +512,7 @@ mod tests {
         let events_a = vec![example_note_on(0, 60), example_note_on(1, 61)];
         let mut state = State::new(2);
         let a = gather_events(&state, 2, events_a.clone());
-        state.update(events_a);
+        state.update(events_a, &mut Default::default());
         let b = gather_events(
             &state,
             2,
@@ -552,7 +561,7 @@ mod tests {
         ];
         let mut state = State::new(2);
         let a = gather_events(&state, 2, events_a.clone());
-        state.update(events_a);
+        state.update(events_a, &mut Default::default());
         let b = gather_events(
             &state,
             2,
@@ -599,7 +608,7 @@ mod tests {
         let events_a = vec![example_note_on(0, 60), example_note_on(1, 61)];
         let mut state = State::new(2);
         let a = gather_events(&state, 2, events_a.clone());
-        state.update(events_a);
+        state.update(events_a, &mut Default::default());
         let b = gather_events(&state, 2, vec![example_note_on(0, 62)]);
         assert_events_match(
             vec![
@@ -617,7 +626,7 @@ mod tests {
     #[test]
     fn reset_restors_state() {
         let mut state = State::new(2);
-        state.update(vec![example_note_on(0, 60), example_note_on(1, 61)]);
+        state.update(vec![example_note_on(0, 60), example_note_on(1, 61)], &mut Default::default());
         state.reset();
         assert_events_match(
             vec![vec![expected_note_on(0, 62)], vec![expected_note_on(1, 63)]],

@@ -3,7 +3,7 @@
 
 use crate::splice::{TimedStateChange, splice_numeric_buffer_states};
 
-use self::state::State;
+use self::state::{State, UpdateScratch};
 use conformal_component::{
     ProcessingEnvironment,
     audio::{BufferMut, channels_mut},
@@ -308,6 +308,7 @@ impl<E: Iterator<Item = Event> + Clone, P: synth::SynthParamBufferStates> VoiceP
 pub struct Poly<V> {
     voices: Vec<V>,
     state: State,
+    update_scratch: UpdateScratch,
     voice_scratch_buffer: Vec<f32>,
 }
 
@@ -338,6 +339,7 @@ impl<V: Voice> Poly<V> {
         Self {
             voices,
             state,
+            update_scratch: Default::default(),
             voice_scratch_buffer: vec![0f32; environment.max_samples_per_process_call],
         }
     }
@@ -357,7 +359,7 @@ impl<V: Voice> Poly<V> {
             self.voices[v].handle_event(&ev.data);
         }
 
-        self.state.update(poly_events);
+        self.state.update(poly_events, &mut self.update_scratch);
     }
 
     /// Renders the audio for the synth.
@@ -428,7 +430,7 @@ impl<V: Voice> Poly<V> {
                 channel_mut.fill(0f32);
             }
         }
-        self.state.update(events);
+        self.state.update(events, &mut self.update_scratch);
     }
 
     /// Resets the state of the polyphonic synth.
