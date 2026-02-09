@@ -19,18 +19,16 @@ pub struct Voice {
     playing: VoicePlayingState,
 }
 
-pub(crate) const MAX_VOICES: usize = 32;
-
 /// Scratch space used by [`State::update`] to avoid repeated allocation.
 ///
 /// This is separated from [`State`] so that it is not included in clones of `State`.
 #[derive(Default)]
-pub struct UpdateScratch {
+pub struct UpdateScratch<const MAX_VOICES: usize = 32> {
     buf: arrayvec::ArrayVec<(usize, usize), MAX_VOICES>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct State {
+pub struct State<const MAX_VOICES: usize = 32> {
     voices: arrayvec::ArrayVec<Voice, MAX_VOICES>,
 }
 
@@ -116,11 +114,10 @@ fn synthetic_note_off(id: NoteID, pitch: u8) -> EventData {
     }
 }
 
-impl State {
-    pub fn new(max_voices: usize) -> Self {
-        assert!(max_voices > 0);
+impl<const MAX_VOICES: usize> State<MAX_VOICES> {
+    pub fn new() -> Self {
         Self {
-            voices: (0..max_voices)
+            voices: (0..MAX_VOICES)
                 .map(|i| Voice {
                     playing: VoicePlayingState::Idle {
                         order: i,
@@ -315,7 +312,7 @@ impl State {
         EventStreamStep::new0()
     }
 
-    fn compress_idle_order(&mut self, scratch: &mut UpdateScratch) {
+    fn compress_idle_order(&mut self, scratch: &mut UpdateScratch<MAX_VOICES>) {
         scratch.buf.clear();
         scratch.buf.extend(
             self.voices
@@ -347,7 +344,7 @@ impl State {
             .for_each(|(order, new_order)| *order = new_order);
     }
 
-    fn compress_note_order(&mut self, scratch: &mut UpdateScratch) {
+    fn compress_note_order(&mut self, scratch: &mut UpdateScratch<MAX_VOICES>) {
         scratch.buf.clear();
         scratch.buf.extend(
             self.voices
@@ -383,7 +380,7 @@ impl State {
     pub fn update(
         &mut self,
         events: impl IntoIterator<Item = Event>,
-        scratch: &mut UpdateScratch,
+        scratch: &mut UpdateScratch<MAX_VOICES>,
     ) {
         for event in events {
             self.update_state_and_dispatch_for_event(&event);
@@ -457,7 +454,7 @@ mod tests {
         }
     }
 
-    fn gather_events(state: &State, num_voices: usize, events: Vec<Event>) -> Vec<Vec<Event>> {
+    fn gather_events<const MAX_VOICES: usize>(state: &State<MAX_VOICES>, num_voices: usize, events: Vec<Event>) -> Vec<Vec<Event>> {
         (0..num_voices)
             .into_iter()
             .map(|voice_index| {
@@ -485,7 +482,7 @@ mod tests {
                 vec![expected_note_on(0, 60), expected_note_off(2, 60)],
             ],
             gather_events(
-                &State::new(2),
+                &State::<2>::new(),
                 2,
                 vec![
                     example_note_on(0, 60),
@@ -510,7 +507,7 @@ mod tests {
     #[test]
     fn two_notes_go_to_two_voices_across_buffers() {
         let events_a = vec![example_note_on(0, 60), example_note_on(1, 61)];
-        let mut state = State::new(2);
+        let mut state = State::<2>::new();
         let a = gather_events(&state, 2, events_a.clone());
         state.update(events_a, &mut Default::default());
         let b = gather_events(
@@ -539,7 +536,7 @@ mod tests {
                 ],
             ],
             gather_events(
-                &State::new(2),
+                &State::<2>::new(),
                 2,
                 vec![
                     example_note_on(0, 60),
@@ -559,7 +556,7 @@ mod tests {
             example_note_on(0, 61),
             example_note_off(66, 60),
         ];
-        let mut state = State::new(2);
+        let mut state = State::<2>::new();
         let a = gather_events(&state, 2, events_a.clone());
         state.update(events_a, &mut Default::default());
         let b = gather_events(
@@ -592,7 +589,7 @@ mod tests {
                 ],
             ],
             gather_events(
-                &State::new(2),
+                &State::<2>::new(),
                 2,
                 vec![
                     example_note_on(0, 60),
@@ -606,7 +603,7 @@ mod tests {
     #[test]
     fn drops_from_oldest_note_across_buffers() {
         let events_a = vec![example_note_on(0, 60), example_note_on(1, 61)];
-        let mut state = State::new(2);
+        let mut state = State::<2>::new();
         let a = gather_events(&state, 2, events_a.clone());
         state.update(events_a, &mut Default::default());
         let b = gather_events(&state, 2, vec![example_note_on(0, 62)]);
@@ -625,7 +622,7 @@ mod tests {
 
     #[test]
     fn reset_restors_state() {
-        let mut state = State::new(2);
+        let mut state = State::<2>::new();
         state.update(vec![example_note_on(0, 60), example_note_on(1, 61)], &mut Default::default());
         state.reset();
         assert_events_match(

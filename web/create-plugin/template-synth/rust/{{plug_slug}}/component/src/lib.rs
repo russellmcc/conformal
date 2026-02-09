@@ -39,7 +39,7 @@ pub struct SharedData {}
 
 #[derive(Debug)]
 pub struct Synth {
-    poly: Poly<Voice>,
+    poly: Poly<Voice, 8>,
 }
 
 const PITCH_BEND_WIDTH: f32 = 2.;
@@ -141,7 +141,7 @@ impl ComponentTrait for Component {
 
     fn create_processor(&self, env: &ProcessingEnvironment) -> Self::Processor {
         Synth {
-            poly: Poly::new(env, 8),
+            poly: Poly::new(env),
         }
     }
 }

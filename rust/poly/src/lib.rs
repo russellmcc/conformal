@@ -305,14 +305,14 @@ impl<E: Iterator<Item = Event> + Clone, P: synth::SynthParamBufferStates> VoiceP
 ///
 /// To use it, you must implement the [`Voice`] trait for your synth. Then, use the methods
 /// on this struct to implement the required [`conformal_component::synth::Synth`] trait methods.
-pub struct Poly<V> {
+pub struct Poly<V, const MAX_VOICES: usize = 32> {
     voices: Vec<V>,
-    state: State,
-    update_scratch: UpdateScratch,
+    state: State<MAX_VOICES>,
+    update_scratch: UpdateScratch<MAX_VOICES>,
     voice_scratch_buffer: Vec<f32>,
 }
 
-impl<V: std::fmt::Debug> std::fmt::Debug for Poly<V> {
+impl<V: std::fmt::Debug, const MAX_VOICES: usize> std::fmt::Debug for Poly<V, MAX_VOICES> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Poly")
             .field("voices", &self.voices)
@@ -321,11 +321,11 @@ impl<V: std::fmt::Debug> std::fmt::Debug for Poly<V> {
     }
 }
 
-impl<V: Voice> Poly<V> {
+impl<V: Voice, const MAX_VOICES: usize> Poly<V, MAX_VOICES> {
     /// Creates a new [`Poly`] struct.
     #[must_use]
-    pub fn new(environment: &ProcessingEnvironment, max_voices: usize) -> Self {
-        let voices = (0..max_voices)
+    pub fn new(environment: &ProcessingEnvironment) -> Self {
+        let voices = (0..MAX_VOICES)
             .map(|voice_index| {
                 V::new(
                     voice_index,
@@ -334,7 +334,7 @@ impl<V: Voice> Poly<V> {
                 )
             })
             .collect();
-        let state = State::new(max_voices);
+        let state = State::new();
 
         Self {
             voices,
