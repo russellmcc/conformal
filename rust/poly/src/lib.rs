@@ -151,12 +151,23 @@ struct ProcessContextImpl<'a, E, P> {
     events: E,
     parameters: &'a P,
     buffer_size: usize,
+    note_changes_cache: std::cell::RefCell<Option<NoteChangesCache>>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 struct TimedNoteChange {
     note_id: NoteID,
     sample_offset: usize,
+}
+
+/// This stores some expensive-to-compute info about when
+/// notes change on a voice, needed to implement
+/// [`VoiceProcessContext::per_note_expression`].
+#[derive(Clone)]
+struct NoteChangesCache {
+    effective_initial_note_id: Option<NoteID>,
+    first_change: Option<TimedNoteChange>,
+    prefix_len: usize,
 }
 
 // Returns an iterator of _changes_ in note id from the given initial note id in an event stream.
@@ -203,6 +214,41 @@ fn keep_last_per_sample(
     })
 }
 
+impl<E: Iterator<Item = Event> + Clone, P: synth::SynthParamBufferStates>
+    ProcessContextImpl<'_, E, P>
+{
+    fn get_note_changes(&self) -> impl Iterator<Item = TimedNoteChange> + Clone {
+        // Note that we keep only the last note change per sample. This is because the splice
+        // implementation requires no more than one change per sample, and there's no such
+        // rule for our voice event stream - we could have multiple note ons per sample in
+        keep_last_per_sample(note_changes_iter(self.initial_note_id, self.events()))
+    }
+
+    fn get_note_changes_cache(&self) -> NoteChangesCache {
+        if let Some(cached) = self.note_changes_cache.borrow().as_ref() {
+            return cached.clone();
+        }
+
+        let mut note_changes = self.get_note_changes();
+        let first_change = note_changes.next();
+
+        // We requires no "changes" at sample 0 — absorb any sample-0 change (which could happen
+        // if a note on happened at the start of the buffer) into the effective initial note.
+        let (effective_initial_note_id, first_change, prefix_len) = match first_change {
+            Some(c) if c.sample_offset == 0 => (Some(c.note_id), note_changes.next(), 2),
+            other => (self.initial_note_id, other, 1),
+        };
+
+        let cache = NoteChangesCache {
+            effective_initial_note_id,
+            first_change,
+            prefix_len,
+        };
+        *self.note_changes_cache.borrow_mut() = Some(cache.clone());
+        cache
+    }
+}
+
 impl<E: Iterator<Item = Event> + Clone, P: synth::SynthParamBufferStates> VoiceProcessContext
     for ProcessContextImpl<'_, E, P>
 {
@@ -226,20 +272,11 @@ impl<E: Iterator<Item = Event> + Clone, P: synth::SynthParamBufferStates> VoiceP
         //     this is a much more awkward case, and we use the "splice" helper and the "right"
         //     branch.
 
-        // Note that we keep only the last note change per sample. This is because the splice
-        // implementation requires no more than one change per sample, and there's no such
-        // rule for our voice event stream - we could have multiple note ons per sample in
-        // extreme cases...
-        let mut note_changes =
-            keep_last_per_sample(note_changes_iter(self.initial_note_id, self.events()));
-        let first_change = note_changes.next();
-
-        // We requires no "changes" at sample 0 — absorb any sample-0 change (which could happen
-        // if a note on happened at the start of the buffer)into the effective initial note.
-        let (effective_initial_note_id, first_change) = match first_change {
-            Some(c) if c.sample_offset == 0 => (Some(c.note_id), note_changes.next()),
-            other => (self.initial_note_id, other),
-        };
+        let NoteChangesCache {
+            effective_initial_note_id,
+            first_change,
+            prefix_len,
+        } = self.get_note_changes_cache();
 
         let note_change_to_state_change =
             move |TimedNoteChange {
@@ -263,6 +300,7 @@ impl<E: Iterator<Item = Event> + Clone, P: synth::SynthParamBufferStates> VoiceP
             (None, None) => NumericBufferState::Constant(Default::default()),
             // In this case, we definitely have to splice
             (Some(initial_note_id), Some(first_change)) => {
+                let note_changes = self.get_note_changes().skip(prefix_len);
                 right_numeric_buffer(splice_numeric_buffer_states(
                     self.parameters
                         .get_numeric_expression_for_note(expression, initial_note_id),
@@ -277,6 +315,7 @@ impl<E: Iterator<Item = Event> + Clone, P: synth::SynthParamBufferStates> VoiceP
             // In this case, we might be able to get away with a single lookup if there was
             // only a single change!
             (None, Some(first_change)) => {
+                let mut note_changes = self.get_note_changes().skip(prefix_len);
                 let next_change = note_changes.next();
                 match next_change {
                     Some(next_change) => right_numeric_buffer(splice_numeric_buffer_states(
@@ -409,6 +448,7 @@ impl<V: Voice, const MAX_VOICES: usize> Poly<V, MAX_VOICES> {
                     events: voice_events,
                     parameters: params,
                     buffer_size: output.num_frames(),
+                    note_changes_cache: std::cell::RefCell::new(None),
                 },
                 shared_data,
                 &mut self.voice_scratch_buffer[0..output.num_frames()],
