@@ -148,7 +148,7 @@ pub trait Voice {
 
 struct ProcessContextImpl<'a, E, P> {
     initial_note_id: Option<NoteID>,
-    events: E,
+    events_fn: E,
     parameters: &'a P,
     buffer_size: usize,
     note_changes_cache: std::cell::RefCell<Option<NoteChangesCache>>,
@@ -214,7 +214,7 @@ fn keep_last_per_sample(
     })
 }
 
-impl<E: Iterator<Item = Event> + Clone, P: synth::SynthParamBufferStates>
+impl<I: Iterator<Item = Event> + Clone, E: Fn() -> I, P: synth::SynthParamBufferStates>
     ProcessContextImpl<'_, E, P>
 {
     fn get_note_changes(&self) -> impl Iterator<Item = TimedNoteChange> + Clone {
@@ -249,11 +249,11 @@ impl<E: Iterator<Item = Event> + Clone, P: synth::SynthParamBufferStates>
     }
 }
 
-impl<E: Iterator<Item = Event> + Clone, P: synth::SynthParamBufferStates> VoiceProcessContext
-    for ProcessContextImpl<'_, E, P>
+impl<I: Iterator<Item = Event> + Clone, E: Fn() -> I, P: synth::SynthParamBufferStates>
+    VoiceProcessContext for ProcessContextImpl<'_, E, P>
 {
     fn events(&self) -> impl Iterator<Item = Event> + Clone {
-        self.events.clone()
+        (self.events_fn)()
     }
 
     fn parameters(&self) -> &impl synth::SynthParamBufferStates {
@@ -431,12 +431,13 @@ impl<V: Voice, const MAX_VOICES: usize> Poly<V, MAX_VOICES> {
         let voice_scale = 1f32 / self.voices.len() as f32;
         let mut cleared = false;
         for (index, voice) in self.voices.iter_mut().enumerate() {
-            let voice_events = self
-                .state
-                .clone()
-                .dispatch_events(events.clone())
-                .filter_map(|(i, event)| if i == index { Some(event) } else { None });
-            if voice_events.clone().next().is_none() && voice.quiescent() {
+            let events_fn = || {
+                self.state
+                    .clone()
+                    .dispatch_events(events.clone())
+                    .filter_map(|(i, event)| if i == index { Some(event) } else { None })
+            };
+            if events_fn().next().is_none() && voice.quiescent() {
                 voice.skip_samples(buffer_size);
                 // Clear the "prev note" id for this voice since it's no longer active.
                 self.state.clear_prev_note_id_for_voice(index);
@@ -445,7 +446,7 @@ impl<V: Voice, const MAX_VOICES: usize> Poly<V, MAX_VOICES> {
             voice.process(
                 &ProcessContextImpl {
                     initial_note_id: self.state.note_id_for_voice(index),
-                    events: voice_events,
+                    events_fn,
                     parameters: params,
                     buffer_size: output.num_frames(),
                     note_changes_cache: std::cell::RefCell::new(None),
