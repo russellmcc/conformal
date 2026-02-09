@@ -586,7 +586,7 @@ impl Metadata {
 fn convert_value(value: f64, metadatum: &Metadatum) -> cp::InternalValue {
     // Note that we defend against value being outside of [0, 1] in
     // `check_queue`, which is a precondition for this function.
-    assert!((0.0..=1.0).contains(&value));
+    debug_assert!((0.0..=1.0).contains(&value));
 
     match metadatum {
         Metadatum::Numeric { datum } => {
