@@ -3,7 +3,7 @@
 
 use crate::splice::{TimedStateChange, splice_numeric_buffer_states};
 
-use self::state::State;
+use self::state::{State, UpdateScratch};
 use conformal_component::{
     ProcessingEnvironment,
     audio::{BufferMut, channels_mut},
@@ -146,11 +146,30 @@ pub trait Voice {
     fn reset(&mut self);
 }
 
+/// This stores some expensive-to-compute info about when
+/// notes change on a voice, needed to implement
+/// [`VoiceProcessContext::per_note_expression`].
+#[derive(Clone)]
+struct NoteChangesInfo {
+    /// The effective initial note id. Note that if the buffer started without this voice
+    /// playing a note, this may still have a value
+    effective_initial_note_id: Option<NoteID>,
+
+    /// True if we have any note changes inside the buffer, indicating we need to splice
+    /// expression data between two sources.
+    has_any_change: bool,
+
+    /// True if the initial state of the voice was "none" - in this case,
+    /// we start splicing from the _second_ note change.
+    initial_state_was_off: bool,
+}
+
 struct ProcessContextImpl<'a, E, P> {
     initial_note_id: Option<NoteID>,
-    events: E,
+    events_fn: E,
     parameters: &'a P,
     buffer_size: usize,
+    note_changes_info: &'a NoteChangesInfo,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -186,8 +205,8 @@ fn note_changes_iter(
 }
 
 fn keep_last_per_sample(
-    iter: impl Iterator<Item = TimedNoteChange> + Clone,
-) -> impl Iterator<Item = TimedNoteChange> + Clone {
+    iter: impl Iterator<Item = Event> + Clone,
+) -> impl Iterator<Item = Event> + Clone {
     let mut iter = iter.peekable();
     std::iter::from_fn(move || {
         loop {
@@ -203,11 +222,28 @@ fn keep_last_per_sample(
     })
 }
 
-impl<E: Iterator<Item = Event> + Clone, P: synth::SynthParamBufferStates> VoiceProcessContext
-    for ProcessContextImpl<'_, E, P>
+impl<I: Iterator<Item = Event> + Clone, E: Fn() -> I, P: synth::SynthParamBufferStates>
+    ProcessContextImpl<'_, E, P>
+{
+    fn get_note_changes(&self) -> impl Iterator<Item = TimedNoteChange> + Clone {
+        // Note that we keep only the last note change per sample. This is because the splice
+        // implementation requires no more than one change per sample, and there's no such
+        // rule for our voice event stream - we could have multiple note ons per sample in
+        note_changes_iter(
+            self.initial_note_id,
+            keep_last_per_sample(
+                self.events()
+                    .filter(|e| matches!(e.data, EventData::NoteOn { .. })),
+            ),
+        )
+    }
+}
+
+impl<I: Iterator<Item = Event> + Clone, E: Fn() -> I, P: synth::SynthParamBufferStates>
+    VoiceProcessContext for ProcessContextImpl<'_, E, P>
 {
     fn events(&self) -> impl Iterator<Item = Event> + Clone {
-        self.events.clone()
+        (self.events_fn)()
     }
 
     fn parameters(&self) -> &impl synth::SynthParamBufferStates {
@@ -226,21 +262,6 @@ impl<E: Iterator<Item = Event> + Clone, P: synth::SynthParamBufferStates> VoiceP
         //     this is a much more awkward case, and we use the "splice" helper and the "right"
         //     branch.
 
-        // Note that we keep only the last note change per sample. This is because the splice
-        // implementation requires no more than one change per sample, and there's no such
-        // rule for our voice event stream - we could have multiple note ons per sample in
-        // extreme cases...
-        let mut note_changes =
-            keep_last_per_sample(note_changes_iter(self.initial_note_id, self.events()));
-        let first_change = note_changes.next();
-
-        // We requires no "changes" at sample 0 — absorb any sample-0 change (which could happen
-        // if a note on happened at the start of the buffer)into the effective initial note.
-        let (effective_initial_note_id, first_change) = match first_change {
-            Some(c) if c.sample_offset == 0 => (Some(c.note_id), note_changes.next()),
-            other => (self.initial_note_id, other),
-        };
-
         let note_change_to_state_change =
             move |TimedNoteChange {
                       note_id,
@@ -251,49 +272,35 @@ impl<E: Iterator<Item = Event> + Clone, P: synth::SynthParamBufferStates> VoiceP
                     .parameters
                     .get_numeric_expression_for_note(expression, note_id),
             };
-        match (effective_initial_note_id, first_change) {
+        match (
+            self.note_changes_info.effective_initial_note_id,
+            self.note_changes_info.has_any_change,
+        ) {
             // Easy case - we have a note playing, and we received no events. In this case,
             // we just grab the state of the note we started with.
-            (Some(initial_note_id), None) => left_numeric_buffer(
+            (Some(initial_note_id), false) => left_numeric_buffer(
                 self.parameters
                     .get_numeric_expression_for_note(expression, initial_note_id),
             ),
             // Easy case - we have no note playing, and we received no events. In this case,
             // we just return a constant zero. Note that this is in range for all expression types.
-            (None, None) => NumericBufferState::Constant(Default::default()),
+            (None, false) => NumericBufferState::Constant(Default::default()),
             // In this case, we definitely have to splice
-            (Some(initial_note_id), Some(first_change)) => {
+            (Some(initial_note_id), true) => {
+                // If the initial state was off, we got the effective initial note from the first note change,
+                // so we need to skip it when sending to the splice helper.
+                let prefix_len = usize::from(self.note_changes_info.initial_state_was_off);
+                let note_changes = self.get_note_changes().skip(prefix_len);
                 right_numeric_buffer(splice_numeric_buffer_states(
                     self.parameters
                         .get_numeric_expression_for_note(expression, initial_note_id),
-                    std::iter::once(first_change)
-                        .chain(note_changes)
-                        .map(note_change_to_state_change),
+                    note_changes.map(note_change_to_state_change),
                     self.buffer_size,
                     valid_range_for_per_note_expression(expression),
                 ))
             }
-            // In this case, we started without a note but got at least one note change.
-            // In this case, we might be able to get away with a single lookup if there was
-            // only a single change!
-            (None, Some(first_change)) => {
-                let next_change = note_changes.next();
-                match next_change {
-                    Some(next_change) => right_numeric_buffer(splice_numeric_buffer_states(
-                        self.parameters
-                            .get_numeric_expression_for_note(expression, first_change.note_id),
-                        std::iter::once(next_change)
-                            .chain(note_changes)
-                            .map(note_change_to_state_change),
-                        self.buffer_size,
-                        valid_range_for_per_note_expression(expression),
-                    )),
-                    None => left_numeric_buffer(
-                        self.parameters
-                            .get_numeric_expression_for_note(expression, first_change.note_id),
-                    ),
-                }
-            }
+            // This case is structurally impossible, since we consider the first change to be the "effective initial note"
+            (None, true) => unreachable!(),
         }
     }
 }
@@ -305,13 +312,14 @@ impl<E: Iterator<Item = Event> + Clone, P: synth::SynthParamBufferStates> VoiceP
 ///
 /// To use it, you must implement the [`Voice`] trait for your synth. Then, use the methods
 /// on this struct to implement the required [`conformal_component::synth::Synth`] trait methods.
-pub struct Poly<V> {
+pub struct Poly<V, const MAX_VOICES: usize = 32> {
     voices: Vec<V>,
-    state: State,
+    state: State<MAX_VOICES>,
+    update_scratch: UpdateScratch<MAX_VOICES>,
     voice_scratch_buffer: Vec<f32>,
 }
 
-impl<V: std::fmt::Debug> std::fmt::Debug for Poly<V> {
+impl<V: std::fmt::Debug, const MAX_VOICES: usize> std::fmt::Debug for Poly<V, MAX_VOICES> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Poly")
             .field("voices", &self.voices)
@@ -320,11 +328,11 @@ impl<V: std::fmt::Debug> std::fmt::Debug for Poly<V> {
     }
 }
 
-impl<V: Voice> Poly<V> {
+impl<V: Voice, const MAX_VOICES: usize> Poly<V, MAX_VOICES> {
     /// Creates a new [`Poly`] struct.
     #[must_use]
-    pub fn new(environment: &ProcessingEnvironment, max_voices: usize) -> Self {
-        let voices = (0..max_voices)
+    pub fn new(environment: &ProcessingEnvironment) -> Self {
+        let voices = (0..MAX_VOICES)
             .map(|voice_index| {
                 V::new(
                     voice_index,
@@ -333,11 +341,12 @@ impl<V: Voice> Poly<V> {
                 )
             })
             .collect();
-        let state = State::new(max_voices);
+        let state = State::new();
 
         Self {
             voices,
             state,
+            update_scratch: Default::default(),
             voice_scratch_buffer: vec![0f32; environment.max_samples_per_process_call],
         }
     }
@@ -357,7 +366,7 @@ impl<V: Voice> Poly<V> {
             self.voices[v].handle_event(&ev.data);
         }
 
-        self.state.update(poly_events);
+        self.state.update(poly_events, &mut self.update_scratch);
     }
 
     /// Renders the audio for the synth.
@@ -385,28 +394,62 @@ impl<V: Voice> Poly<V> {
         shared_data: &V::SharedData<'_>,
         output: &mut impl BufferMut,
     ) {
-        let buffer_size = output.num_frames();
+        let buffer_size: usize = output.num_frames();
         #[allow(clippy::cast_precision_loss)]
         let voice_scale = 1f32 / self.voices.len() as f32;
+        let mut voices_with_events = [false; MAX_VOICES];
+        let mut note_changes_infos: [NoteChangesInfo; MAX_VOICES] = std::array::from_fn(|i| {
+            let initial_note_id = self.state.note_id_for_voice(i);
+            NoteChangesInfo {
+                effective_initial_note_id: initial_note_id,
+                has_any_change: false,
+                initial_state_was_off: initial_note_id.is_none(),
+            }
+        });
+        let mut note_changes_infos_updated_sample_offset = [0; MAX_VOICES];
+
+        // This is a bit subtle, basically this calculates the data needed to implement [`VoiceProcessContext::per_note_expression`].
+        // We calculate it here to avoid having to clone state there to re-run the dispatch.
+        for (voice_index, event) in self.state.clone().dispatch_events(events.clone()) {
+            voices_with_events[voice_index] = true;
+            match event.data {
+                EventData::NoteOn { data } => {
+                    if note_changes_infos[voice_index]
+                        .effective_initial_note_id
+                        .is_none()
+                        || note_changes_infos_updated_sample_offset[voice_index]
+                            == event.sample_offset
+                    {
+                        note_changes_infos[voice_index].effective_initial_note_id = Some(data.id);
+                        note_changes_infos_updated_sample_offset[voice_index] = event.sample_offset;
+                    } else {
+                        note_changes_infos[voice_index].has_any_change = true;
+                    }
+                }
+                EventData::NoteOff { .. } => {}
+            }
+        }
         let mut cleared = false;
         for (index, voice) in self.voices.iter_mut().enumerate() {
-            let voice_events = self
-                .state
-                .clone()
-                .dispatch_events(events.clone())
-                .filter_map(|(i, event)| if i == index { Some(event) } else { None });
-            if voice_events.clone().next().is_none() && voice.quiescent() {
+            if !voices_with_events[index] && voice.quiescent() {
                 voice.skip_samples(buffer_size);
                 // Clear the "prev note" id for this voice since it's no longer active.
                 self.state.clear_prev_note_id_for_voice(index);
                 continue;
             }
+            let events_fn = || {
+                self.state
+                    .clone()
+                    .dispatch_events(events.clone())
+                    .filter_map(|(i, event)| if i == index { Some(event) } else { None })
+            };
             voice.process(
                 &ProcessContextImpl {
                     initial_note_id: self.state.note_id_for_voice(index),
-                    events: voice_events,
+                    events_fn,
                     parameters: params,
                     buffer_size: output.num_frames(),
+                    note_changes_info: &note_changes_infos[index],
                 },
                 shared_data,
                 &mut self.voice_scratch_buffer[0..output.num_frames()],
@@ -428,7 +471,7 @@ impl<V: Voice> Poly<V> {
                 channel_mut.fill(0f32);
             }
         }
-        self.state.update(events);
+        self.state.update(events, &mut self.update_scratch);
     }
 
     /// Resets the state of the polyphonic synth.
