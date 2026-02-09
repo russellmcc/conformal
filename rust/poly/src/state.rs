@@ -4,11 +4,11 @@ use conformal_component::events::{NoteData, NoteID};
 #[derive(Clone, Debug, PartialEq)]
 enum VoicePlayingState {
     Idle {
-        order: usize,
+        order: u32,
         prev_note_id: Option<NoteID>,
     },
     Note {
-        order: usize,
+        order: u32,
         id: NoteID,
         pitch: u8,
     },
@@ -24,7 +24,7 @@ pub struct Voice {
 /// This is separated from [`State`] so that it is not included in clones of `State`.
 #[derive(Default)]
 pub struct UpdateScratch<const MAX_VOICES: usize = 32> {
-    buf: arrayvec::ArrayVec<(usize, usize), MAX_VOICES>,
+    buf: arrayvec::ArrayVec<(usize, u32), MAX_VOICES>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -120,7 +120,7 @@ impl<const MAX_VOICES: usize> State<MAX_VOICES> {
             voices: (0..MAX_VOICES)
                 .map(|i| Voice {
                     playing: VoicePlayingState::Idle {
-                        order: i,
+                        order: u32::try_from(i).unwrap(),
                         prev_note_id: None,
                     },
                 })
@@ -152,7 +152,7 @@ impl<const MAX_VOICES: usize> State<MAX_VOICES> {
         self.voices.clear();
         self.voices.extend((0..num_voices).map(|i| Voice {
             playing: VoicePlayingState::Idle {
-                order: i,
+                order: u32::try_from(i).unwrap(),
                 prev_note_id: None,
             },
         }));
@@ -328,7 +328,7 @@ impl<const MAX_VOICES: usize> State<MAX_VOICES> {
         );
         scratch.buf.sort_by_key(|x| x.1);
         for (o, (_, vo)) in scratch.buf.iter_mut().enumerate() {
-            *vo = o;
+            *vo = u32::try_from(o).unwrap();
         }
         scratch.buf.sort_by_key(|x| x.0);
         self.voices
@@ -360,7 +360,7 @@ impl<const MAX_VOICES: usize> State<MAX_VOICES> {
         );
         scratch.buf.sort_by_key(|x| x.1);
         for (o, (_, vo)) in scratch.buf.iter_mut().enumerate() {
-            *vo = o;
+            *vo = u32::try_from(o).unwrap();
         }
         scratch.buf.sort_by_key(|x| x.0);
         self.voices
@@ -454,7 +454,11 @@ mod tests {
         }
     }
 
-    fn gather_events<const MAX_VOICES: usize>(state: &State<MAX_VOICES>, num_voices: usize, events: Vec<Event>) -> Vec<Vec<Event>> {
+    fn gather_events<const MAX_VOICES: usize>(
+        state: &State<MAX_VOICES>,
+        num_voices: usize,
+        events: Vec<Event>,
+    ) -> Vec<Vec<Event>> {
         (0..num_voices)
             .into_iter()
             .map(|voice_index| {
@@ -623,7 +627,10 @@ mod tests {
     #[test]
     fn reset_restors_state() {
         let mut state = State::<2>::new();
-        state.update(vec![example_note_on(0, 60), example_note_on(1, 61)], &mut Default::default());
+        state.update(
+            vec![example_note_on(0, 60), example_note_on(1, 61)],
+            &mut Default::default(),
+        );
         state.reset();
         assert_events_match(
             vec![vec![expected_note_on(0, 62)], vec![expected_note_on(1, 63)]],
