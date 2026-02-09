@@ -3658,13 +3658,14 @@ mod tests {
     }
 
     #[test]
+    #[should_panic]
     fn defends_against_unsorted_param_queues() {
         let proc = dummy_synth();
         let host = ComWrapper::new(dummy_host::Host::default());
 
         unsafe {
             setup_proc(&proc, &host);
-            let audio = mock_process(
+            mock_process(
                 2,
                 vec![MockEvent {
                     sample_offset: 0,
@@ -3691,19 +3692,18 @@ mod tests {
                 }],
                 &proc,
             );
-
-            assert!(audio.is_none());
         }
     }
 
     #[test]
+    #[should_panic]
     fn defends_against_doubled_curve_points() {
         let proc = dummy_synth();
         let host = ComWrapper::new(dummy_host::Host::default());
 
         unsafe {
             setup_proc(&proc, &host);
-            let audio = mock_process(
+            mock_process(
                 2,
                 vec![MockEvent {
                     sample_offset: 0,
@@ -3729,19 +3729,18 @@ mod tests {
                 }],
                 &proc,
             );
-
-            assert!(audio.is_none());
         }
     }
 
     #[test]
+    #[should_panic]
     fn defends_against_points_outside_buffer() {
         let proc = dummy_synth();
         let host = ComWrapper::new(dummy_host::Host::default());
 
         unsafe {
             setup_proc(&proc, &host);
-            let audio = mock_process(
+            mock_process(
                 2,
                 vec![MockEvent {
                     sample_offset: 0,
@@ -3761,19 +3760,18 @@ mod tests {
                 }],
                 &proc,
             );
-
-            assert!(audio.is_none());
         }
     }
 
     #[test]
+    #[should_panic]
     fn defends_against_multiple_queues_for_same_param() {
         let proc = dummy_synth();
         let host = ComWrapper::new(dummy_host::Host::default());
 
         unsafe {
             setup_proc(&proc, &host);
-            let data = mock_process(
+            mock_process(
                 2,
                 vec![MockEvent {
                     sample_offset: 0,
@@ -3802,12 +3800,11 @@ mod tests {
                 ],
                 &proc,
             );
-
-            assert!(data.is_none());
         }
     }
 
     #[test]
+    #[should_panic]
     fn defends_against_non_zero_time_parameter_change() {
         let proc = dummy_synth();
         let host = ComWrapper::new(dummy_host::Host::default());
@@ -3825,14 +3822,12 @@ mod tests {
                 }],
             );
 
-            assert_ne!(
-                proc.process(&mut data.process_data),
-                vst3::Steinberg::kResultOk
-            );
+            proc.process(&mut data.process_data);
         }
     }
 
     #[test]
+    #[should_panic]
     fn defends_against_out_of_range_parameter_values() {
         let proc = dummy_synth();
         let host = ComWrapper::new(dummy_host::Host::default());
@@ -3850,10 +3845,7 @@ mod tests {
                 }],
             );
 
-            assert_ne!(
-                proc.process(&mut data.process_data),
-                vst3::Steinberg::kResultOk
-            );
+            proc.process(&mut data.process_data);
         }
     }
 
