@@ -1,3 +1,13 @@
+## 0.4.1 (2026-02-09)
+
+### Features
+
+- Make hash_id `const`, optimize pzip to not hash at runtime
+
+#### Instead of guarding against host invariant violations, check them in debug builds only with `debug_assert`.
+
+This decreases safety a bit but improves perf.
+
 ## 0.4.0 (2026-02-08)
 
 ### Breaking Changes

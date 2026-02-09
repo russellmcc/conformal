@@ -1,5 +1,11 @@
 # @conformal/create-plugin
 
+## 0.10.0
+
+### Minor Changes
+
+- beb78dc: Support new `poly` API
+
 ## 0.9.0
 
 ### Minor Changes

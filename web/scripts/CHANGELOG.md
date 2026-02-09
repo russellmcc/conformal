@@ -1,5 +1,16 @@
 # @conformal/scripts
 
+## 0.9.0
+
+### Minor Changes
+
+- 79945ec: support installing only the rust toolchain
+
+### Patch Changes
+
+- Updated dependencies [beb78dc]
+  - @conformal/create-plugin@0.10.0
+
 ## 0.8.4
 
 ### Patch Changes

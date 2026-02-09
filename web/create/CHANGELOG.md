@@ -1,5 +1,18 @@
 # create-conformal
 
+## 0.10.0
+
+### Minor Changes
+
+- 79945ec: Add caching to github actions
+
+### Patch Changes
+
+- d2a2998: Put miri builds in a separate target so they don't overwrite regular debug builds
+- 5de8e71: add LTO to template cargo to improve default speed
+- Updated dependencies [beb78dc]
+  - @conformal/create-plugin@0.10.0
+
 ## 0.9.0
 
 ### Minor Changes
