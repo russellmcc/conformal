@@ -130,6 +130,7 @@ trait ActiveProcessor<P> {
         processor: &mut P,
         data: *mut vst3::Steinberg::Vst::ProcessData,
         params: &mut parameters::ProcessingStore,
+        changes_from_main_thread: parameters::SyncFromMainThreadResult,
     ) -> vst3::Steinberg::tresult;
 
     unsafe fn handle_events(
@@ -137,6 +138,7 @@ trait ActiveProcessor<P> {
         processor: &mut P,
         data: *mut vst3::Steinberg::Vst::ProcessData,
         params: &mut parameters::ProcessingStore,
+        changes_from_main_thread: parameters::SyncFromMainThreadResult,
     ) -> vst3::Steinberg::tresult;
 
     fn set_processing(&mut self, processing: bool);
@@ -643,6 +645,7 @@ impl<P: Effect> ActiveProcessor<P> for ActiveEffectProcessor {
         processor: &mut P,
         data: *mut vst3::Steinberg::Vst::ProcessData,
         params: &mut parameters::ProcessingStore,
+        changes_from_main_thread: parameters::SyncFromMainThreadResult,
     ) -> vst3::Steinberg::tresult {
         let ActiveEffectProcessor::AudioEnabled(channel_layout) = self else {
             return vst3::Steinberg::kInvalidArgument;
@@ -664,11 +667,12 @@ impl<P: Effect> ActiveProcessor<P> for ActiveEffectProcessor {
             };
 
             if let Some(vst_parameters) = ComRef::from_raw((*data).inputParameterChanges) {
-                let Some(buffer_states) =
-                    parameters::param_changes_from_vst3(vst_parameters, params, num_frames)
-                else {
-                    return vst3::Steinberg::kInvalidArgument;
-                };
+                let buffer_states = parameters::param_changes_from_vst3(
+                    vst_parameters,
+                    params,
+                    num_frames,
+                    changes_from_main_thread,
+                );
                 let context = EffectProcessContext {
                     parameters: buffer_states,
                 };
@@ -689,18 +693,21 @@ impl<P: Effect> ActiveProcessor<P> for ActiveEffectProcessor {
         processor: &mut P,
         data: *mut vst3::Steinberg::Vst::ProcessData,
         params: &mut parameters::ProcessingStore,
+        changes_from_main_thread: parameters::SyncFromMainThreadResult,
     ) -> vst3::Steinberg::tresult {
         if let Some(vst_parameters) = unsafe { vst_parameters_from_process_data(data) } {
-            if let Some((change_status, param_states)) =
-                unsafe { parameters::no_audio_param_changes_from_vst3(vst_parameters, params) }
-            {
-                if change_status == parameters::ChangesStatus::Changes {
-                    processor.handle_parameters(&EffectHandleParametersContext {
-                        parameters: param_states,
-                    });
-                }
-            } else {
-                return vst3::Steinberg::kInvalidArgument;
+            let (change_status, param_states) = unsafe {
+                parameters::no_audio_param_changes_from_vst3(
+                    vst_parameters,
+                    params,
+                    changes_from_main_thread,
+                )
+            };
+
+            if change_status == parameters::ChangesStatus::Changes {
+                processor.handle_parameters(&EffectHandleParametersContext {
+                    parameters: param_states,
+                });
             }
         }
         vst3::Steinberg::kResultOk
@@ -1252,6 +1259,7 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
         processor: &mut P,
         data: *mut vst3::Steinberg::Vst::ProcessData,
         params: &mut parameters::ProcessingStore,
+        changes_from_main_thread: parameters::SyncFromMainThreadResult,
     ) -> vst3::Steinberg::tresult {
         let SynthProcessorAudioState::AudioEnabled(channel_layout) = self.audio_state else {
             return vst3::Steinberg::kInvalidArgument;
@@ -1276,36 +1284,33 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
             match (vst_params, input_events) {
                 (_, Some(None)) => return vst3::Steinberg::kInvalidArgument,
                 (Some(vst_params), Some(Some(events))) => {
-                    if let Some(parameters) = parameters::synth_param_changes_from_vst3(
+                    let parameters = parameters::synth_param_changes_from_vst3(
                         vst_params,
                         params,
                         num_frames,
                         &self.mpe,
                         mpe_events.clone(),
-                    ) {
-                        processor.process(&SynthProcessContext { events, parameters }, &mut output);
-                    } else {
-                        return vst3::Steinberg::kInvalidArgument;
-                    }
+                        changes_from_main_thread,
+                    );
+                    processor.process(&SynthProcessContext { events, parameters }, &mut output);
                 }
                 (Some(vst_params), None) => {
-                    if let Some(parameters) = parameters::synth_param_changes_from_vst3(
+                    let parameters = parameters::synth_param_changes_from_vst3(
                         vst_params,
                         params,
                         num_frames,
                         &self.mpe,
                         mpe_events.clone(),
-                    ) {
-                        processor.process(
-                            &SynthProcessContext {
-                                events: Events::new(std::iter::empty(), num_frames).unwrap(),
-                                parameters,
-                            },
-                            &mut output,
-                        );
-                    } else {
-                        return vst3::Steinberg::kInvalidArgument;
-                    }
+                        changes_from_main_thread,
+                    );
+
+                    processor.process(
+                        &SynthProcessContext {
+                            events: Events::new(std::iter::empty(), num_frames).unwrap(),
+                            parameters,
+                        },
+                        &mut output,
+                    );
                 }
                 (None, Some(Some(events))) => {
                     let buffer_states = parameters::existing_synth_param_buffer_states_from_store(
@@ -1347,6 +1352,7 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
         processor: &mut P,
         data: *mut vst3::Steinberg::Vst::ProcessData,
         params: &mut parameters::ProcessingStore,
+        changes_from_main_thread: parameters::SyncFromMainThreadResult,
     ) -> vst3::Steinberg::tresult {
         let vst_parameters = unsafe { vst_parameters_from_process_data(data) };
         let e = match unsafe {
@@ -1368,32 +1374,30 @@ impl<P: Synth> ActiveProcessor<P> for ActiveSynthProcessor {
         }
 
         if let Some(vst_parameters) = vst_parameters {
-            if let Some((change_status, param_states)) = unsafe {
+            let (change_status, param_states) = unsafe {
                 parameters::no_audio_synth_param_changes_from_vst3(
                     vst_parameters,
                     params,
                     &self.mpe,
+                    changes_from_main_thread,
                 )
-            } {
-                if change_status == parameters::ChangesStatus::Changes || e.is_some() {
-                    if let Some(e) = e {
-                        {
-                            processor.handle_events(&SynthHandleEventsContext {
-                                events: e,
-                                parameters: param_states,
-                            });
-                        }
-                    } else {
-                        {
-                            processor.handle_events(&SynthHandleEventsContext {
-                                events: std::iter::empty(),
-                                parameters: param_states,
-                            });
-                        }
+            };
+            if change_status == parameters::ChangesStatus::Changes || e.is_some() {
+                if let Some(e) = e {
+                    {
+                        processor.handle_events(&SynthHandleEventsContext {
+                            events: e,
+                            parameters: param_states,
+                        });
+                    }
+                } else {
+                    {
+                        processor.handle_events(&SynthHandleEventsContext {
+                            events: std::iter::empty(),
+                            parameters: param_states,
+                        });
                     }
                 }
-            } else {
-                return vst3::Steinberg::kInvalidArgument;
             }
         } else if let Some(e) = e {
             let param_states = unsafe { parameters::existing_synth_params(params, &self.mpe) };
@@ -1536,7 +1540,7 @@ impl<
                     return vst3::Steinberg::kInvalidArgument;
                 }
 
-                pd.params.sync_from_main_thread();
+                let changes_from_main_thread = pd.params.sync_from_main_thread();
                 let num_frames = (*data).numSamples as usize;
 
                 if num_frames == 0 || !pd.active_processor.audio_enabled() {
@@ -1544,6 +1548,7 @@ impl<
                         &mut pd.processor,
                         data,
                         &mut pd.params,
+                        changes_from_main_thread,
                     );
                 }
                 if (*data).symbolicSampleSize
@@ -1552,9 +1557,12 @@ impl<
                     return vst3::Steinberg::kInvalidArgument;
                 }
 
-                return pd
-                    .active_processor
-                    .process_audio(&mut pd.processor, data, &mut pd.params);
+                return pd.active_processor.process_audio(
+                    &mut pd.processor,
+                    data,
+                    &mut pd.params,
+                    changes_from_main_thread,
+                );
             }
             vst3::Steinberg::kInvalidArgument
         }
@@ -3596,6 +3604,7 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "Host sent unknown parameter")]
     fn defends_against_wild_parameter_ids() {
         let proc = dummy_synth();
         let host = ComWrapper::new(dummy_host::Host::default());
@@ -3758,46 +3767,6 @@ mod tests {
                         value: 1.0,
                     }],
                 }],
-                &proc,
-            );
-        }
-    }
-
-    #[test]
-    #[should_panic]
-    fn defends_against_multiple_queues_for_same_param() {
-        let proc = dummy_synth();
-        let host = ComWrapper::new(dummy_host::Host::default());
-
-        unsafe {
-            setup_proc(&proc, &host);
-            mock_process(
-                2,
-                vec![MockEvent {
-                    sample_offset: 0,
-                    data: MockData::NoteOn {
-                        id: NoteID::from_id(0),
-                        pitch: 64,
-                        velocity: 0.5,
-                        tuning: 0f32,
-                    },
-                }],
-                vec![
-                    ParameterValueQueueImpl {
-                        param_id: NUMERIC_ID.to_string(),
-                        points: vec![ParameterValueQueuePoint {
-                            sample_offset: 99,
-                            value: ((1.0 - MIN_NUMERIC) / (MAX_NUMERIC - MIN_NUMERIC)) as f64,
-                        }],
-                    },
-                    ParameterValueQueueImpl {
-                        param_id: NUMERIC_ID.to_string(),
-                        points: vec![ParameterValueQueuePoint {
-                            sample_offset: 100,
-                            value: 1.0,
-                        }],
-                    },
-                ],
                 &proc,
             );
         }
