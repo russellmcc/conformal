@@ -229,7 +229,13 @@ impl<I: Iterator<Item = Event> + Clone, E: Fn() -> I, P: synth::SynthParamBuffer
         // Note that we keep only the last note change per sample. This is because the splice
         // implementation requires no more than one change per sample, and there's no such
         // rule for our voice event stream - we could have multiple note ons per sample in
-        note_changes_iter(self.initial_note_id, keep_last_per_sample(self.events()))
+        note_changes_iter(
+            self.initial_note_id,
+            keep_last_per_sample(
+                self.events()
+                    .filter(|e| matches!(e.data, EventData::NoteOn { .. })),
+            ),
+        )
     }
 }
 
