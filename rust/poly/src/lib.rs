@@ -426,23 +426,27 @@ impl<V: Voice, const MAX_VOICES: usize> Poly<V, MAX_VOICES> {
         shared_data: &V::SharedData<'_>,
         output: &mut impl BufferMut,
     ) {
-        let buffer_size = output.num_frames();
+        let buffer_size: usize = output.num_frames();
         #[allow(clippy::cast_precision_loss)]
         let voice_scale = 1f32 / self.voices.len() as f32;
+        let mut voices_with_events = [false; MAX_VOICES];
+        for (voice_index, _) in self.state.clone().dispatch_events(events.clone()) {
+            voices_with_events[voice_index] = true;
+        }
         let mut cleared = false;
         for (index, voice) in self.voices.iter_mut().enumerate() {
+            if !voices_with_events[index] && voice.quiescent() {
+                voice.skip_samples(buffer_size);
+                // Clear the "prev note" id for this voice since it's no longer active.
+                self.state.clear_prev_note_id_for_voice(index);
+                continue;
+            }
             let events_fn = || {
                 self.state
                     .clone()
                     .dispatch_events(events.clone())
                     .filter_map(|(i, event)| if i == index { Some(event) } else { None })
             };
-            if events_fn().next().is_none() && voice.quiescent() {
-                voice.skip_samples(buffer_size);
-                // Clear the "prev note" id for this voice since it's no longer active.
-                self.state.clear_prev_note_id_for_voice(index);
-                continue;
-            }
             voice.process(
                 &ProcessContextImpl {
                     initial_note_id: self.state.note_id_for_voice(index),
