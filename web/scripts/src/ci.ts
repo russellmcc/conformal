@@ -6,7 +6,7 @@ const packageJsonSchema = z.object({
   scripts: z.record(z.string(), z.string()),
 });
 
-export const execute = async () => {
+export const execute = async ({ withMiri }: { withMiri?: true }) => {
   process.env.CI = "1";
 
   const rootPackageJson = packageJsonSchema.parse(
@@ -23,8 +23,11 @@ export const execute = async () => {
     "web-test",
     "rust-test",
     ["validate", "*", "--release"],
-    "rust-miri",
   ];
+
+  if (withMiri) {
+    actions.push("rust-miri");
+  }
 
   for (const action of actions) {
     // If the action is not available in root package.json, skip it.
@@ -47,7 +50,11 @@ export const addCICommand = (command: Command): void => {
   command
     .command("ci")
     .description("Run a full CI pass")
-    .action(async () => {
-      await execute();
+    .option(
+      "--with-miri",
+      "Run tests with [miri](https://github.com/rust-lang/miri) undefined behavior checks",
+    )
+    .action(async (options) => {
+      await execute(options);
     });
 };

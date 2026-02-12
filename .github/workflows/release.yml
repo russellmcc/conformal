@@ -21,7 +21,7 @@ jobs:
           lfs: "true"
           fetch-depth: 0
       - uses: ./.github/actions/bootstrap
-      - run: bun run ci
+      - run: bun run ci --with-miri
       - run: bun run release
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
