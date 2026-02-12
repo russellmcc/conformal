@@ -51,6 +51,7 @@
     "globals": "^16.5.0",
     "@eslint/js": "^9.39.1",
     "@vitejs/plugin-react": "^5.1.0",
-    "babel-plugin-react-compiler": "^1.0.0"
+    "babel-plugin-react-compiler": "^1.0.0",
+    "bun-plugin-react-compiler": "^0.3.2"
   }
 }
