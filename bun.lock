@@ -18,7 +18,7 @@
     },
     "web/create": {
       "name": "create-conformal",
-      "version": "0.8.2",
+      "version": "0.10.0",
       "bin": "./src/index.ts",
       "dependencies": {
         "@commander-js/extra-typings": "catalog:",
@@ -34,7 +34,7 @@
     },
     "web/create-plugin": {
       "name": "@conformal/create-plugin",
-      "version": "0.8.2",
+      "version": "0.10.0",
       "bin": "./src/cli.ts",
       "dependencies": {
         "smol-toml": "catalog:",
@@ -76,6 +76,7 @@
       "dependencies": {
         "@commander-js/extra-typings": "catalog:",
         "bun-plugin-dts": "catalog:",
+        "bun-plugin-react-compiler": "catalog:",
         "commander": "catalog:",
         "tmp-promise": "catalog:",
         "zod": "catalog:",
@@ -87,7 +88,7 @@
     },
     "web/plugin": {
       "name": "@conformal/plugin",
-      "version": "0.4.1",
+      "version": "0.4.2",
       "dependencies": {
         "@msgpack/msgpack": "catalog:",
         "jotai": "catalog:",
@@ -105,7 +106,7 @@
     },
     "web/scripts": {
       "name": "@conformal/scripts",
-      "version": "0.8.3",
+      "version": "0.9.0",
       "bin": {
         "conformal-scripts": "./src/index.ts",
       },
@@ -152,6 +153,7 @@
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "bun-plugin-dts": "^0.2.4",
+    "bun-plugin-react-compiler": "^0.3.2",
     "commander": "^12.1.0",
     "eslint-plugin-prefer-arrow-functions": "^3.9.1",
     "eslint-plugin-react": "^7.37.5",
@@ -740,6 +742,8 @@
 
     "available-typed-arrays": ["available-typed-arrays@1.0.7", "", { "dependencies": { "possible-typed-array-names": "^1.0.0" } }, "sha512-wvUjBtSGN7+7SjNpq/9M2Tg350UZD3q62IFZLbRAR1bSMlCo1ZaeW+BJ+D090e4hIIZLBcTDWe4Mh4jvUDajzQ=="],
 
+    "babel-plugin-react-compiler": ["babel-plugin-react-compiler@1.0.0", "", { "dependencies": { "@babel/types": "^7.26.0" } }, "sha512-Ixm8tFfoKKIPYdCCKYTsqv+Fd4IJ0DQqMyEimo+pxUOMUR9cVPlwTrFt9Avu+3cb6Zp3mAzl+t1MrG2fxxKsxw=="],
+
     "bail": ["bail@2.0.2", "", {}, "sha512-0xO6mYd7JB2YesxDKplafRpsiOzPt9V02ddPCLbY1xYGPOX24NTyN50qnUxgCPcSoYMhKpAuBTjQoRZCAkUDRw=="],
 
     "balanced-match": ["balanced-match@1.0.2", "", {}, "sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw=="],
@@ -759,6 +763,8 @@
     "browserslist": ["browserslist@4.27.0", "", { "dependencies": { "baseline-browser-mapping": "^2.8.19", "caniuse-lite": "^1.0.30001751", "electron-to-chromium": "^1.5.238", "node-releases": "^2.0.26", "update-browserslist-db": "^1.1.4" }, "bin": { "browserslist": "cli.js" } }, "sha512-AXVQwdhot1eqLihwasPElhX2tAZiBjWdJ9i/Zcj2S6QYIjkx62OKSfnobkriB81C3l4w0rVy3Nt4jaTBltYEpw=="],
 
     "bun-plugin-dts": ["bun-plugin-dts@0.2.4", "", { "dependencies": { "dts-bundle-generator": "^9.5.1", "get-tsconfig": "^4.8.1" } }, "sha512-u5ub+uk09R0ylnbLdmekAIHG6KW95HPK0VhKc5IC7D9fKOyo3M2Qiua6ksPGA3d95G7/6LXLSPmUVlbEQsdzBw=="],
+
+    "bun-plugin-react-compiler": ["bun-plugin-react-compiler@0.3.2", "", { "peerDependencies": { "@babel/core": "^7.29.0", "babel-plugin-react-compiler": "^1.0.0" } }, "sha512-67LMk2z6MPjkLZdrDaDn9ISI+B3djhpTu8ozGxr5eA4B7FfRkrfUy5facwrOh1OCn4UFeTrvDNio6mhaYPqlbw=="],
 
     "bun-types": ["bun-types@1.1.27", "", { "dependencies": { "@types/node": "~20.12.8", "@types/ws": "~8.5.10" } }, "sha512-rHXAiIDefeMS/fleNM1rRDYqolJGNRdch3+AuCRwcZWaqTa1vjGBNsahH/HVV7Y82frllYhJomCVSEiHzLzkgg=="],
 

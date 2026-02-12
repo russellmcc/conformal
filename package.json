@@ -71,7 +71,8 @@
     "globals": "^16.5.0",
     "typescript-eslint": "^8.46.3",
     "@next/eslint-plugin-next": "^15.5.3",
-    "@eslint/eslintrc": "^3.3.1"
+    "@eslint/eslintrc": "^3.3.1",
+    "bun-plugin-react-compiler": "^0.3.2"
   },
   "overrides": {
     "libnpmpublish": "^11.1.3"

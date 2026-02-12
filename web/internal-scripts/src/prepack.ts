@@ -6,13 +6,14 @@ import { Command } from "@commander-js/extra-typings";
 
 // This is needed due to https://github.com/oven-sh/bun/issues/5141
 import dts from "bun-plugin-dts";
+import { reactCompiler } from "bun-plugin-react-compiler";
 import * as fs from "node:fs/promises";
 
 export const prepack = async () => {
   await Bun.build({
     entrypoints: ["./src/index.ts"],
     outdir: "./dist",
-    plugins: [dts()],
+    plugins: [dts(), reactCompiler()],
     target: "browser",
     packages: "external",
   });

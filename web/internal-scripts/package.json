@@ -18,7 +18,8 @@
     "commander": "catalog:",
     "tmp-promise": "catalog:",
     "zod": "catalog:",
-    "bun-plugin-dts": "catalog:"
+    "bun-plugin-dts": "catalog:",
+    "bun-plugin-react-compiler": "catalog:"
   },
   "devDependencies": {
     "@morlay/bunpublish": "catalog:",
