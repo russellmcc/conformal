@@ -205,6 +205,7 @@ export type BootstrapOptions = {
   rustVersion?: string;
   cargoAboutVersion?: string;
   vstSdkVersion?: string;
+  withMiri?: true;
 };
 
 export const bootstrap = async (
@@ -217,7 +218,7 @@ export const bootstrap = async (
     vst3Validator(),
     rustup(),
     cargoBinstall(),
-    rustNightly(),
+    ...(options.withMiri ? [rustNightly()] : []),
     rust({
       rustVersion: options.rustVersion,
       cargoAboutVersion: options.cargoAboutVersion,
@@ -253,6 +254,10 @@ export const addBootstrapCommand = (command: Command) =>
     .option(
       "--vst-sdk-version <version>",
       `The version of the VST SDK to use (default: ${VST3_VERSION})`,
+    )
+    .option(
+      "--with-miri",
+      "Install the Rust nightly toolchain with [miri](https://github.com/rust-lang/miri) undefined behavior checker. This can optionally be used with the `ci` command to run tests with miri.",
     )
     .action(async (options) => {
       await bootstrap(options);
