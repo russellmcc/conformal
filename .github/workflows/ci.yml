@@ -14,4 +14,4 @@ jobs:
         with:
           lfs: "true"
       - uses: ./.github/actions/bootstrap
-      - run: bun run ci
+      - run: bun run ci --with-miri
