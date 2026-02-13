@@ -116,8 +116,6 @@ export const release = async ({ skipPublish }: { skipPublish?: boolean }) => {
 
   // Publish npm packages
   // Note that there is now a native `bun publish`, but we can't use it for a few reasons:
-  //  - https://github.com/oven-sh/bun/issues/24314 <- this is a hard blocker, we can't run our prepack
-  //    script for browser-consumed packages like `@conformal/plugin`
   //  - https://github.com/oven-sh/bun/issues/5050 <- bun publish doesn't support monorepos (we could
   //    simply work around this by sorting packages topologically and publishing each one)
   //  - https://github.com/oven-sh/bun/issues/15601 <- bun publish doesn't support `provenance` flag

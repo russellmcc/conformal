@@ -21,7 +21,7 @@
     "nextra-theme-docs": "catalog:"
   },
   "devDependencies": {
-    "eslint-config-custom": "workspace:*",
+    "eslint-config-custom": "workspace:0.0.0",
     "@next/eslint-plugin-next": "catalog:",
     "@eslint/eslintrc": "catalog:"
   }
