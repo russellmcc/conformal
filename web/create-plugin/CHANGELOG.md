@@ -1,5 +1,15 @@
 # @conformal/create-plugin
 
+## 0.11.0
+
+### Minor Changes
+
+- b0815e8: Use bun as a dev server
+
+### Patch Changes
+
+- 37bd8c6: Better versioning for eslint-custom-config
+
 ## 0.10.0
 
 ### Minor Changes

@@ -1,5 +1,17 @@
 # @conformal/scripts
 
+## 0.10.0
+
+### Minor Changes
+
+- 0e1969c: Do not include miri by default in ci or bootstrap, instead this can be accessed with a `--with-miri` flag
+
+### Patch Changes
+
+- Updated dependencies [37bd8c6]
+- Updated dependencies [b0815e8]
+  - @conformal/create-plugin@0.11.0
+
 ## 0.9.0
 
 ### Minor Changes

@@ -1,5 +1,19 @@
 # create-conformal
 
+## 0.11.0
+
+### Minor Changes
+
+- b0815e8: Use bun as a dev server
+
+### Patch Changes
+
+- 37bd8c6: Better versioning for eslint-custom-config
+- 87e9547: Use macos-15 github runner
+- Updated dependencies [37bd8c6]
+- Updated dependencies [b0815e8]
+  - @conformal/create-plugin@0.11.0
+
 ## 0.10.0
 
 ### Minor Changes
