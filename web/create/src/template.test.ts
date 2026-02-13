@@ -99,7 +99,7 @@ describe("create-conformal template", () => {
           };
 
           // Note that bun skips dependencies when installing packages from local paths :'(,
-          // so instead, we use `npm pack` to create tarballs.
+          // so instead, we use `bun pm pack` to create tarballs.
 
           const localDependencies = [
             "scripts",
@@ -108,7 +108,7 @@ describe("create-conformal template", () => {
             "create-plugin",
           ];
           for (const dep of localDependencies) {
-            await $`npm pack --pack-destination=${tmpDir}`.cwd(
+            await $`bun pm pack --destination=${tmpDir}`.cwd(
               path.join(workspacePath, "web", dep),
             );
             const tgzGlob = new Bun.Glob(`conformal-${dep}-*.tgz`);
@@ -147,7 +147,7 @@ describe("create-conformal template", () => {
             // Remove the unfixed tarball
             await unlink(tgzPath);
             // Re-pack the tarball
-            await $`npm pack --pack-destination=${tmpDir}`.cwd(extractDir);
+            await $`bun pm pack --destination=${tmpDir}`.cwd(extractDir);
 
             const rewiredTgzPath = path.join(
               tmpDir,
