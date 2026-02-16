@@ -18,6 +18,22 @@ const TEST_CONFIG: Config = {
 
 const MINUTE = 60_000;
 
+const runShell = async (
+  args: readonly string[],
+  options: { cwd?: string } = {},
+) => {
+  const proc = Bun.spawn(args as string[], {
+    stdio: ["inherit", "inherit", "inherit"],
+    env: process.env,
+    ...options,
+  });
+  console.log(`$ ${args.map((x) => `"${x}"`).join(" ")}`);
+  await proc.exited;
+  if (proc.exitCode !== 0) {
+    process.exit(proc.exitCode ?? undefined);
+  }
+};
+
 const packageJsonSchema = z
   .object({
     catalog: z.optional(z.record(z.string(), z.string())),
@@ -126,7 +142,7 @@ describe("create-conformal template", () => {
 
             // Extract the tarball to a sub-directory of tmpDir
             const extractDir = path.join(tmpDir, `package`);
-            await $`tar -xzf ${tgzPath}`.cwd(tmpDir);
+            await runShell(["tar", "-xzf", tgzPath], { cwd: tmpDir });
             // Fix up all dependencies
             await rewireDeps(extractDir);
 
