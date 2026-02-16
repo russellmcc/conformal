@@ -5,7 +5,7 @@
     "web/*"
   ],
   "dependencies": {
-    "@changesets/cli": "^2.28.0",
+    "@changesets/cli": "^2.29.8",
     "@happy-dom/global-registrator": "^17.1.4",
     "@next/eslint-plugin-next": "^14.2.16",
     "@testing-library/react": "^16.2.0",

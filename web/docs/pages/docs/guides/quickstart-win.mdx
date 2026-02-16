@@ -1,0 +1,51 @@
+import { Steps } from "nextra/components";
+
+# Quick Start (Windows)
+
+This guide is a concise list of steps to get started building with Conformal. For a more detailed walkthrough on building a plug-in, see the [first plug-in tutorial](/docs/tutorials/first-plug-in).
+
+## Creating your first project
+
+<Steps>
+### Install `bun`
+
+[`bun`](https://bun.sh) is the TypeScript runtime we use for all build tooling in Conformal. Follow installation instructions on [the bun website](https://bun.com/docs/installation#windows)
+
+### Install the VST SDK (Optional)
+
+While the VST SDK is not required to build plug-ins, it can be used to validate plug-in correctness. Download it from [the website](https://www.steinberg.net/developers/vstsdk/) and extract the zip. You can put it wherever you want, but below we assume you extracted it to the `%USERPROFILE%\SDKs` folder, so the sdk will live in `%USERPROFILE%\SDKs\VST_SDK\vst3sdk`
+
+### Create a new project
+
+```sh copy
+bun create conformal my_project
+```
+
+This will prompt you for a few questions to set up your project.
+
+### Setting up development environment
+
+We have a few steps that are required to set up your development environment. The following commands should be run from the project directory.
+
+First, if you installed the sdk, run (replace the path with the path where you extracted the SDK)
+
+```cmd copy
+echo "VST3_SDK_DIR=%USERPROFILE%/SDKs/vst3sdk" > .env
+```
+
+Finally, install the development environment with:
+
+```
+bun install
+bun run bootstrap
+```
+
+Note that these scripts may prompt you to take some manual steps to install additional software.
+
+### Building the project
+
+```cmd copy
+bun run package
+```
+
+</Steps>

@@ -1,6 +1,9 @@
 import { $ } from "bun";
-import { appendFile } from "node:fs/promises";
+import { appendFile, mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Command } from "@commander-js/extra-typings";
+import runShell from "./runShell";
 
 const RUST_VERSION = "1.90.0";
 const CARGO_ABOUT_VERSION = "0.6.6";
@@ -12,18 +15,120 @@ type Tool = {
   install(): Promise<void>;
 };
 
-const brew = (name: string, command?: string): Tool => ({
+const which = async (command: string) =>
+  (await $`which ${command}`.nothrow().quiet()).exitCode == 0;
+
+const manualStep =
+  ({
+    name,
+    step,
+    forceRestart,
+  }: {
+    name: string;
+    step: string;
+    forceRestart?: boolean;
+  }) =>
+  async () => {
+    if (
+      !process.stdout.isTTY ||
+      process.env.TERM === "dumb" ||
+      "CI" in process.env
+    ) {
+      throw new Error(
+        `could not find ${name}, which must be manually installed (${step})`,
+      );
+    }
+    process.stdout.write(
+      `${name} must be manually installed. Please ${step} and then press enter.`,
+    );
+    for await (const _ of console) {
+      break;
+    }
+    if (forceRestart) {
+      throw new Error("Please restart your terminal and run bootstrap again");
+    }
+  };
+
+const installInstructionsPrompt = (url: string) =>
+  `follow installation instructions at ${url}`;
+
+const installInstructions = ({
   name,
-  check: async () =>
-    (await $`command -v ${command ?? name}`.nothrow().quiet()).exitCode == 0,
+  url,
+  forceRestart,
+}: {
+  name: string;
+  url: string;
+  forceRestart?: boolean;
+}) => manualStep({ name, step: installInstructionsPrompt(url), forceRestart });
+
+const installBrew = (): Tool => ({
+  name: `brew`,
+  check: async () => await which("brew"),
+  install: installInstructions({ name: "brew", url: "https://brew.sh/" }),
+});
+
+const installGit = (): Tool => ({
+  name: "git",
+  check: async () => await which("git"),
+  install: installInstructions({
+    name: "git",
+    url: "https://git-scm.com/",
+    forceRestart: true,
+  }),
+});
+
+type BrewOptions = {
+  command?: string;
+  windows: string | undefined;
+};
+
+const brew = (name: string, options: BrewOptions): Tool => ({
+  name,
+  check: async () => await which(options.command ?? name),
+  install:
+    process.platform === "win32"
+      ? async () => {
+          if (options.windows) {
+            await manualStep({
+              name,
+              step: options.windows,
+              forceRestart: true,
+            })();
+          } else {
+            throw new Error(`Cannot install necessary tool ${name} on windows`);
+          }
+        }
+      : async () => {
+          await $`brew install ${name}`;
+        },
+});
+
+const rustup = () =>
+  brew("rustup", {
+    windows: installInstructionsPrompt(
+      "https://rust-lang.org/tools/install/#rustup",
+    ),
+  });
+
+const binstall = (name: string): Tool => ({
+  name,
+  check: async () => await which(name),
   install: async () => {
-    await $`brew install ${name}`;
+    await $`cargo binstall ${name} --no-confirm`;
   },
 });
 
-const rustup = () => brew("rustup");
-
-const knope = () => brew("knope-dev/tap/knope", "knope");
+const knope = () => {
+  if (process.platform === "win32") {
+    return binstall("knope");
+  } else {
+    return brew("knope-dev/tap/knope", {
+      command: "knope",
+      windows: undefined,
+    });
+  }
+};
 
 const checkAvailable = async (
   command: string,
@@ -41,6 +146,11 @@ const checkAvailable = async (
   }
   return true;
 };
+
+const rustTargets = () =>
+  process.platform === "win32"
+    ? []
+    : ["aarch64-apple-darwin", "x86_64-apple-darwin"];
 
 const rust = (options: {
   rustVersion?: string;
@@ -81,10 +191,11 @@ const rust = (options: {
         }
 
         if (
-          !(await checkAvailable("rustup target list --installed", "target", [
-            "aarch64-apple-darwin",
-            "x86_64-apple-darwin",
-          ]))
+          !(await checkAvailable(
+            "rustup target list --installed",
+            "target",
+            rustTargets(),
+          ))
         ) {
           return false;
         }
@@ -93,10 +204,7 @@ const rust = (options: {
           !(await checkAvailable(
             "rustup component list --installed",
             "component",
-            [
-              "rustfmt-(?:aarch64|x86_64)-apple-darwin",
-              "clippy-(?:aarch64|x86_64)-apple-darwin",
-            ],
+            ["rustfmt", "clippy"],
           ))
         ) {
           return false;
@@ -120,7 +228,9 @@ const rust = (options: {
     install: async () => {
       await $`rustup toolchain install ${version}`;
       await $`rustup default ${version}`;
-      await $`rustup target add x86_64-apple-darwin`;
+      for (const target of rustTargets()) {
+        await $`rustup target add ${target}`;
+      }
       await $`rustup component add rustfmt`;
       await $`rustup component add clippy`;
       // --force is needed because Swatinem/rust-cache removes cached binaries
@@ -143,7 +253,7 @@ const rustNightly = (): Tool => ({
     return await checkAvailable(
       "rustup +nightly component list --installed",
       "component",
-      ["miri-(?:aarch64|x86_64)-apple-darwin"],
+      ["miri"],
     );
   },
   install: async () => {
@@ -158,7 +268,7 @@ const vst3 = (options: { vstSdkVersion?: string }): Tool => ({
   check: async (): Promise<boolean> => process.env.VST3_SDK_DIR !== undefined,
   install: async () => {
     const vstSdkVersion = options.vstSdkVersion ?? VST3_VERSION;
-    const tmpDir = (await $`mktemp -d`.text()).trim();
+    const tmpDir = await mkdtemp(join(tmpdir(), "vst3-"));
     await $`git clone https://github.com/steinbergmedia/vst3sdk.git --branch ${vstSdkVersion}`.cwd(
       tmpDir,
     );
@@ -170,13 +280,16 @@ const vst3 = (options: { vstSdkVersion?: string }): Tool => ({
 
 const vst3Validator = (): Tool => ({
   name: "vst3 validator",
-  check: async () =>
-    (
-      await $`command -v ${process.env.VST3_SDK_DIR}/build/bin/validator`
-        .nothrow()
-        .quiet()
-    ).exitCode == 0,
-
+  check: async () => {
+    if (!("VST3_SDK_DIR" in process.env)) {
+      console.log("VST SDK not detected, skipping vst3 validator");
+      return true;
+    }
+    const outputDir = process.platform === "win32" ? "bin/Debug" : "bin";
+    return await which(
+      `${process.env.VST3_SDK_DIR}/build/${outputDir}/validator`,
+    );
+  },
   install: async () => {
     // use cmake to build the validator
     const sdk = process.env.VST3_SDK_DIR;
@@ -192,32 +305,69 @@ const vst3Validator = (): Tool => ({
 
 const cargoBinstall = (): Tool => ({
   name: "cargo-binstall",
-  check: async () =>
-    (await $`command -v cargo-binstall`.nothrow().quiet()).exitCode == 0,
+  check: async () => await which("cargo-binstall"),
   install: async () => {
+    if (process.platform === "win32") {
+      await runShell([
+        "powershell",
+        "-c",
+        "Set-ExecutionPolicy Unrestricted -Scope Process; irm 'https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.ps1' | iex",
+      ]);
+      return;
+    }
     await $`curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash`;
   },
 });
 
-const cmake = () => brew("cmake");
+const cmake = () => ({
+  name: "cmake",
+  check: async () => {
+    if (!("VST3_SDK_DIR" in process.env)) {
+      console.log("No VST SDK detected, so skipping cmake.");
+      return true;
+    }
+    return await which("cmake");
+  },
+  install: async () => {
+    if (process.platform === "win32") {
+      await installInstructions({
+        name: "cmake",
+        url: "https://cmake.org/download/",
+        forceRestart: true,
+      })();
+      return;
+    }
+    await $`brew install cmake`;
+  },
+});
 
 export type BootstrapOptions = {
   rustVersion?: string;
   cargoAboutVersion?: string;
   vstSdkVersion?: string;
   withMiri?: true;
+  withVstSdk?: true;
 };
 
 export const bootstrap = async (
   options: BootstrapOptions = {},
 ): Promise<void> => {
   const tools: Tool[] = [
-    vst3({ vstSdkVersion: options.vstSdkVersion }),
-    knope(),
-    cmake(),
-    vst3Validator(),
+    ...(process.platform === "win32" && options.withVstSdk
+      ? [installGit()]
+      : []),
+    ...(process.platform === "win32" ? [] : [installBrew()]),
+    ...(options.withVstSdk
+      ? [vst3({ vstSdkVersion: options.vstSdkVersion })]
+      : []),
     rustup(),
     cargoBinstall(),
+
+    knope(),
+
+    cmake(),
+    vst3Validator(),
+
     ...(options.withMiri ? [rustNightly()] : []),
     rust({
       rustVersion: options.rustVersion,
@@ -258,6 +408,10 @@ export const addBootstrapCommand = (command: Command) =>
     .option(
       "--with-miri",
       "Install the Rust nightly toolchain with [miri](https://github.com/rust-lang/miri) undefined behavior checker. This can optionally be used with the `ci` command to run tests with miri.",
+    )
+    .option(
+      "--with-vst-sdk",
+      "Install the VST SDK to allow validating VST plug-ins",
     )
     .action(async (options) => {
       await bootstrap(options);

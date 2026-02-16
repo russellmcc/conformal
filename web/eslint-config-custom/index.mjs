@@ -22,6 +22,7 @@ export default defineConfig([
         "error",
         {
           argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
         },
       ],
       "@typescript-eslint/no-non-null-assertion": "off",

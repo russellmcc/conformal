@@ -1,6 +1,6 @@
 import { Steps } from "nextra/components";
 
-# Quick Start
+# Quick Start (macOS)
 
 This guide is a concise list of steps to get started building with Conformal. For a more detailed walkthrough on building a plug-in, see the [first plug-in tutorial](/docs/tutorials/first-plug-in).
 
@@ -9,15 +9,11 @@ This guide is a concise list of steps to get started building with Conformal. Fo
 <Steps>
 ### Install `bun`
 
-[`bun`](https://bun.sh) is the TypeScript runtime we use for all build tooling in Conformal.
+[`bun`](https://bun.sh) is the TypeScript runtime we use for all build tooling in Conformal. Please follow installation instructions [on their website](https://bun.com/docs/installation#macos-%26-linux)
 
-```sh copy
-brew install oven-sh/bun/bun
-```
+### Install the VST SDK (Optional)
 
-### Install the VST SDK (Recommended)
-
-While the VST SDK is not required to build plug-ins, we use it for validating plug-in correctness.
+While the VST SDK is not required to build plug-ins, it can be usedfor validating plug-in correctness.
 
 ```sh copy
 mkdir -p ~/SDKs && git clone https://github.com/steinbergmedia/vst3sdk.git ~/SDKs/vst3sdk --branch v3.8.0_build_66 --recurse-submodules
@@ -36,7 +32,7 @@ This will prompt you for a few questions to set up your project.
 We have a few steps that are required to set up your development environment. The following commands should be run from the project directory.
 
 ```sh copy
-echo "VST3_SDK_DIR=$HOME/SDKs/vst3sdk" > .env
+echo "VST3_SDK_DIR=$HOME/SDKs/vst3sdk" > .env # if you installed the SDK
 bun install
 bun run bootstrap
 ```
