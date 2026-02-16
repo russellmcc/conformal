@@ -45,8 +45,8 @@ unsafe fn query_string(data: &[u8], key: &str) -> Result<String, GetDllInfoError
         if VerQueryValueW(
             data.as_ptr().cast(),
             translation_query.as_ptr(),
-            &mut ptr,
-            &mut len,
+            &raw mut ptr,
+            &raw mut len,
         ) == 0
             || ptr.is_null()
             || len < 4
@@ -67,8 +67,8 @@ unsafe fn query_string(data: &[u8], key: &str) -> Result<String, GetDllInfoError
         if VerQueryValueW(
             data.as_ptr().cast(),
             sub_block.as_ptr(),
-            &mut value_ptr,
-            &mut value_len,
+            &raw mut value_ptr,
+            &raw mut value_len,
         ) == 0
             || value_ptr.is_null()
             || value_len == 0
@@ -77,8 +77,7 @@ unsafe fn query_string(data: &[u8], key: &str) -> Result<String, GetDllInfoError
         }
 
         // value_len includes the null terminator
-        let slice =
-            std::slice::from_raw_parts(value_ptr.cast::<u16>(), (value_len - 1) as usize);
+        let slice = std::slice::from_raw_parts(value_ptr.cast::<u16>(), (value_len - 1) as usize);
         String::from_utf16(slice).map_err(|_| GetDllInfoError::UnexpectedError)
     }
 }
@@ -91,14 +90,11 @@ unsafe fn query_string(data: &[u8], key: &str) -> Result<String, GetDllInfoError
 /// or the version info resource cannot be read.
 pub fn get_current_dll_info() -> Result<DllInfo, GetDllInfoError> {
     let path = process_path::get_dylib_path().ok_or(GetDllInfoError::UnexpectedError)?;
-    let path_wide = to_wide(
-        path.to_str()
-            .ok_or(GetDllInfoError::UnexpectedError)?,
-    );
+    let path_wide = to_wide(path.to_str().ok_or(GetDllInfoError::UnexpectedError)?);
 
     unsafe {
         let mut handle: u32 = 0;
-        let size = GetFileVersionInfoSizeW(path_wide.as_ptr(), &mut handle);
+        let size = GetFileVersionInfoSizeW(path_wide.as_ptr(), &raw mut handle);
         if size == 0 {
             return Err(GetDllInfoError::UnexpectedError);
         }
