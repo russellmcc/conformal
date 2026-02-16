@@ -2,8 +2,8 @@
 
 use std::cell::RefCell;
 
-use crate::mpe;
 use crate::{ClassID, ComponentFactory};
+use crate::{enum_to_u32, mpe};
 use conformal_component::audio::{Buffer, BufferMut, ChannelLayout};
 use conformal_component::effect::Effect;
 use conformal_component::events::{Event, Events};
@@ -265,7 +265,8 @@ impl ProcessorCategory for SynthProcessorCategory {
                         ChannelLayout::Stereo => 2,
                     };
                     (*bus).busType = vst3::Steinberg::Vst::BusTypes_::kMain as i32;
-                    (*bus).flags = vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive;
+                    (*bus).flags =
+                        enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive);
 
                     // fill name
                     to_utf16("Output", &mut (*bus).name);
@@ -281,7 +282,8 @@ impl ProcessorCategory for SynthProcessorCategory {
                     (*bus).direction = dir;
                     (*bus).channelCount = 1;
                     (*bus).busType = vst3::Steinberg::Vst::BusTypes_::kMain as i32;
-                    (*bus).flags = vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive;
+                    (*bus).flags =
+                        enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive);
 
                     // Fill name
                     to_utf16("Event In", &mut (*bus).name);
@@ -482,7 +484,8 @@ impl ProcessorCategory for EffectProcessorCategory {
                         ChannelLayout::Stereo => 2,
                     };
                     (*bus).busType = vst3::Steinberg::Vst::BusTypes_::kMain as i32;
-                    (*bus).flags = vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive;
+                    (*bus).flags =
+                        enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive);
 
                     // fill name
                     to_utf16("Output", &mut (*bus).name);
@@ -501,7 +504,8 @@ impl ProcessorCategory for EffectProcessorCategory {
                         ChannelLayout::Stereo => 2,
                     };
                     (*bus).busType = vst3::Steinberg::Vst::BusTypes_::kMain as i32;
-                    (*bus).flags = vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive;
+                    (*bus).flags =
+                        enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive);
 
                     // Fill name
                     to_utf16("Input", &mut (*bus).name);
@@ -2170,7 +2174,7 @@ mod tests {
             );
             assert_eq!(
                 bus.flags,
-                vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive
+                enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive)
             );
             assert_eq!(
                 proc.getBusInfo(
@@ -2197,7 +2201,7 @@ mod tests {
             );
             assert_eq!(
                 bus.flags,
-                vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive
+                enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive)
             );
         }
     }
@@ -2271,7 +2275,7 @@ mod tests {
             );
             assert_eq!(
                 bus.flags,
-                vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive
+                enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive)
             );
             assert_eq!(
                 proc.getBusInfo(
@@ -2298,7 +2302,7 @@ mod tests {
             );
             assert_eq!(
                 bus.flags,
-                vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive
+                enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive)
             );
         }
     }

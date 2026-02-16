@@ -412,3 +412,29 @@ macro_rules! wrap_factory {
         }
     };
 }
+
+#[cfg(target_os = "windows")]
+type DefaultEnumType = std::ffi::c_int;
+
+#[cfg(not(target_os = "windows"))]
+type DefaultEnumType = std::ffi::c_uint;
+
+#[cfg(target_os = "windows")]
+fn enum_to_u32(value: DefaultEnumType) -> u32 {
+    value as u32
+}
+
+#[cfg(target_os = "windows")]
+fn u32_to_enum(value: u32) -> DefaultEnumType {
+    value as DefaultEnumType
+}
+
+#[cfg(not(target_os = "windows"))]
+fn enum_to_u32(value: DefaultEnumType) -> u32 {
+    value
+}
+
+#[cfg(not(target_os = "windows"))]
+fn u32_to_enum(value: u32) -> DefaultEnumType {
+    value
+}
