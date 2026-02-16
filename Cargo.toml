@@ -1,8 +1,20 @@
 [workspace]
 resolver = "2"
+# Note that we have a macOS-only crate in the workspace, `conformal_macos_bundle`,
+# which is not cleanly supported by cargo. See https://github.com/rust-lang/cargo/issues/6179
+# We handle this by making it not one of the "default-members", and testing it specially
+# in macOS CI :(.
 members = [
     "rust/vst-wrapper",
     "rust/macos-bundle",
+    "rust/preferences",
+    "rust/component",
+    "rust/ui",
+    "rust/core",
+    "rust/poly",
+]
+default-members = [
+    "rust/vst-wrapper",
     "rust/preferences",
     "rust/component",
     "rust/ui",
@@ -28,6 +40,7 @@ assert_approx_eq = "1.1.0"
 process_path = "0.1.4"
 objc = "0.2.7"
 serde_json = "1.0.117"
+windows-registry = "0.6"
 fxhash = "0.2.1"
 base64 = "0.22.1"
 wry = { version = "0.40.0", features = ["devtools"] }
