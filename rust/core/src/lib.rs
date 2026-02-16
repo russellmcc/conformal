@@ -4,6 +4,4 @@
 #![doc = include_str!("../README.md")]
 
 pub mod parameters;
-
-#[cfg(target_os = "macos")]
 pub mod path_utils;
