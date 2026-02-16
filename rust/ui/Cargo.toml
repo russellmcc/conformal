@@ -22,9 +22,6 @@ serde_bytes = { workspace = true }
 rmp-serde = { workspace = true }
 mime_guess = { workspace = true }
 
-[target.'cfg(target_os = "macos")'.dependencies]
-conformal_macos_bundle = { workspace = true }
-
 [dev-dependencies]
 conformal_preferences = { workspace = true, features = [
     "test-utils"

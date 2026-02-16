@@ -1,6 +1,3 @@
-#![allow(unexpected_cfgs)]
-#![allow(missing_docs)]
-
 use std::{
     ffi::{CStr, CString},
     path::PathBuf,

@@ -204,15 +204,9 @@ name = "conformal_core"
 version = "0.4.0"
 dependencies = [
  "conformal_component",
- "serde",
-]
-
-[[package]]
-name = "conformal_macos_bundle"
-version = "0.3.6"
-dependencies = [
  "objc",
  "process_path",
+ "serde",
 ]
 
 [[package]]
@@ -241,7 +235,6 @@ dependencies = [
  "base64",
  "conformal_component",
  "conformal_core",
- "conformal_macos_bundle",
  "conformal_preferences",
  "mime_guess",
  "rmp-serde",
@@ -257,10 +250,10 @@ dependencies = [
  "assert_approx_eq",
  "conformal_component",
  "conformal_core",
- "conformal_macos_bundle",
  "conformal_ui",
  "const_format",
  "itertools",
+ "process_path",
  "rmp-serde",
  "serde",
  "vst3",

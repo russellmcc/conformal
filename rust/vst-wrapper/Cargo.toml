@@ -12,9 +12,6 @@ homepage = "https://russellmcc.github.io/conformal"
 [lints]
 workspace = true
 
-[target.'cfg(target_os = "macos")'.dependencies]
-conformal_macos_bundle = { workspace = true }
-
 [dependencies]
 vst3 = { workspace = true }
 serde = { workspace = true }
@@ -27,3 +24,6 @@ const_format = { workspace = true }
 
 [dev-dependencies]
 assert_approx_eq = { workspace = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+process_path = { workspace = true }

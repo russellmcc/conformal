@@ -11,8 +11,6 @@ use wry::{
 };
 
 use conformal_component::parameters;
-#[cfg(target_os = "macos")]
-use conformal_macos_bundle::get_current_bundle_info;
 use conformal_preferences::Store;
 
 use super::{protocol, server};
@@ -114,13 +112,6 @@ fn get_rsrc_response(rsrc_root: &std::path::Path, request: &Request<Vec<u8>>) ->
     }
 }
 
-// Note that we can't do anything without a resource root.
-fn get_rsrc_root_or_panic() -> std::path::PathBuf {
-    get_current_bundle_info()
-        .map(|info| info.resource_path)
-        .expect("Could not find bundle resources")
-}
-
 fn default_preferences() -> HashMap<String, conformal_preferences::Value> {
     HashMap::from_iter([
         (
@@ -152,6 +143,7 @@ impl<S: super::ParameterStore + 'static> Ui<S> {
     pub fn new(
         parent: raw_window_handle::RawWindowHandle,
         store: S,
+        rsrc_root: std::path::PathBuf,
         domain: &str,
         size: Size,
     ) -> Result<Self, UiError> {
@@ -174,7 +166,6 @@ impl<S: super::ParameterStore + 'static> Ui<S> {
             },
         )));
         let server_ipc = server.clone();
-        let rsrc_root = get_rsrc_root_or_panic().join("web-ui");
         let web_view = Rc::new(
             wry::WebViewBuilder::new_as_child(&RawWindowHandleWrapper(parent))
                 .with_ipc_handler(move |m| {

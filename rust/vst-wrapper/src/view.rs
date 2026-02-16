@@ -145,6 +145,39 @@ impl VST3PlatformType {
     }
 }
 
+#[cfg(target_os = "macos")]
+fn get_rsrc_root_or_panic() -> std::path::PathBuf {
+    use conformal_core::mac_bundle_utils::get_current_bundle_info;
+
+    get_current_bundle_info()
+        .map(|info| info.resource_path)
+        .expect("Could not find bundle resources")
+}
+
+#[cfg(target_os = "windows")]
+fn get_rsrc_root_or_panic() -> std::path::PathBuf {
+    let dll_path = process_path::get_dylib_path()
+        .ok_or(GetBundleInfoError::UnexpectedError)
+        .expect("Could not find path to DLL");
+
+    // VST3 bundles have structures like this:
+    // - MyPlugin.vst3
+    //   - Contents
+    //     - Resources
+    //       - <Resources go here>
+    //     - <target name> (e.g., `x86_64-win`)
+    //        - MyPlugin.vst3 <- this is the DLL
+
+    let contents_path = dll_path
+        .parent()
+        .expect("Could not find Contents directory");
+    let resources_path = contents_path.join("Resources");
+    if !resources_path.exists() {
+        panic!("Resources directory does not exist This indicates a corrupt VST3 bundle.");
+    }
+    resources_path
+}
+
 impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
     unsafe fn isPlatformTypeSupported(
         &self,
@@ -170,7 +203,9 @@ impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
                 let store = self.borrow().store.clone();
                 let domain = self.borrow().domain.clone();
                 let initial_size = self.borrow().initial_size;
-                self.borrow_mut().ui = Ui::new(handle, store, domain.as_str(), initial_size).ok();
+                let rsrc_root = get_rsrc_root_or_panic();
+                self.borrow_mut().ui =
+                    Ui::new(handle, store, rsrc_root, domain.as_str(), initial_size).ok();
                 return vst3::Steinberg::kResultOk;
             }
             vst3::Steinberg::kInvalidArgument

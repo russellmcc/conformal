@@ -14,7 +14,6 @@ export const deployDocs = async () => {
   await $`cargo doc --no-deps --all-features\
   --exclude conformal_ui\
   --exclude conformal_preferences\
-  --exclude conformal_macos_bundle\
   --exclude conformal_core\
   --workspace`.cwd(workspacePath);
 
