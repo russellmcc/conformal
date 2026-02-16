@@ -156,9 +156,7 @@ fn get_rsrc_root_or_panic() -> std::path::PathBuf {
 
 #[cfg(target_os = "windows")]
 fn get_rsrc_root_or_panic() -> std::path::PathBuf {
-    let dll_path = process_path::get_dylib_path()
-        .ok_or(GetBundleInfoError::UnexpectedError)
-        .expect("Could not find path to DLL");
+    let dll_path = process_path::get_dylib_path().expect("Could not find path to DLL");
 
     // VST3 bundles have structures like this:
     // - MyPlugin.vst3

@@ -3,9 +3,12 @@
 // that are unnecessary in newer versions.
 #![allow(clippy::unnecessary_cast)]
 
-use crate::parameters::{
-    AFTERTOUCH_PARAMETER, CONTROLLER_PARAMETERS, EXPRESSION_PEDAL_PARAMETER, MOD_WHEEL_PARAMETER,
-    PITCH_BEND_PARAMETER, SUSTAIN_PARAMETER, TIMBRE_PARAMETER,
+use crate::{
+    parameters::{
+        AFTERTOUCH_PARAMETER, CONTROLLER_PARAMETERS, EXPRESSION_PEDAL_PARAMETER,
+        MOD_WHEEL_PARAMETER, PITCH_BEND_PARAMETER, SUSTAIN_PARAMETER, TIMBRE_PARAMETER,
+    },
+    u32_to_enum,
 };
 use std::{
     cell::RefCell,
@@ -1322,7 +1325,7 @@ impl INoteExpressionPhysicalUIMappingTrait for EditController {
             let list = &mut *list;
             for idx in 0..list.count {
                 let item = &mut (*list.map.offset(idx as isize));
-                match item.physicalUITypeID {
+                match u32_to_enum(item.physicalUITypeID) {
                     vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIXMovement => {
                         item.noteExpressionTypeID =
                             vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID;
@@ -1370,7 +1373,6 @@ mod tests {
     use vst3::{ComWrapper, Steinberg::Vst::IEditControllerTrait};
 
     use super::GetStore;
-    use crate::HostInfo;
     use crate::fake_ibstream::Stream;
     use crate::parameters::{
         AFTERTOUCH_PARAMETER, EXPRESSION_PEDAL_PARAMETER, MOD_WHEEL_PARAMETER,
@@ -1379,6 +1381,7 @@ mod tests {
     use crate::processor::test_utils::{
         ParameterValueQueueImpl, ParameterValueQueuePoint, mock_no_audio_process_data, setup_proc,
     };
+    use crate::{HostInfo, enum_to_u32};
     use crate::{ParameterModel, processor};
     use crate::{dummy_host, from_utf16_buffer, to_utf16};
     use assert_approx_eq::assert_approx_eq;
@@ -2969,7 +2972,7 @@ mod tests {
         unsafe {
             assert_eq!(ec.initialize(host.as_com_ref().unwrap().as_ptr()), 0);
 
-            let check_assignment = |vst_id: std::ffi::c_uint, param_id| {
+            let check_assignment = |vst_id: crate::DefaultEnumType, param_id| {
                 let mut id: vst3::Steinberg::Vst::ParamID = 0;
                 assert_eq!(
                     ec.getMidiControllerAssignment(
@@ -3365,9 +3368,12 @@ mod tests {
                 physicalUITypeID: 0,
                 noteExpressionTypeID: 0,
             }; 3];
-            map[0].physicalUITypeID = vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIYMovement;
-            map[1].physicalUITypeID = vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIXMovement;
-            map[2].physicalUITypeID = vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIPressure;
+            map[0].physicalUITypeID =
+                enum_to_u32(vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIYMovement);
+            map[1].physicalUITypeID =
+                enum_to_u32(vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIXMovement);
+            map[2].physicalUITypeID =
+                enum_to_u32(vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIPressure);
             let mut physical_ui_mapping = vst3::Steinberg::Vst::PhysicalUIMapList {
                 count: 3,
                 map: map.as_mut_ptr(),

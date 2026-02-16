@@ -2,7 +2,7 @@
 
 use std::cell::RefCell;
 
-use crate::{ClassID, ComponentFactory};
+use crate::{ClassID, ComponentFactory, u32_to_enum};
 use crate::{enum_to_u32, mpe};
 use conformal_component::audio::{Buffer, BufferMut, ChannelLayout};
 use conformal_component::effect::Effect;
@@ -1469,7 +1469,9 @@ impl<
         &self,
         symbolic_sample_size: vst3::Steinberg::int32,
     ) -> vst3::Steinberg::tresult {
-        if symbolic_sample_size as u32 == vst3::Steinberg::Vst::SymbolicSampleSizes_::kSample32 {
+        if u32_to_enum(symbolic_sample_size as u32)
+            == vst3::Steinberg::Vst::SymbolicSampleSizes_::kSample32
+        {
             vst3::Steinberg::kResultTrue
         } else {
             vst3::Steinberg::kResultFalse
@@ -1502,7 +1504,7 @@ impl<
                     sampling_rate: (*setup).sampleRate as f32,
 
                     max_samples_per_process_call: (*setup).maxSamplesPerBlock as usize,
-                    processing_mode: match (*setup).processMode as u32 {
+                    processing_mode: match u32_to_enum((*setup).processMode as u32) {
                         vst3::Steinberg::Vst::ProcessModes_::kRealtime => ProcessingMode::Realtime,
                         vst3::Steinberg::Vst::ProcessModes_::kPrefetch => ProcessingMode::Prefetch,
                         vst3::Steinberg::Vst::ProcessModes_::kOffline => ProcessingMode::Offline,
@@ -1628,7 +1630,6 @@ mod tests {
 
     use super::test_utils::{DEFAULT_ENV, activate_busses, process_setup, setup_proc};
     use super::{PartialProcessingEnvironment, create_effect, create_synth};
-    use crate::HostInfo;
     use crate::fake_ibstream::Stream;
     use crate::mpe::quirks::aftertouch_param_id;
     use crate::processor::test_utils::{
@@ -1636,6 +1637,7 @@ mod tests {
         activate_effect_busses, mock_no_audio_process_data, mock_process, mock_process_effect,
         mock_process_mod, setup_proc_effect,
     };
+    use crate::{HostInfo, enum_to_u32};
     use crate::{dummy_host, from_utf16_buffer};
     use assert_approx_eq::assert_approx_eq;
     use conformal_component::audio::{BufferMut, channels, channels_mut};

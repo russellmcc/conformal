@@ -1,5 +1,5 @@
 use super::edit_controller;
-use crate::ClassCategory;
+use crate::{ClassCategory, enum_to_u32};
 use crate::{ClassID, Info};
 use vst3::Class;
 use vst3::ComWrapper;
@@ -200,7 +200,8 @@ impl IPluginFactory2Trait for Factory {
                     to_cstr(class.info().name, (*info).name.iter_mut());
                 }
                 to_cstr(class.category_str(), (*info).subCategories.iter_mut());
-                (*info).classFlags = vst3::Steinberg::Vst::ComponentFlags_::kDistributable;
+                (*info).classFlags =
+                    enum_to_u32(vst3::Steinberg::Vst::ComponentFlags_::kDistributable);
                 to_cstr(
                     std::ffi::CStr::from_ptr(vst3::Steinberg::Vst::SDKVersionString)
                         .to_str()
