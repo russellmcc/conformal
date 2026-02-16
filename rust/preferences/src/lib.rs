@@ -26,6 +26,12 @@ mod macos;
 #[cfg(target_os = "macos")]
 use macos::create_os_store;
 
+#[cfg(target_os = "windows")]
+mod windows;
+
+#[cfg(target_os = "windows")]
+use windows::create_os_store;
+
 #[cfg(any(test, feature = "test-utils"))]
 mod fake_os;
 

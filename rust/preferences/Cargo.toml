@@ -19,3 +19,6 @@ test-utils = []
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc = { workspace = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-registry = { workspace = true }
