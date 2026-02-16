@@ -3,6 +3,7 @@ import getBundleData from "./bundleData";
 import { Config, configArgs, parseConfigArg } from "./configArg";
 import { createBundle } from "./bundle";
 import { createInstaller } from "./installer";
+import { createWindowsVstBundle } from "./windowsVstBundle";
 import { findWorkspaceRoot } from "./workspaceRoot";
 import { Command } from "@commander-js/extra-typings";
 
@@ -68,14 +69,48 @@ const executeMacos = async (
   }
 };
 
+const executeWindows = async (
+  config: Config,
+  dist: boolean,
+  linkToLibrary: boolean,
+) => {
+  const packageRoot = process.cwd();
+  const workspaceRoot = await findWorkspaceRoot(packageRoot);
+  if (dist) {
+    config = "release";
+  }
+
+  await runShell(["bun", "run", "build"]);
+
+  process.chdir(workspaceRoot);
+
+  const bundleData = await getBundleData(packageRoot);
+  const { rustPackage } = bundleData;
+
+  await runShell([
+    "bun",
+    "run",
+    "rust-build",
+    ...configArgs(config),
+    "--package",
+    rustPackage,
+  ]);
+
+  await createWindowsVstBundle({
+    packageRoot,
+    bundleData,
+    config,
+    linkToLibrary,
+  });
+};
+
 export const execute = async (
   config: Config,
   dist: boolean,
   linkToLibrary: boolean,
 ) => {
   if (process.platform === "win32") {
-    // TODO: Implement Windows packaging
-    throw new Error("Windows packaging not implemented");
+    await executeWindows(config, dist, linkToLibrary);
   } else {
     await executeMacos(config, dist, linkToLibrary);
   }

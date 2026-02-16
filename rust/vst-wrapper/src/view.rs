@@ -185,6 +185,7 @@ fn get_rsrc_root_or_panic() -> std::path::PathBuf {
 
     let contents_path = dll_path
         .parent()
+        .and_then(|p| p.parent())
         .expect("Could not find Contents directory");
     let resources_path = contents_path.join("Resources");
     assert!(
