@@ -210,7 +210,7 @@ describe("create-conformal template", () => {
           // Replace these with a link to the local crate
           const createDependencies = ["component", "vst_wrapper", "poly"];
           for (const dep of createDependencies) {
-            const crateVersion = `{ path = "${path.join(workspacePath, "rust", dep.replace("_", "-"))}" }`;
+            const crateVersion = `{ path = "${path.join(workspacePath, "rust", dep.replace("_", "-")).replaceAll("\\", "\\\\")}" }`;
             await replaceInFiles(
               ["rust"],
               new RegExp(`conformal_${dep} = "[^"]+"`, "g"),
