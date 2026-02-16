@@ -12,7 +12,7 @@ use wry::{
 
 use conformal_component::parameters;
 #[cfg(target_os = "macos")]
-use conformal_macos_bundle::get_current_bundle_info;
+use conformal_core::path_utils::get_current_bundle_info;
 use conformal_preferences::Store;
 
 use super::{protocol, server};

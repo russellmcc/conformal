@@ -3,15 +3,6 @@ versioned_files = ["rust/vst-wrapper/Cargo.toml", "Cargo.lock"]
 scopes = ["conformal_vst_wrapper"]
 changelog = "rust/vst-wrapper/CHANGELOG.md"
 
-[packages.conformal_macos_bundle]
-versioned_files = [
-    "rust/macos-bundle/Cargo.toml",
-    "Cargo.lock",
-    { path = "Cargo.toml", dependency = "conformal_macos_bundle" }
-]
-scopes = ["conformal_macos_bundle"]
-changelog = "rust/macos-bundle/CHANGELOG.md"
-
 [packages.conformal_preferences]
 versioned_files = [
     "rust/preferences/Cargo.toml",

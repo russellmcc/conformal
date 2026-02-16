@@ -12,9 +12,6 @@ homepage = "https://russellmcc.github.io/conformal"
 [lints]
 workspace = true
 
-[target.'cfg(target_os = "macos")'.dependencies]
-conformal_macos_bundle = { workspace = true }
-
 [dependencies]
 vst3 = { workspace = true }
 serde = { workspace = true }
