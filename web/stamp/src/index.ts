@@ -50,9 +50,12 @@ export const stampTemplate = async (
   });
   for (const file of files) {
     const srcPath = path.join(file.parentPath, file.name);
+    // Use forward slashes so Handlebars doesn't interpret Windows `\` before
+    // `{{` as an escape sequence (Handlebars treats `\{{` as a literal `{{`).
+    const relPath = path.relative(templateDir, srcPath).split(path.sep).join("/");
     const destPath = path.join(
       dest,
-      compile(path.relative(templateDir, srcPath), { strict: true })(env),
+      ...compile(relPath, { strict: true })(env).split("/"),
     );
 
     if (file.isDirectory()) {
