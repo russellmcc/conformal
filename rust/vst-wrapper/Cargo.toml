@@ -24,3 +24,6 @@ const_format = { workspace = true }
 
 [dev-dependencies]
 assert_approx_eq = { workspace = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+process_path = { workspace = true }

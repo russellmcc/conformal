@@ -154,6 +154,30 @@ fn get_rsrc_root_or_panic() -> std::path::PathBuf {
         .expect("Could not find bundle resources")
 }
 
+#[cfg(target_os = "windows")]
+fn get_rsrc_root_or_panic() -> std::path::PathBuf {
+    let dll_path = process_path::get_dylib_path()
+        .ok_or(GetBundleInfoError::UnexpectedError)
+        .expect("Could not find path to DLL");
+
+    // VST3 bundles have structures like this:
+    // - MyPlugin.vst3
+    //   - Contents
+    //     - Resources
+    //       - <Resources go here>
+    //     - <target name> (e.g., `x86_64-win`)
+    //        - MyPlugin.vst3 <- this is the DLL
+
+    let contents_path = dll_path
+        .parent()
+        .expect("Could not find Contents directory");
+    let resources_path = contents_path.join("Resources");
+    if !resources_path.exists() {
+        panic!("Resources directory does not exist This indicates a corrupt VST3 bundle.");
+    }
+    resources_path
+}
+
 impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
     unsafe fn isPlatformTypeSupported(
         &self,

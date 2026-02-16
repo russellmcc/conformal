@@ -253,6 +253,7 @@ dependencies = [
  "conformal_ui",
  "const_format",
  "itertools",
+ "process_path",
  "rmp-serde",
  "serde",
  "vst3",
