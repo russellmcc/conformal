@@ -187,9 +187,10 @@ fn get_rsrc_root_or_panic() -> std::path::PathBuf {
         .parent()
         .expect("Could not find Contents directory");
     let resources_path = contents_path.join("Resources");
-    if !resources_path.exists() {
-        panic!("Resources directory does not exist This indicates a corrupt VST3 bundle.");
-    }
+    assert!(
+        resources_path.exists(),
+        "Resources directory does not exist This indicates a corrupt VST3 bundle."
+    );
     resources_path
 }
 
