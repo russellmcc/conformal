@@ -2,6 +2,7 @@ import { BundleData } from "./bundleData";
 import { Config } from "./configArg";
 import { join, resolve } from "node:path";
 import { rm, mkdir, copyFile, cp, symlink } from "node:fs/promises";
+import { rcedit } from "rcedit";
 
 const expectFile = async (path: string) => {
   if (!(await Bun.file(path).exists())) {
@@ -48,7 +49,20 @@ export const createWindowsVstBundle = async ({
   const dllPath = await expectFile(
     `target/${config}/${bundleData.rustPackage}.dll`,
   );
-  await copyFile(dllPath, join(targetDir, `${bundleData.name}.vst3`));
+  const dllDestPath = join(targetDir, `${bundleData.name}.vst3`);
+  await copyFile(dllPath, dllDestPath);
+
+  await rcedit(dllDestPath, {
+    "version-string": {
+      CompanyName: bundleData.vendor,
+      // rcedit's types call this InternalFilename, but the actual
+      // VS_VERSION_INFO field name is InternalName.
+      InternalFilename: bundleData.id,
+      ProductName: bundleData.name,
+    } as rcedit.VersionStringOptions,
+    "product-version": bundleData.version,
+    "file-version": bundleData.version,
+  });
 
   await cp(join(packageRoot, "dist"), join(resourcesDir, "web-ui"), {
     recursive: true,
