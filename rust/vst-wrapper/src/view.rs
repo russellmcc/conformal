@@ -111,6 +111,9 @@ pub fn create<S: store::Store + 'static>(
 enum VST3PlatformType {
     #[cfg(target_os = "macos")]
     NSView,
+
+    #[cfg(target_os = "windows")]
+    Hwnd,
 }
 
 #[cfg(target_os = "macos")]
@@ -120,18 +123,30 @@ unsafe fn app_kit_handle(
     raw_window_handle::AppKitWindowHandle::new(raw_ns_view)
 }
 
+#[cfg(target_os = "windows")]
+unsafe fn hwnd(
+    raw_hwnd: std::ptr::NonNull<std::ffi::c_void>,
+) -> raw_window_handle::Win32WindowHandle {
+    use std::num::NonZero;
+
+    // Safety: we know the numeric representation will be non-zero since we know that the pointer representation is non-null.
+    raw_window_handle::Win32WindowHandle::new(unsafe {
+        NonZero::new_unchecked(raw_hwnd.as_ptr() as isize)
+    })
+}
+
 #[allow(deprecated)]
 unsafe fn to_window_handle(
     platform_type: &VST3PlatformType,
     handle: std::ptr::NonNull<std::ffi::c_void>,
 ) -> raw_window_handle::RawWindowHandle {
-    unsafe {
-        match platform_type {
-            #[cfg(target_os = "macos")]
-            VST3PlatformType::NSView => {
-                raw_window_handle::RawWindowHandle::from(app_kit_handle(handle))
-            }
-        }
+    match platform_type {
+        #[cfg(target_os = "macos")]
+        VST3PlatformType::NSView => unsafe {
+            raw_window_handle::RawWindowHandle::from(app_kit_handle(handle))
+        },
+        #[cfg(target_os = "windows")]
+        VST3PlatformType::Hwnd => unsafe { raw_window_handle::RawWindowHandle::from(hwnd(handle)) },
     }
 }
 
@@ -140,6 +155,8 @@ impl VST3PlatformType {
         match unsafe { std::ffi::CStr::from_ptr(s).to_str() } {
             #[cfg(target_os = "macos")]
             Ok("NSView") => Some(VST3PlatformType::NSView),
+            #[cfg(target_os = "windows")]
+            Ok("HWND") => Some(VST3PlatformType::Hwnd),
             _ => None,
         }
     }
