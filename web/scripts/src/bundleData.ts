@@ -4,6 +4,7 @@ import * as path from "path";
 const BundleDataParser = z.object({
   rustPackage: z.string(),
   name: z.string(),
+  vendor: z.string(),
   id: z.string(),
   sig: z.string(),
   version: z.string(),
