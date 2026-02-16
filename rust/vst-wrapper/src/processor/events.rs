@@ -8,7 +8,7 @@ use conformal_component::{
     synth::NumericPerNoteExpression,
 };
 
-use crate::mpe;
+use crate::{mpe, u32_to_enum};
 
 unsafe fn get_event(
     event_list: ComRef<'_, IEventList>,
@@ -45,8 +45,8 @@ unsafe fn convert_event(event: &vst3::Steinberg::Vst::Event) -> Option<Event> {
         if event.sampleOffset < 0 {
             return None;
         }
-        match u32::from(event.r#type) {
-            vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOnEvent => {
+        match u32_to_enum(u32::from(event.r#type)) {
+            Ok(vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOnEvent) => {
                 let pitch = u8::try_from(event.__field0.noteOn.pitch).ok()?;
                 let channel = event.__field0.noteOn.channel;
                 Some(Event {
@@ -67,7 +67,7 @@ unsafe fn convert_event(event: &vst3::Steinberg::Vst::Event) -> Option<Event> {
                     },
                 })
             }
-            vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOffEvent => {
+            Ok(vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOffEvent) => {
                 let pitch = u8::try_from(event.__field0.noteOff.pitch).ok()?;
                 let channel = event.__field0.noteOff.channel;
                 Some(Event {
@@ -98,8 +98,8 @@ unsafe fn convert_mpe_event(event: &vst3::Steinberg::Vst::Event) -> Option<mpe::
         if event.sampleOffset < 0 {
             return None;
         }
-        match u32::from(event.r#type) {
-            vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOnEvent => {
+        match u32_to_enum(u32::from(event.r#type)) {
+            Ok(vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOnEvent) => {
                 let channel = event.__field0.noteOn.channel;
                 let note_id = event.__field0.noteOn.noteId;
                 if note_id == -1 || channel != 0 {
@@ -110,7 +110,7 @@ unsafe fn convert_mpe_event(event: &vst3::Steinberg::Vst::Event) -> Option<mpe::
                     data: mpe::NoteEventData::On { note_id },
                 })
             }
-            vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOffEvent => {
+            Ok(vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOffEvent) => {
                 let channel = event.__field0.noteOff.channel;
                 let note_id = event.__field0.noteOff.noteId;
                 if note_id == -1 || channel != 0 {
@@ -121,7 +121,7 @@ unsafe fn convert_mpe_event(event: &vst3::Steinberg::Vst::Event) -> Option<mpe::
                     data: mpe::NoteEventData::Off { note_id },
                 })
             }
-            vst3::Steinberg::Vst::Event_::EventTypes_::kNoteExpressionValueEvent => {
+            Ok(vst3::Steinberg::Vst::Event_::EventTypes_::kNoteExpressionValueEvent) => {
                 let note_id = event.__field0.noteExpressionValue.noteId;
                 if note_id == -1 {
                     return None;

@@ -412,3 +412,77 @@ macro_rules! wrap_factory {
         }
     };
 }
+
+#[cfg(target_os = "windows")]
+type DefaultEnumType = std::ffi::c_int;
+
+#[cfg(target_os = "windows")]
+type FromU32ConversionError = std::num::TryFromIntError;
+
+#[cfg(target_os = "windows")]
+type ToU32ConversionError = std::num::TryFromIntError;
+
+#[cfg(target_os = "windows")]
+type FromI32ConversionError = std::convert::Infallible;
+
+#[cfg(target_os = "windows")]
+type ToI32ConversionError = std::convert::Infallible;
+
+#[cfg(not(target_os = "windows"))]
+type DefaultEnumType = std::ffi::c_uint;
+
+#[cfg(not(target_os = "windows"))]
+type FromU32ConversionError = std::convert::Infallible;
+
+#[cfg(not(target_os = "windows"))]
+type ToU32ConversionError = std::convert::Infallible;
+
+#[cfg(not(target_os = "windows"))]
+type FromI32ConversionError = std::num::TryFromIntError;
+
+#[cfg(not(target_os = "windows"))]
+type ToI32ConversionError = std::num::TryFromIntError;
+
+#[cfg(target_os = "windows")]
+fn enum_to_u32(value: DefaultEnumType) -> Result<u32, ToU32ConversionError> {
+    value.try_into()
+}
+
+#[cfg(target_os = "windows")]
+fn u32_to_enum(value: u32) -> Result<DefaultEnumType, FromU32ConversionError> {
+    value.try_into()
+}
+
+#[cfg(target_os = "windows")]
+#[allow(clippy::unnecessary_wraps)] // We need to match mac behavior where this is fallible.
+fn i32_to_enum(value: i32) -> Result<DefaultEnumType, FromI32ConversionError> {
+    Ok(value)
+}
+
+#[cfg(target_os = "windows")]
+#[allow(clippy::unnecessary_wraps)] // We need to match mac behavior where this is fallible.
+fn enum_to_i32(value: DefaultEnumType) -> Result<i32, ToI32ConversionError> {
+    Ok(value)
+}
+
+#[cfg(not(target_os = "windows"))]
+#[allow(clippy::unnecessary_wraps)] // We need to match windows behavior where this is fallible.
+fn enum_to_u32(value: DefaultEnumType) -> Result<u32, ToU32ConversionError> {
+    Ok(value)
+}
+
+#[cfg(not(target_os = "windows"))]
+#[allow(clippy::unnecessary_wraps)] // We need to match windows behavior where this is fallible.
+fn u32_to_enum(value: u32) -> Result<DefaultEnumType, FromU32ConversionError> {
+    Ok(value)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn i32_to_enum(value: i32) -> Result<DefaultEnumType, FromI32ConversionError> {
+    value.try_into()
+}
+
+#[cfg(not(target_os = "windows"))]
+fn enum_to_i32(value: DefaultEnumType) -> Result<i32, ToI32ConversionError> {
+    value.try_into()
+}
