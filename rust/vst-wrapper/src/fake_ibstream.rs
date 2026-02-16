@@ -5,6 +5,8 @@ use vst3::{
     Steinberg::{IBStream, IBStreamTrait},
 };
 
+use crate::i32_to_enum;
+
 #[derive(Default)]
 pub struct Stream {
     data: RefCell<Vec<u8>>,
@@ -83,8 +85,8 @@ impl IBStreamTrait for Stream {
         result: *mut vst3::Steinberg::int64,
     ) -> vst3::Steinberg::tresult {
         unsafe {
-            if let Some(next_head) = match mode as u32 {
-                vst3::Steinberg::IBStream_::IStreamSeekMode_::kIBSeekCur => {
+            if let Some(next_head) = match i32_to_enum(mode) {
+                Ok(vst3::Steinberg::IBStream_::IStreamSeekMode_::kIBSeekCur) => {
                     let saturated = if pos < 0 {
                         self.head.borrow().saturating_sub((-pos) as usize)
                     } else {
@@ -96,12 +98,12 @@ impl IBStreamTrait for Stream {
                         saturated
                     })
                 }
-                vst3::Steinberg::IBStream_::IStreamSeekMode_::kIBSeekSet => Some(
+                Ok(vst3::Steinberg::IBStream_::IStreamSeekMode_::kIBSeekSet) => Some(
                     pos.clamp(0, self.data.borrow().len().try_into().unwrap())
                         .try_into()
                         .unwrap(),
                 ),
-                vst3::Steinberg::IBStream_::IStreamSeekMode_::kIBSeekEnd => Some(
+                Ok(vst3::Steinberg::IBStream_::IStreamSeekMode_::kIBSeekEnd) => Some(
                     self.data
                         .borrow()
                         .len()

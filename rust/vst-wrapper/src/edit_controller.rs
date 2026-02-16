@@ -4,6 +4,7 @@
 #![allow(clippy::unnecessary_cast)]
 
 use crate::{
+    i32_to_enum,
     parameters::{
         AFTERTOUCH_PARAMETER, CONTROLLER_PARAMETERS, EXPRESSION_PEDAL_PARAMETER,
         MOD_WHEEL_PARAMETER, PITCH_BEND_PARAMETER, SUSTAIN_PARAMETER, TIMBRE_PARAMETER,
@@ -1074,7 +1075,7 @@ impl IMidiMappingTrait for EditController {
                 }
                 if channel_index != 0 {
                     // Supply MPE quirks mappings for hosts like Ableton that use "quirks" MPE.
-                    (match midi_controller_number.try_into() {
+                    (match i32_to_enum(midi_controller_number.into()) {
                         Ok(vst3::Steinberg::Vst::ControllerNumbers_::kPitchBend) => {
                             Some(pitch_param_id(channel_index))
                         }
@@ -1091,7 +1092,7 @@ impl IMidiMappingTrait for EditController {
                         vst3::Steinberg::kResultOk
                     })
                 } else {
-                    (match midi_controller_number.try_into() {
+                    (match i32_to_enum(midi_controller_number.into()) {
                         Ok(vst3::Steinberg::Vst::ControllerNumbers_::kPitchBend) => {
                             Some(PITCH_BEND_PARAMETER)
                         }
@@ -1326,15 +1327,15 @@ impl INoteExpressionPhysicalUIMappingTrait for EditController {
             for idx in 0..list.count {
                 let item = &mut (*list.map.offset(idx as isize));
                 match u32_to_enum(item.physicalUITypeID) {
-                    vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIXMovement => {
+                    Ok(vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIXMovement) => {
                         item.noteExpressionTypeID =
                             vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID;
                     }
-                    vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIYMovement => {
+                    Ok(vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIYMovement) => {
                         item.noteExpressionTypeID =
                             crate::processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID;
                     }
-                    vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIPressure => {
+                    Ok(vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIPressure) => {
                         item.noteExpressionTypeID =
                             crate::processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID;
                     }
@@ -3369,11 +3370,11 @@ mod tests {
                 noteExpressionTypeID: 0,
             }; 3];
             map[0].physicalUITypeID =
-                enum_to_u32(vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIYMovement);
+                enum_to_u32(vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIYMovement).unwrap();
             map[1].physicalUITypeID =
-                enum_to_u32(vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIXMovement);
+                enum_to_u32(vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIXMovement).unwrap();
             map[2].physicalUITypeID =
-                enum_to_u32(vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIPressure);
+                enum_to_u32(vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIPressure).unwrap();
             let mut physical_ui_mapping = vst3::Steinberg::Vst::PhysicalUIMapList {
                 count: 3,
                 map: map.as_mut_ptr(),

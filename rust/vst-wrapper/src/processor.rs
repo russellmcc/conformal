@@ -2,7 +2,7 @@
 
 use std::cell::RefCell;
 
-use crate::{ClassID, ComponentFactory, u32_to_enum};
+use crate::{ClassID, ComponentFactory, enum_to_i32, i32_to_enum, u32_to_enum};
 use crate::{enum_to_u32, mpe};
 use conformal_component::audio::{Buffer, BufferMut, ChannelLayout};
 use conformal_component::effect::Effect;
@@ -264,7 +264,7 @@ impl ProcessorCategory for SynthProcessorCategory {
                         ChannelLayout::Mono => 1,
                         ChannelLayout::Stereo => 2,
                     };
-                    (*bus).busType = vst3::Steinberg::Vst::BusTypes_::kMain as i32;
+                    (*bus).busType = enum_to_i32(vst3::Steinberg::Vst::BusTypes_::kMain).unwrap();
                     (*bus).flags =
                         enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive)
                             .unwrap();
@@ -282,7 +282,7 @@ impl ProcessorCategory for SynthProcessorCategory {
                     (*bus).mediaType = rtype;
                     (*bus).direction = dir;
                     (*bus).channelCount = 1;
-                    (*bus).busType = vst3::Steinberg::Vst::BusTypes_::kMain as i32;
+                    (*bus).busType = enum_to_i32(vst3::Steinberg::Vst::BusTypes_::kMain).unwrap();
                     (*bus).flags =
                         enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive)
                             .unwrap();
@@ -304,7 +304,9 @@ impl ProcessorCategory for SynthProcessorCategory {
         arr: *mut vst3::Steinberg::Vst::SpeakerArrangement,
     ) -> vst3::Steinberg::tresult {
         unsafe {
-            if index != 0 || dir != vst3::Steinberg::Vst::BusDirections_::kOutput as i32 {
+            if index != 0
+                || dir != enum_to_i32(vst3::Steinberg::Vst::BusDirections_::kOutput).unwrap()
+            {
                 return vst3::Steinberg::kInvalidArgument;
             }
 
@@ -485,7 +487,7 @@ impl ProcessorCategory for EffectProcessorCategory {
                         ChannelLayout::Mono => 1,
                         ChannelLayout::Stereo => 2,
                     };
-                    (*bus).busType = vst3::Steinberg::Vst::BusTypes_::kMain as i32;
+                    (*bus).busType = enum_to_i32(vst3::Steinberg::Vst::BusTypes_::kMain).unwrap();
                     (*bus).flags =
                         enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive)
                             .unwrap();
@@ -506,7 +508,7 @@ impl ProcessorCategory for EffectProcessorCategory {
                         ChannelLayout::Mono => 1,
                         ChannelLayout::Stereo => 2,
                     };
-                    (*bus).busType = vst3::Steinberg::Vst::BusTypes_::kMain as i32;
+                    (*bus).busType = enum_to_i32(vst3::Steinberg::Vst::BusTypes_::kMain).unwrap();
                     (*bus).flags =
                         enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive)
                             .unwrap();
@@ -1474,7 +1476,7 @@ impl<
         symbolic_sample_size: vst3::Steinberg::int32,
     ) -> vst3::Steinberg::tresult {
         if u32_to_enum(symbolic_sample_size as u32)
-            == vst3::Steinberg::Vst::SymbolicSampleSizes_::kSample32
+            == Ok(vst3::Steinberg::Vst::SymbolicSampleSizes_::kSample32)
         {
             vst3::Steinberg::kResultTrue
         } else {
@@ -1509,9 +1511,15 @@ impl<
 
                     max_samples_per_process_call: (*setup).maxSamplesPerBlock as usize,
                     processing_mode: match u32_to_enum((*setup).processMode as u32) {
-                        vst3::Steinberg::Vst::ProcessModes_::kRealtime => ProcessingMode::Realtime,
-                        vst3::Steinberg::Vst::ProcessModes_::kPrefetch => ProcessingMode::Prefetch,
-                        vst3::Steinberg::Vst::ProcessModes_::kOffline => ProcessingMode::Offline,
+                        Ok(vst3::Steinberg::Vst::ProcessModes_::kRealtime) => {
+                            ProcessingMode::Realtime
+                        }
+                        Ok(vst3::Steinberg::Vst::ProcessModes_::kPrefetch) => {
+                            ProcessingMode::Prefetch
+                        }
+                        Ok(vst3::Steinberg::Vst::ProcessModes_::kOffline) => {
+                            ProcessingMode::Offline
+                        }
                         _ => unreachable!(),
                     },
                 })
@@ -1561,8 +1569,8 @@ impl<
                         changes_from_main_thread,
                     );
                 }
-                if (*data).symbolicSampleSize
-                    != vst3::Steinberg::Vst::SymbolicSampleSizes_::kSample32 as i32
+                if i32_to_enum((*data).symbolicSampleSize)
+                    != Ok(vst3::Steinberg::Vst::SymbolicSampleSizes_::kSample32)
                 {
                     return vst3::Steinberg::kInvalidArgument;
                 }

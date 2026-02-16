@@ -1,5 +1,5 @@
 use super::edit_controller;
-use crate::{ClassCategory, enum_to_u32};
+use crate::{ClassCategory, enum_to_i32, enum_to_u32};
 use crate::{ClassID, Info};
 use vst3::Class;
 use vst3::ComWrapper;
@@ -125,7 +125,8 @@ impl IPluginFactoryTrait for Factory {
                 let is_ec = index % 2 == 1;
 
                 (*info).cardinality =
-                    vst3::Steinberg::PClassInfo_::ClassCardinality_::kManyInstances as i32;
+                    enum_to_i32(vst3::Steinberg::PClassInfo_::ClassCardinality_::kManyInstances)
+                        .unwrap();
 
                 if is_ec {
                     (*info)
@@ -160,7 +161,8 @@ impl IPluginFactoryTrait for Factory {
             to_cstr(self.info.vendor, (*info).vendor.iter_mut());
             to_cstr(self.info.url, (*info).url.iter_mut());
             to_cstr(self.info.email, (*info).email.iter_mut());
-            (*info).flags = vst3::Steinberg::PFactoryInfo_::FactoryFlags_::kUnicode as i32;
+            (*info).flags =
+                enum_to_i32(vst3::Steinberg::PFactoryInfo_::FactoryFlags_::kUnicode).unwrap();
             vst3::Steinberg::kResultOk
         }
     }
@@ -176,7 +178,8 @@ impl IPluginFactory2Trait for Factory {
             if let Some(class) = &self.classes.get(index as usize / 2) {
                 let is_ec = index % 2 == 1;
                 (*info).cardinality =
-                    vst3::Steinberg::PClassInfo_::ClassCardinality_::kManyInstances as i32;
+                    enum_to_i32(vst3::Steinberg::PClassInfo_::ClassCardinality_::kManyInstances)
+                        .unwrap();
 
                 if is_ec {
                     (*info)
