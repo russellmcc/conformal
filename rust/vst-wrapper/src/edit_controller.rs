@@ -19,7 +19,7 @@ use conformal_core::parameters::serialization::{DeserializationError, ReadInfoRe
 use conformal_core::parameters::store;
 
 #[cfg(target_os = "macos")]
-use conformal_core::path_utils::get_current_bundle_info;
+use conformal_core::mac_bundle_utils::get_current_bundle_info;
 
 use conformal_ui::Size;
 use vst3::{
