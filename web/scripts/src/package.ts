@@ -9,7 +9,7 @@ import { Command } from "@commander-js/extra-typings";
 /**
  * Must be called from a package!
  */
-export const execute = async (
+const executeMacos = async (
   config: Config,
   dist: boolean,
   linkToLibrary: boolean,
@@ -65,6 +65,19 @@ export const execute = async (
 
   if (dist) {
     await createInstaller({ packageRoot, bundleData });
+  }
+};
+
+export const execute = async (
+  config: Config,
+  dist: boolean,
+  linkToLibrary: boolean,
+) => {
+  if (process.platform === "win32") {
+    // TODO: Implement Windows packaging
+    throw new Error("Windows packaging not implemented");
+  } else {
+    await executeMacos(config, dist, linkToLibrary);
   }
 };
 
