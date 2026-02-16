@@ -40,7 +40,7 @@ const manualStep =
       `${name} must be manually installed. Please ${step} and then press enter.`,
     );
     for await (const _ of console) {
-      return;
+      break;
     }
     if (forceRestart) {
       throw new Error("Please restart your terminal and run bootstrap again");
