@@ -14,7 +14,7 @@ workspace = true
 [dependencies]
 conformal_component = { workspace = true }
 serde = { workspace = true }
+process_path = { workspace = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc = { workspace = true }
-process_path = { workspace = true }
