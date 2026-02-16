@@ -1,4 +1,5 @@
 export default {
-  quickstart: "Quick Start",
+  quickstart: "Quick Start (macOS)",
+  "quickstart-win": "Quick Start (Windows)",
   "macos-installers": "Build macOS Installers",
 };

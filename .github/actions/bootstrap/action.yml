@@ -36,7 +36,7 @@ runs:
     - name: Rust cache
       uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
 
-    - run: bun run bootstrap --with-miri
+    - run: bun run bootstrap --with-miri --with-vst-sdk
       shell: bash
 
     - name: Persist VST3 SDK for caching
