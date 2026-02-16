@@ -20,9 +20,12 @@ export const execute = async (config: Config) => {
   const bundlePath = `target/${config}/${name}.vst3`;
   const sdkDir = process.env.VST3_SDK_DIR;
   if (!sdkDir) {
-    throw new Error("VST3_SDK_DIR is not set");
+    console.warn("VST SDK not detected, skipping validation step.");
+    return;
   }
-  await runShell([`${sdkDir}/build/bin/validator`, bundlePath]);
+
+  const outputDir = process.platform === "win32" ? "bin/Debug" : "bin";
+  await runShell([`${sdkDir}/build/${outputDir}/validator`, bundlePath]);
 };
 
 export const addValidateCommand = (command: Command) => {
