@@ -15,3 +15,6 @@ jobs:
           lfs: "true"
       - uses: ./.github/actions/bootstrap
       - run: bun run ci --with-miri
+      # macOS-only crate tests
+      - run: cargo test -p conformal_macos_bundle
+      - run: cargo clippy -p conformal_macos_bundle
