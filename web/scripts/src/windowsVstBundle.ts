@@ -59,7 +59,7 @@ export const createWindowsVstBundle = async ({
       // VS_VERSION_INFO field name is InternalName.
       InternalFilename: bundleData.id,
       ProductName: bundleData.name,
-    } as rcedit.VersionStringOptions,
+    },
     "product-version": bundleData.version,
     "file-version": bundleData.version,
   });

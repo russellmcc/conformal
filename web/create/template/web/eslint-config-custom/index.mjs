@@ -18,6 +18,7 @@ export default defineConfig([
     ],
     rules: {
       "@typescript-eslint/no-empty-function": "off",
+      "@typescript-eslint/no-unsafe-type-assertion": "error",
       "@typescript-eslint/no-unused-vars": [
         "error",
         {

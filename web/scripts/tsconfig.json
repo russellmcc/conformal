@@ -1,4 +1,7 @@
 {
   "extends": "tsconfig/tsconfig.json",
+  "compilerOptions": {
+    "lib": ["es2021"]
+  },
   "include": ["src"]
 }

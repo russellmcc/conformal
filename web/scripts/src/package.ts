@@ -126,7 +126,7 @@ export const addPackageCommand = (command: Command) => {
     )
     .option("--release", "Build with optimizations")
     .action(async (options) => {
-      const { dist, release } = options as { dist: boolean; release: boolean };
-      await execute(parseConfigArg(release), dist, !dist);
+      const { dist, release } = options;
+      await execute(parseConfigArg(release), dist ?? false, !dist);
     });
 };
