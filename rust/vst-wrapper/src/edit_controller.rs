@@ -18,9 +18,6 @@ use conformal_component::parameters::{self, InfoRef, TypeSpecificInfo, TypeSpeci
 use conformal_core::parameters::serialization::{DeserializationError, ReadInfoRef};
 use conformal_core::parameters::store;
 
-#[cfg(target_os = "macos")]
-use conformal_core::mac_bundle_utils::get_current_bundle_info;
-
 use conformal_ui::Size;
 use vst3::{
     Class, ComPtr, ComRef,
@@ -148,6 +145,15 @@ fn create_internal(
     }
 }
 
+#[cfg(target_os = "macos")]
+fn get_pref_domain() -> String {
+    use conformal_core::mac_bundle_utils::get_current_bundle_info;
+
+    get_current_bundle_info()
+        .expect("Could not find bundle info")
+        .identifier
+}
+
 pub fn create(
     parameter_model: ParameterModel,
     ui_initial_size: Size,
@@ -167,14 +173,7 @@ pub fn create(
 + INoteExpressionControllerTrait
 + INoteExpressionPhysicalUIMappingTrait
 + 'static {
-    create_internal(
-        parameter_model,
-        get_current_bundle_info()
-            .expect("Could not find bundle info")
-            .identifier,
-        ui_initial_size,
-        kind,
-    )
+    create_internal(parameter_model, get_pref_domain(), ui_initial_size, kind)
 }
 
 fn get_default(info: &TypeSpecificInfo) -> parameters::InternalValue {
