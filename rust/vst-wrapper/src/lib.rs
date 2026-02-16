@@ -3,6 +3,8 @@
 
 pub use conformal_ui::Size as UiSize;
 use core::slice;
+#[cfg(not(target_os = "windows"))]
+use std::convert::Infallible;
 
 /// Contains information about the host.
 ///
@@ -416,12 +418,18 @@ macro_rules! wrap_factory {
 #[cfg(target_os = "windows")]
 type DefaultEnumType = std::ffi::c_int;
 
+#[cfg(target_os = "windows")]
+type ToU32ConversionError = std::num::TryFromIntError;
+
 #[cfg(not(target_os = "windows"))]
 type DefaultEnumType = std::ffi::c_uint;
 
+#[cfg(not(target_os = "windows"))]
+type ToU32ConversionError = std::convert::Infallible;
+
 #[cfg(target_os = "windows")]
-fn enum_to_u32(value: DefaultEnumType) -> u32 {
-    value as u32
+fn enum_to_u32(value: DefaultEnumType) -> Result<u32, ToU32ConversionError> {
+    value.try_into()
 }
 
 #[cfg(target_os = "windows")]
@@ -430,8 +438,8 @@ fn u32_to_enum(value: u32) -> DefaultEnumType {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn enum_to_u32(value: DefaultEnumType) -> u32 {
-    value
+fn enum_to_u32(value: DefaultEnumType) -> Result<u32, ToU32ConversionError> {
+    Ok(value)
 }
 
 #[cfg(not(target_os = "windows"))]
