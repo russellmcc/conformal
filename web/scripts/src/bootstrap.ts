@@ -3,7 +3,7 @@ import { appendFile } from "node:fs/promises";
 import { Command } from "@commander-js/extra-typings";
 import runShell from "./runShell";
 
-const RUST_VERSION = "1.90.0";
+const RUST_VERSION = "1.93.1";
 const CARGO_ABOUT_VERSION = "0.6.6";
 const VST3_VERSION = "v3.8.0_build_66";
 
