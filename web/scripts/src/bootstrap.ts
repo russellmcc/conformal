@@ -1,5 +1,7 @@
 import { $ } from "bun";
-import { appendFile } from "node:fs/promises";
+import { appendFile, mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Command } from "@commander-js/extra-typings";
 import runShell from "./runShell";
 
@@ -266,7 +268,7 @@ const vst3 = (options: { vstSdkVersion?: string }): Tool => ({
   check: async (): Promise<boolean> => process.env.VST3_SDK_DIR !== undefined,
   install: async () => {
     const vstSdkVersion = options.vstSdkVersion ?? VST3_VERSION;
-    const tmpDir = (await $`mktemp -d`.text()).trim();
+    const tmpDir = await mkdtemp(join(tmpdir(), "vst3-"));
     await $`git clone https://github.com/steinbergmedia/vst3sdk.git --branch ${vstSdkVersion}`.cwd(
       tmpDir,
     );
