@@ -201,7 +201,7 @@ impl IPluginFactory2Trait for Factory {
                 }
                 to_cstr(class.category_str(), (*info).subCategories.iter_mut());
                 (*info).classFlags =
-                    enum_to_u32(vst3::Steinberg::Vst::ComponentFlags_::kDistributable);
+                    enum_to_u32(vst3::Steinberg::Vst::ComponentFlags_::kDistributable).unwrap();
                 to_cstr(
                     std::ffi::CStr::from_ptr(vst3::Steinberg::Vst::SDKVersionString)
                         .to_str()

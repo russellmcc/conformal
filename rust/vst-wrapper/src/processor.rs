@@ -266,7 +266,8 @@ impl ProcessorCategory for SynthProcessorCategory {
                     };
                     (*bus).busType = vst3::Steinberg::Vst::BusTypes_::kMain as i32;
                     (*bus).flags =
-                        enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive);
+                        enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive)
+                            .unwrap();
 
                     // fill name
                     to_utf16("Output", &mut (*bus).name);
@@ -283,7 +284,8 @@ impl ProcessorCategory for SynthProcessorCategory {
                     (*bus).channelCount = 1;
                     (*bus).busType = vst3::Steinberg::Vst::BusTypes_::kMain as i32;
                     (*bus).flags =
-                        enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive);
+                        enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive)
+                            .unwrap();
 
                     // Fill name
                     to_utf16("Event In", &mut (*bus).name);
@@ -485,7 +487,8 @@ impl ProcessorCategory for EffectProcessorCategory {
                     };
                     (*bus).busType = vst3::Steinberg::Vst::BusTypes_::kMain as i32;
                     (*bus).flags =
-                        enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive);
+                        enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive)
+                            .unwrap();
 
                     // fill name
                     to_utf16("Output", &mut (*bus).name);
@@ -505,7 +508,8 @@ impl ProcessorCategory for EffectProcessorCategory {
                     };
                     (*bus).busType = vst3::Steinberg::Vst::BusTypes_::kMain as i32;
                     (*bus).flags =
-                        enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive);
+                        enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive)
+                            .unwrap();
 
                     // Fill name
                     to_utf16("Input", &mut (*bus).name);
@@ -2176,7 +2180,7 @@ mod tests {
             );
             assert_eq!(
                 bus.flags,
-                enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive)
+                enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive).unwrap()
             );
             assert_eq!(
                 proc.getBusInfo(
@@ -2203,7 +2207,7 @@ mod tests {
             );
             assert_eq!(
                 bus.flags,
-                enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive)
+                enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive).unwrap()
             );
         }
     }
@@ -2277,7 +2281,7 @@ mod tests {
             );
             assert_eq!(
                 bus.flags,
-                enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive)
+                enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive).unwrap()
             );
             assert_eq!(
                 proc.getBusInfo(
@@ -2304,7 +2308,7 @@ mod tests {
             );
             assert_eq!(
                 bus.flags,
-                enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive)
+                enum_to_u32(vst3::Steinberg::Vst::BusInfo_::BusFlags_::kDefaultActive).unwrap()
             );
         }
     }
