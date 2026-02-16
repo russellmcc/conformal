@@ -145,6 +145,15 @@ impl VST3PlatformType {
     }
 }
 
+#[cfg(target_os = "macos")]
+fn get_rsrc_root_or_panic() -> std::path::PathBuf {
+    use conformal_core::mac_bundle_utils::get_current_bundle_info;
+
+    get_current_bundle_info()
+        .map(|info| info.resource_path)
+        .expect("Could not find bundle resources")
+}
+
 impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
     unsafe fn isPlatformTypeSupported(
         &self,
@@ -170,7 +179,9 @@ impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
                 let store = self.borrow().store.clone();
                 let domain = self.borrow().domain.clone();
                 let initial_size = self.borrow().initial_size;
-                self.borrow_mut().ui = Ui::new(handle, store, domain.as_str(), initial_size).ok();
+                let rsrc_root = get_rsrc_root_or_panic();
+                self.borrow_mut().ui =
+                    Ui::new(handle, store, rsrc_root, domain.as_str(), initial_size).ok();
                 return vst3::Steinberg::kResultOk;
             }
             vst3::Steinberg::kInvalidArgument
