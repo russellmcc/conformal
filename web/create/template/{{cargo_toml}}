@@ -3,7 +3,7 @@ resolver = "2"
 members = []
 
 [workspace.package]
-rust-version = "1.93.1"
+rust-version = "1.90.0"
 edition = "2024"
 
 [workspace.lints.rust]
