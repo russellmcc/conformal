@@ -11,21 +11,25 @@ In Conformal, user interfaces for plug-ins are written in [TypeScript](https://w
 TypeScript is a language that provides important type safety features on top of JavaScript, making it
 easier to write and maintain.
 
-In the [2024 Stack Overflow Developer Survey](https://survey.stackoverflow.co/2024/technology#most-popular-technologies-language-professional),
-TypeScript was the 5th most popular language, and of those who used it in the last year, 69.5% wanted
+In the [2025 Stack Overflow Developer Survey](https://survey.stackoverflow.co/2025/technology#most-popular-technologies-language-prof),
+TypeScript was the 6th most popular language, and of those who used it in the last year, 58% wanted
 to use it again next year.
 
 In Conformal, the TypeScript user interface runs on the web platform, which is surely the most popular platform for building user interfaces. All interactive websites, including the one you are reading now, are built using the web. An increasing number of desktop applications also are built with web technologies - Spotify, Visual Studio Code and Discord are popular examples.
 
-Why is the web so popular for building interfaces? Likely [network effects](https://en.wikipedia.org/wiki/Network_effect) are part of the reason, that is - popularity itself creates more popularity. As I write this in September 2024, there are more than 3 million packages available on [npm](https://www.npmjs.com), compared to fewer than 3 _thousand_ on [vcpkg](https://vcpkg.io/en/), one of the more popular package managers for C++. This thousandfold difference means that you're more likely to find a high-quality library that solves a specific problem you encounter. The rise of LLMs for coding assistance may make this popularity even more self-sustaining - due to the richness of the available training data, LLMs tend to be more proficient at writing and improving web code than other, smaller user interface platforms.
+Why is the web so popular for building interfaces? Likely [network effects](https://en.wikipedia.org/wiki/Network_effect) are part of the reason, that is - popularity itself creates more popularity. As of January 2026, there are more than 3 million packages available on [npm](https://www.npmjs.com), compared to fewer than 3 _thousand_ on [vcpkg](https://vcpkg.io/en/), one of the more popular package managers for C++. This thousandfold difference means that you're more likely to find a high-quality library that solves a specific problem you encounter.
 
-Building UIs in TypeScript for the web also gives us easy access to [React](https://reactjs.org), an excellent library for building UIs out of reusable components that update automatically when data changes. React is very well suited for the unique needs of audio UI development.
+Building UIs in TypeScript for the web also gives us easy access to [React](https://react.dev), an excellent library for building UIs out of reusable components that update automatically when data changes. React is very well suited for the unique needs of audio UI development.
 
 ## Why Rust?
 
-Signal processing code in Conformal is written in [Rust](https://www.rust-lang.org), a language focused on performance, reliability, and productivity. While Rust is less popular than TypeScript, it is by no means obscure, with 11.7% of professional developers using it, according to the [2024 Stack Overflow Developer Survey](https://survey.stackoverflow.co/2024/technology#most-popular-technologies-language-professional). 82.2% of those who used Rust wanted to continue using it next year, making it was the **most** admired language of the survey, a top spot it has consistently held for the last few years.
+Signal processing code in Conformal is written in [Rust](https://www.rust-lang.org), a language focused on performance, reliability, and productivity. While Rust is less popular than TypeScript, it is by no means obscure, with 14.5% of professional developers using it, according to the [2025 Stack Overflow Developer Survey](https://survey.stackoverflow.co/2025/technology#most-popular-technologies-language-prof). 72% of those who used Rust wanted to continue using it next year, making it the **most** admired language of the survey, a top spot it has consistently held for the last few years.
 
-Along with a great language design and overall good vibes from the developer community, Rust is a great choice for audio plug-in signal processing code. This sort of code runs in _real-time_, that is - audio buffers must be processed in a fixed amount of time. To achieve this, code must run with a relatively deterministic runtime - and this is very hard to achieve in most languages. Two operations that are totally counter to this goal are [tracing garbage collection](https://en.wikipedia.org/wiki/Tracing_garbage_collection) (used automatically by the majority of modern languages), and heap allocations, which can be unpredictably slow. Very few languages give you enough control to avoid these operations in a real-time context. Of the somewhat popular languages with this sort of low-level control, Rust is the only one that is also [memory safe](https://en.wikipedia.org/wiki/Memory_safety), that is, free of undefined behavior that can cause surprising, hard to diagnose bugs.
+Along with a great language design and overall good vibes from the developer community, Rust is a great choice for audio plug-in signal processing code. This sort of code runs in _real-time_, that is - audio buffers must be processed in a fixed amount of time.
+
+To achieve this, code must run with a relatively deterministic runtime - and this is very hard to achieve in most languages.
+
+Two operations that are totally counter to this goal are [tracing garbage collection](https://en.wikipedia.org/wiki/Tracing_garbage_collection) (used automatically by the majority of modern languages), and heap allocations, which can be unpredictably slow. Very few languages give you enough control to avoid these operations in a real-time context. Of the somewhat popular languages with this sort of low-level control, Rust is the only one that is also [memory safe](https://en.wikipedia.org/wiki/Memory_safety), that is, free of undefined behavior that can cause surprising, hard to diagnose bugs.
 
 ## Are Two Languages Better Than One?
 
@@ -33,4 +37,6 @@ To some, the prospect of learning _two_ languages to write plug-ins may seem a l
 
 ## Mainstream or Eccentric?
 
-Depending on your background, you may find the technology choices of Conformal to be either "boring" or heterodox - from a perspective outside audio programming, both TypeScript and Rust are established technologies, but both of these technologies are still unusual choices for building audio plug-ins. We hope that no matter where you are coming from - whether you are a Rust or TypeScript fan hoping to learn audio plug-in development, a seasoned audio plug-in developer looking to learn more about modern technologies, or a total novice who just wants to bring their idea for a plug-in into reality - you will find something to like and learn from in Conformal.
+Depending on your background, you may find the technology choices of Conformal to be either "boring" or heterodox - from a perspective outside audio programming, both TypeScript and Rust are established technologies, but both of these technologies are still unusual choices for building audio plug-ins.
+
+We hope that no matter where you are coming from - whether you are a Rust or TypeScript fan hoping to learn audio plug-in development, a seasoned audio plug-in developer looking to learn more about modern technologies, or a total novice who just wants to bring their idea for a plug-in into reality - you will find something to like and learn from in Conformal.
