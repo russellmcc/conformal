@@ -53,13 +53,14 @@ export const createWindowsVstBundle = async ({
   await copyFile(dllPath, dllDestPath);
 
   await rcedit(dllDestPath, {
+    // See https://github.com/electron/node-rcedit/issues/171 :(.
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-type-assertion
     "version-string": {
       CompanyName: bundleData.vendor,
-      // rcedit's types call this InternalFilename, but the actual
-      // VS_VERSION_INFO field name is InternalName.
-      InternalFilename: bundleData.id,
+      InternalName: bundleData.id,
       ProductName: bundleData.name,
-    },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any,
     "product-version": bundleData.version,
     "file-version": bundleData.version,
   });
