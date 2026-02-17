@@ -18,11 +18,8 @@ const TEST_CONFIG: Config = {
 
 const MINUTE = 60_000;
 
-const runShell = async (
-  args: readonly string[],
-  options: { cwd?: string } = {},
-) => {
-  const proc = Bun.spawn(args as string[], {
+const runShell = async (args: string[], options: { cwd?: string } = {}) => {
+  const proc = Bun.spawn(args, {
     stdio: ["inherit", "inherit", "inherit"],
     env: process.env,
     ...options,
