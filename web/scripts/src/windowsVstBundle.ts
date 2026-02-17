@@ -1,0 +1,95 @@
+import { BundleData } from "./bundleData";
+import { Config } from "./configArg";
+import runShell from "./runShell";
+import { join, resolve } from "node:path";
+import { rm, mkdir, copyFile, cp, symlink } from "node:fs/promises";
+import { rcedit } from "rcedit";
+
+const expectFile = async (path: string) => {
+  if (!(await Bun.file(path).exists())) {
+    console.error(`Expected ${path} to exist`);
+    process.exit(1);
+  }
+  return path;
+};
+
+/**
+ * Creates a Steinberg VST3 bundle for Windows.
+ *
+ * Produces the following structure:
+ *
+ * ```
+ * <Name>.vst3/
+ *   Contents/
+ *     Resources/
+ *       web-ui/
+ *     x86_64-win/
+ *       <Name>.vst3   <- the DLL
+ * ```
+ */
+export const createWindowsVstBundle = async ({
+  packageRoot,
+  bundleData,
+  config,
+  linkToLibrary,
+}: {
+  packageRoot: string;
+  bundleData: BundleData;
+  config: Config;
+  linkToLibrary: boolean;
+}) => {
+  const bundlePath = `target/${config}/${bundleData.name}.vst3`;
+
+  // Make sure "dev mode" is on
+  await runShell([
+    "reg",
+    "add",
+    `HKCU\\Software\\${bundleData.vendor}.${bundleData.id}`,
+    "/v",
+    "dev_mode",
+    "/t",
+    "REG_SZ",
+    "/d",
+    "true",
+    "/f",
+  ]);
+
+  await rm(bundlePath, { recursive: true, force: true });
+
+  const targetDir = join(bundlePath, "Contents", "x86_64-win");
+  const resourcesDir = join(bundlePath, "Contents", "Resources");
+  await mkdir(targetDir, { recursive: true });
+  await mkdir(resourcesDir, { recursive: true });
+
+  const dllPath = await expectFile(
+    `target/${config}/${bundleData.rustPackage}.dll`,
+  );
+  const dllDestPath = join(targetDir, `${bundleData.name}.vst3`);
+  await copyFile(dllPath, dllDestPath);
+
+  await rcedit(dllDestPath, {
+    // See https://github.com/electron/node-rcedit/issues/171 :(.
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-type-assertion
+    "version-string": {
+      CompanyName: bundleData.vendor,
+      InternalName: bundleData.id,
+      ProductName: bundleData.name,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any,
+    "product-version": bundleData.version,
+    "file-version": bundleData.version,
+  });
+
+  await cp(join(packageRoot, "dist"), join(resourcesDir, "web-ui"), {
+    recursive: true,
+  });
+
+  if (linkToLibrary) {
+    const programFiles = process.env.ProgramW6432 ?? "C:\\Program Files";
+    const vst3Dir = join(programFiles, "Common Files", "VST3");
+    await mkdir(vst3Dir, { recursive: true });
+    const bundleDest = join(vst3Dir, `${bundleData.name}.vst3`);
+    await rm(bundleDest, { recursive: true, force: true });
+    await symlink(resolve(bundlePath), bundleDest, "junction");
+  }
+};

@@ -1,10 +1,7 @@
 // Various utilities for running a shell and printing arguments.
 
-const runShell = async (
-  args: readonly string[],
-  options: { cwd?: string } = {},
-) => {
-  const proc = Bun.spawn(args as string[], {
+const runShell = async (args: string[], options: { cwd?: string } = {}) => {
+  const proc = Bun.spawn(args, {
     stdio: ["inherit", "inherit", "inherit"],
     env: process.env,
     ...options,
@@ -16,11 +13,8 @@ const runShell = async (
   }
 };
 
-export const pipeShell = async (
-  args: readonly string[],
-  output_path: string,
-) => {
-  const proc = Bun.spawn(args as string[], {
+export const pipeShell = async (args: string[], output_path: string) => {
+  const proc = Bun.spawn(args, {
     stdio: ["inherit", Bun.file(output_path), "inherit"],
     env: process.env,
   });
@@ -31,8 +25,10 @@ export const pipeShell = async (
   }
 };
 
-export const gatherShell = async (args: readonly string[]) => {
-  const proc = Bun.spawn(args as string[], {
+export const gatherShell = async (
+  args: string[],
+): Promise<ReadableStream<Uint8Array>> => {
+  const proc = Bun.spawn(args, {
     stdio: ["inherit", "pipe", "inherit"],
     env: process.env,
   });

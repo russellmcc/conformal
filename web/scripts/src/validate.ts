@@ -34,7 +34,7 @@ export const addValidateCommand = (command: Command) => {
     .description("Validate a plug-in using the Steinberg validator")
     .option("--release", "Build with optimizations")
     .action(async (options) => {
-      const { release } = options as { release: boolean };
+      const { release } = options;
       await execute(parseConfigArg(release));
     });
 };

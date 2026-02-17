@@ -1,6 +1,6 @@
 import { Atom, WritableAtom, atom } from "jotai";
 import { Response, Transport, Value } from "./protocol";
-import { atomFamily } from "jotai/utils";
+import { atomFamily } from "jotai-family";
 
 export type Family<T> = (
   path: string,

@@ -1,25 +1,21 @@
 {
-    "compilerOptions": {
-        "target": "es2020",
-        "useDefineForClassFields": true,
-        "lib": [
-            "es2020",
-            "dom",
-            "dom.iterable"
-        ],
-        "module": "esnext",
-        "skipLibCheck": true,
-        /* Bundler mode */
-        "moduleResolution": "bundler",
-        "allowImportingTsExtensions": true,
-        "isolatedModules": true,
-        "noEmit": true,
-        "jsx": "react-jsx",
-        /* Linting */
-        "strict": true,
-        "noUnusedLocals": true,
-        "noUnusedParameters": true,
-        "noFallthroughCasesInSwitch": true,
-        "noUncheckedIndexedAccess": true,
-    },
+  "compilerOptions": {
+    "target": "es2021",
+    "useDefineForClassFields": true,
+    "lib": ["es2021", "dom", "dom.iterable"],
+    "module": "esnext",
+    "skipLibCheck": true,
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true
+  }
 }

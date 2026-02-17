@@ -20,6 +20,7 @@
   "dependencies": {
     "zod": "catalog:",
     "jotai": "catalog:",
+    "jotai-family": "catalog:",
     "@msgpack/msgpack": "catalog:"
   },
   "devDependencies": {

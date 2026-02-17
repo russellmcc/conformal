@@ -50,9 +50,15 @@ export const stampTemplate = async (
   });
   for (const file of files) {
     const srcPath = path.join(file.parentPath, file.name);
+    // Use forward slashes so Handlebars doesn't interpret Windows `\` before
+    // `{{` as an escape sequence (Handlebars treats `\{{` as a literal `{{`).
+    const relPath = path
+      .relative(templateDir, srcPath)
+      .split(path.sep)
+      .join("/");
     const destPath = path.join(
       dest,
-      compile(path.relative(templateDir, srcPath), { strict: true })(env),
+      ...compile(relPath, { strict: true })(env).split("/"),
     );
 
     if (file.isDirectory()) {
@@ -85,6 +91,7 @@ const promptRemainder = async <K extends string>(
   }
   // Note that we've filled in all of config here, since metadatas must contain all configs!
   // It would be cool to check this in ts but I don't know how
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
   return ret as Record<K, string>;
 };
 
@@ -119,6 +126,7 @@ export const buildStampCommand = <K extends string>({
     }
   }
   command.action(async (...argsRaw) => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
     const opts = argsRaw[argsRaw.length - 2] as Partial<
       Record<K, string | undefined>
     >;
@@ -129,6 +137,7 @@ export const buildStampCommand = <K extends string>({
         configPartial[key] = opt;
       }
     }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
     const args = argsRaw.slice(0, -2) as string[];
     args.forEach((arg, argIndex) => {
       const key = positionals[argIndex];

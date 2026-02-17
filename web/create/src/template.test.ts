@@ -1,7 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import { withDir } from "tmp-promise";
 import path from "node:path";
-import { unlink, rm } from "node:fs/promises";
+import { unlink, rm, readdir } from "node:fs/promises";
 import { $ } from "bun";
 import { Config, postBuild } from "./config";
 import { stampTemplate } from "@conformal/stamp";
@@ -17,6 +17,19 @@ const TEST_CONFIG: Config = {
 };
 
 const MINUTE = 60_000;
+
+const runShell = async (args: string[], options: { cwd?: string } = {}) => {
+  const proc = Bun.spawn(args, {
+    stdio: ["inherit", "inherit", "inherit"],
+    env: process.env,
+    ...options,
+  });
+  console.log(`$ ${args.map((x) => `"${x}"`).join(" ")}`);
+  await proc.exited;
+  if (proc.exitCode !== 0) {
+    process.exit(proc.exitCode ?? undefined);
+  }
+};
 
 const packageJsonSchema = z
   .object({
@@ -126,7 +139,7 @@ describe("create-conformal template", () => {
 
             // Extract the tarball to a sub-directory of tmpDir
             const extractDir = path.join(tmpDir, `package`);
-            await $`tar -xzf ${tgzPath}`.cwd(tmpDir);
+            await runShell(["tar", "-xzf", tgzPath], { cwd: tmpDir });
             // Fix up all dependencies
             await rewireDeps(extractDir);
 
@@ -179,9 +192,29 @@ describe("create-conformal template", () => {
           );
 
           // Note that the generate script leaves some intentional task markers - replace all these with "DONE"
-          await $`find web rust -type f -exec perl -pi -e 's/TOD[O]/DONE/g' {} +`.cwd(
-            dest,
-          );
+          const replaceInFiles = async (
+            dirs: string[],
+            pattern: RegExp,
+            replacement: string,
+          ) => {
+            for (const dir of dirs) {
+              const entries = await readdir(path.join(dest, dir), {
+                recursive: true,
+                withFileTypes: true,
+              });
+              for (const entry of entries) {
+                if (!entry.isFile()) continue;
+                const filePath = path.join(entry.parentPath, entry.name);
+                const content = await Bun.file(filePath).text();
+                const updated = content.replace(pattern, replacement);
+                if (updated !== content) {
+                  await Bun.write(filePath, updated);
+                }
+              }
+            }
+          };
+
+          await replaceInFiles(["web", "rust"], /TODO/g, "DONE");
 
           // We have to re-install after adding new packages, now that dependencies are isolated.
           await $`bun install`.cwd(dest);
@@ -190,9 +223,11 @@ describe("create-conformal template", () => {
           // Replace these with a link to the local crate
           const createDependencies = ["component", "vst_wrapper", "poly"];
           for (const dep of createDependencies) {
-            const crateVersion = `{ path = "${path.join(workspacePath, "rust", dep.replace("_", "-"))}" }`;
-            await $`find rust -type f -exec perl -pi -e 's!conformal_${dep} = "[^"]+"!conformal_${dep} = ${crateVersion}!' {} +`.cwd(
-              dest,
+            const crateVersion = `{ path = "${path.join(workspacePath, "rust", dep.replace("_", "-")).replaceAll("\\", "\\\\")}" }`;
+            await replaceInFiles(
+              ["rust"],
+              new RegExp(`conformal_${dep} = "[^"]+"`, "g"),
+              `conformal_${dep} = ${crateVersion}`,
             );
           }
 

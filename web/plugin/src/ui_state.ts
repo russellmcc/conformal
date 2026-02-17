@@ -38,6 +38,7 @@ export const useUiStateAtom = <T>(): WritableAtom<
   [update: T],
   void
 > => {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
   const state = useContext(context) as UiStateData<T>;
   return state.atom;
 };
