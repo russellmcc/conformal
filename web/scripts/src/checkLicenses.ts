@@ -1,13 +1,20 @@
 import { Command } from "@commander-js/extra-typings";
 import { join, dirname } from "node:path";
+import { mkdtemp, rm } from "node:fs/promises";
 
 import { $, Glob } from "bun";
 
 const checkLicensesForCrate = async (crate: string): Promise<void> => {
   const aboutPath = join(crate, "about.hbs");
   const cargoTomlPath = join(crate, "Cargo.toml");
+  const tmpDir = await mkdtemp(join(import.meta.dir, ".cargo-about-"));
+  const outputFile = join(tmpDir, "output.html");
   console.log(`Checking licenses for ${crate}`);
-  await $`cargo about generate -m ${cargoTomlPath} ${aboutPath}`.quiet();
+  try {
+    await $`cargo about generate -m ${cargoTomlPath} -o ${outputFile} ${aboutPath}`.quiet();
+  } finally {
+    await rm(tmpDir, { recursive: true }).catch(() => {});
+  }
 };
 
 export const checkLicenses = async (): Promise<void> => {
