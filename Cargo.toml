@@ -10,7 +10,7 @@ members = [
 ]
 
 [workspace.package]
-rust-version = "1.90.0"
+rust-version = "1.93.1"
 edition = "2024"
 
 [workspace.dependencies]
