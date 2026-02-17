@@ -220,7 +220,7 @@ impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
                 let store = self.borrow().store.clone();
                 let domain = self.borrow().domain.clone();
                 let initial_size = self.borrow().initial_size;
-                let rsrc_root = get_rsrc_root_or_panic();
+                let rsrc_root = get_rsrc_root_or_panic().join("web-ui");
                 self.borrow_mut().ui =
                     Ui::new(handle, store, rsrc_root, domain.as_str(), initial_size).ok();
                 return vst3::Steinberg::kResultOk;
