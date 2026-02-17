@@ -70,11 +70,8 @@ export const createWindowsVstBundle = async ({
   });
 
   if (linkToLibrary) {
-    const localAppData = process.env.LOCALAPPDATA;
-    if (!localAppData) {
-      throw new Error("LOCALAPPDATA environment variable is not set");
-    }
-    const vst3Dir = join(localAppData, "Programs", "Common", "VST3");
+    const programFiles = process.env.ProgramW6432 ?? "C:\\Program Files";
+    const vst3Dir = join(programFiles, "Common Files", "VST3");
     await mkdir(vst3Dir, { recursive: true });
     const bundleDest = join(vst3Dir, `${bundleData.name}.vst3`);
     await rm(bundleDest, { recursive: true, force: true });
