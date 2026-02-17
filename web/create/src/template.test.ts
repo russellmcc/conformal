@@ -234,7 +234,7 @@ describe("create-conformal template", () => {
           // Make sure CI would pass.
           await $`bun run ci`.cwd(dest);
         },
-        { unsafeCleanup: true },
+        { unsafeCleanup: true, tmpdir: process.env.RUNNER_TEMP },
       );
     },
     5 * MINUTE,
