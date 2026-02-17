@@ -2,8 +2,9 @@ use std::{cell::RefCell, ops::Deref, rc};
 use vst3::{
     Class, ComPtr, ComWrapper,
     Steinberg::{
-        IPlugView, IPlugViewContentScaleSupport, IPlugViewContentScaleSupport_::ScaleFactor,
-        IPlugViewContentScaleSupportTrait, IPlugViewTrait,
+        IPlugFrame, IPlugFrameTrait, IPlugView, IPlugViewContentScaleSupport,
+        IPlugViewContentScaleSupport_::ScaleFactor, IPlugViewContentScaleSupportTrait,
+        IPlugViewTrait,
     },
 };
 
@@ -29,6 +30,23 @@ struct View<S> {
     initial_size: Size,
 
     scale_factor: f32,
+
+    frame: Option<ComPtr<IPlugFrame>>,
+
+    /// Raw self-pointer to our own `IPlugView` interface, needed for passing to
+    /// `IPlugFrame::resizeView`. This is set in `create`.
+    plug_view_ptr: *mut IPlugView,
+}
+
+impl<S> View<S> {
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
+    fn get_size(&self) -> Size {
+        let scale = self.scale_factor;
+        Size {
+            width: (self.initial_size.width as f32 * scale).round() as i32,
+            height: (self.initial_size.height as f32 * scale).round() as i32,
+        }
+    }
 }
 
 struct ViewCell<S>(RefCell<View<S>>);
@@ -104,6 +122,8 @@ pub fn create<S: store::Store + 'static>(
         domain,
         initial_size,
         scale_factor: 1.0,
+        frame: None,
+        plug_view_ptr: std::ptr::null_mut(),
     }))));
     let view_as_listener: rc::Rc<dyn store::Listener> = view.clone().0;
     view.borrow_mut()
@@ -111,7 +131,10 @@ pub fn create<S: store::Store + 'static>(
         .0
         .borrow_mut()
         .set_listener(rc::Rc::downgrade(&view_as_listener));
-    ComWrapper::new(view).to_com_ptr().unwrap()
+    let wrapper = ComWrapper::new(view);
+    let plug_view_ptr = wrapper.as_com_ref::<IPlugView>().unwrap().as_ptr();
+    wrapper.borrow_mut().plug_view_ptr = plug_view_ptr;
+    wrapper.to_com_ptr().unwrap()
 }
 
 enum VST3PlatformType {
@@ -268,15 +291,13 @@ impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
         vst3::Steinberg::kResultFalse
     }
 
-    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
     unsafe fn getSize(&self, size: *mut vst3::Steinberg::ViewRect) -> vst3::Steinberg::tresult {
-        let view = self.borrow();
-        let scale = view.scale_factor;
+        let view_size = self.borrow().get_size();
         unsafe {
             (*size).top = 0;
             (*size).left = 0;
-            (*size).right = (view.initial_size.width as f32 * scale).round() as i32;
-            (*size).bottom = (view.initial_size.height as f32 * scale).round() as i32;
+            (*size).right = view_size.width;
+            (*size).bottom = view_size.height;
             vst3::Steinberg::kResultOk
         }
     }
@@ -291,16 +312,13 @@ impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
         vst3::Steinberg::kResultFalse
     }
 
-    unsafe fn setFrame(
-        &self,
-        _frame: *mut vst3::Steinberg::IPlugFrame,
-    ) -> vst3::Steinberg::tresult {
-        // This is the hook-up for allowing the UI to resize itself. We don't suppor this (#28)
-        // So we don't store it.
+    unsafe fn setFrame(&self, frame: *mut vst3::Steinberg::IPlugFrame) -> vst3::Steinberg::tresult {
+        self.borrow_mut().frame = unsafe { ComPtr::from_raw(frame) };
         vst3::Steinberg::kResultOk
     }
 
     unsafe fn canResize(&self) -> vst3::Steinberg::tresult {
+        // See #135
         vst3::Steinberg::kResultFalse
     }
 
@@ -314,8 +332,17 @@ impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
 
 impl<S: store::Store + 'static> IPlugViewContentScaleSupportTrait for SharedView<S> {
     unsafe fn setContentScaleFactor(&self, factor: ScaleFactor) -> vst3::Steinberg::tresult {
-        // TODO - check if this works on windows.
         self.borrow_mut().scale_factor = factor;
+        if let Some(frame) = self.borrow().frame.as_ref() {
+            let new_size = self.borrow().get_size();
+            let mut new_rect = vst3::Steinberg::ViewRect {
+                top: 0,
+                left: 0,
+                right: new_size.width,
+                bottom: new_size.height,
+            };
+            unsafe { frame.resizeView(self.borrow().plug_view_ptr, &raw mut new_rect) };
+        }
         vst3::Steinberg::kResultOk
     }
 }
