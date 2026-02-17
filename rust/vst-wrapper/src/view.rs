@@ -1,7 +1,10 @@
 use std::{cell::RefCell, ops::Deref, rc};
 use vst3::{
     Class, ComPtr, ComWrapper,
-    Steinberg::{IPlugView, IPlugViewTrait},
+    Steinberg::{
+        IPlugView, IPlugViewContentScaleSupport, IPlugViewContentScaleSupport_::ScaleFactor,
+        IPlugViewContentScaleSupportTrait, IPlugViewTrait,
+    },
 };
 
 use conformal_component::parameters;
@@ -24,6 +27,8 @@ struct View<S> {
     domain: String,
 
     initial_size: Size,
+
+    scale_factor: f32,
 }
 
 struct ViewCell<S>(RefCell<View<S>>);
@@ -98,6 +103,7 @@ pub fn create<S: store::Store + 'static>(
         ui: Default::default(),
         domain,
         initial_size,
+        scale_factor: 1.0,
     }))));
     let view_as_listener: rc::Rc<dyn store::Listener> = view.clone().0;
     view.borrow_mut()
@@ -262,12 +268,15 @@ impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
         vst3::Steinberg::kResultFalse
     }
 
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
     unsafe fn getSize(&self, size: *mut vst3::Steinberg::ViewRect) -> vst3::Steinberg::tresult {
+        let view = self.borrow();
+        let scale = view.scale_factor;
         unsafe {
             (*size).top = 0;
             (*size).left = 0;
-            (*size).right = self.borrow().initial_size.width;
-            (*size).bottom = self.borrow().initial_size.height;
+            (*size).right = (view.initial_size.width as f32 * scale).round() as i32;
+            (*size).bottom = (view.initial_size.height as f32 * scale).round() as i32;
             vst3::Steinberg::kResultOk
         }
     }
@@ -303,8 +312,16 @@ impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
     }
 }
 
+impl<S: store::Store + 'static> IPlugViewContentScaleSupportTrait for SharedView<S> {
+    unsafe fn setContentScaleFactor(&self, factor: ScaleFactor) -> vst3::Steinberg::tresult {
+        // TODO - check if this works on windows.
+        self.borrow_mut().scale_factor = factor;
+        vst3::Steinberg::kResultOk
+    }
+}
+
 impl<S> Class for SharedView<S> {
-    type Interfaces = (IPlugView,);
+    type Interfaces = (IPlugView, IPlugViewContentScaleSupport);
 }
 
 // Only include tests in test config on macos
