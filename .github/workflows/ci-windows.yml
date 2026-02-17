@@ -1,0 +1,17 @@
+name: CI (Windows)
+run-name: CI (Windows)
+
+on:
+  push:
+    branches-ignore:
+      - "next-release"
+
+jobs:
+  ci:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: "true"
+      - uses: ./.github/actions/bootstrap
+      - run: bun run ci --with-miri
