@@ -12,5 +12,4 @@ workspace = true
 
 [dependencies]
 conformal_vst_wrapper = "{{{conformal_vst_wrapper_version}}}"
-vst3 = "0.3.0"
 {{plug_slug}}_component = { path = "../component" }

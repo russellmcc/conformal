@@ -2,7 +2,10 @@
 #![doc = include_str!("../README.md")]
 
 pub use conformal_ui::Size as UiSize;
+
 use core::slice;
+#[doc(hidden)]
+pub use vst3 as _vst3;
 
 /// Contains information about the host.
 ///
@@ -387,9 +390,9 @@ macro_rules! wrap_factory {
         #[unsafe(no_mangle)]
         #[allow(non_snake_case, clippy::missing_safety_doc, clippy::missing_panics_doc)]
         pub unsafe extern "system" fn GetPluginFactory() -> *mut core::ffi::c_void {
-            let factory = conformal_vst_wrapper::_wrap_factory($CLASSES, $INFO);
-            vst3::ComWrapper::new(factory)
-                .to_com_ptr::<vst3::Steinberg::IPluginFactory>()
+            let factory = $crate::_wrap_factory($CLASSES, $INFO);
+            $crate::_vst3::ComWrapper::new(factory)
+                .to_com_ptr::<$crate::_vst3::Steinberg::IPluginFactory>()
                 .unwrap()
                 .into_raw()
                 .cast()
