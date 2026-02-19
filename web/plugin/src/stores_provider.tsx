@@ -4,6 +4,7 @@ import wryTransport from "./wry_transport";
 import { Info } from "./protocol/param_info";
 import mockStore from "./mock_store";
 import { Context } from "./stores_react";
+import { ReactNode } from "react";
 
 const stores = wryTransport
   ? storesWithTransport(msgpackTransport(wryTransport))
@@ -14,7 +15,7 @@ export const Provider = ({
   children,
 }: {
   mockInfos: Map<string, Info>;
-  children: React.ReactNode;
+  children: ReactNode;
 }) => (
   <Context.Provider value={stores ?? mockStore(mockInfos)}>
     {children}
