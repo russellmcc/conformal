@@ -24,7 +24,8 @@
     "rust-test": "conformal-scripts cargo test",
     "rust-bench": "conformal-scripts cargo bench",
     "package": "conformal-scripts web-script -s package",
-    "validate": "conformal-scripts web-script -s validate"
+    "validate": "conformal-scripts web-script -s validate",
+    "dev-mode": "conformal-scripts web-script -s dev-mode"
   },
   "devDependencies": {
     "@types/bun": "^1.2.22",

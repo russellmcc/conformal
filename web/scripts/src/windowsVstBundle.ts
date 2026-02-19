@@ -1,6 +1,6 @@
 import { BundleData } from "./bundleData";
 import { Config } from "./configArg";
-import runShell from "./runShell";
+import { setDevMode } from "./devMode";
 import { join, resolve } from "node:path";
 import { rm, mkdir, copyFile, cp, symlink } from "node:fs/promises";
 import { rcedit } from "rcedit";
@@ -41,18 +41,7 @@ export const createWindowsVstBundle = async ({
   const bundlePath = `target/${config}/${bundleData.name}.vst3`;
 
   // Make sure "dev mode" is on
-  await runShell([
-    "reg",
-    "add",
-    `HKCU\\Software\\${bundleData.vendor}.${bundleData.id}`,
-    "/v",
-    "dev_mode",
-    "/t",
-    "REG_SZ",
-    "/d",
-    "true",
-    "/f",
-  ]);
+  await setDevMode(bundleData, true);
 
   await rm(bundlePath, { recursive: true, force: true });
 

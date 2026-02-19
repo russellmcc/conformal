@@ -14,11 +14,14 @@ import { addCICommand } from "./ci";
 import { addWebScriptCommand } from "./webScript";
 import { addCreatePlugCommand } from "./create-plugin";
 import { addCheckLicensesCommand } from "./checkLicenses";
+import { addDevModeCommand } from "./devMode";
 
 export const command = () => {
-  const command = new Command("conformal-scripts").description(
-    "This is a CLI entry point for various build-related scripts related to the conformal audio framework.",
-  );
+  const command = new Command("conformal-scripts")
+    .description(
+      "This is a CLI entry point for various build-related scripts related to the conformal audio framework.",
+    )
+    .enablePositionalOptions();
 
   addBootstrapCommand(command);
   addBootstrapRustToolchainCommand(command);
@@ -33,5 +36,6 @@ export const command = () => {
   addWebScriptCommand(command);
   addCreatePlugCommand(command);
   addCheckLicensesCommand(command);
+  addDevModeCommand(command);
   return command;
 };

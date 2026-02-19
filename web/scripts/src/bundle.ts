@@ -1,6 +1,7 @@
 import { BundleData } from "./bundleData";
 import { Config } from "./configArg";
 import runShell from "./runShell";
+import { setDevMode } from "./devMode";
 import { withDir } from "tmp-promise";
 import { join, resolve } from "node:path";
 
@@ -28,7 +29,7 @@ export const createBundle = async ({
   const bundlePath = `target/${config}/${bundleData.name}.vst3`;
 
   // Make sure "dev mode" is on
-  await runShell(["defaults", "write", bundleData.id, "dev_mode", "true"]);
+  await setDevMode(bundleData, true);
 
   // Delete the bundle if it exists.
   await runShell(["rm", "-rf", bundlePath]);
