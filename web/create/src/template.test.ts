@@ -237,6 +237,6 @@ describe("create-conformal template", () => {
         { unsafeCleanup: true, tmpdir: process.env.RUNNER_TEMP },
       );
     },
-    5 * MINUTE,
+    process.platform === "win32" ? 10 * MINUTE : 5 * MINUTE,
   );
 });
