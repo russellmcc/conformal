@@ -7,7 +7,7 @@ on:
       - "v*.*.*"
 
 jobs:
-  release:
+  release-macos:
     permissions:
       contents: write
     runs-on: macos-15
@@ -66,3 +66,22 @@ jobs:
           body: "Release $\{{ github.ref_name }}" # Prevent auto generation of release notes
           files: |
             target/release/{{plug_name}}.dmg
+
+  release-windows:
+    permissions:
+      contents: write
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: "true"
+      - uses: ./.github/actions/bootstrap
+      - run: bun run ci
+      - run: bun run package {{plug_slug}} --dist
+      - name: Release
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
+        with:
+          prerelease: $\{{ contains(github.ref, '-') }}
+          body: "Release $\{{ github.ref_name }}"
+          files: |
+            target/release/{{plug_name}}.msi

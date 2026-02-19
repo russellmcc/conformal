@@ -1,0 +1,75 @@
+import { Callout, Steps } from "nextra/components";
+
+# Building Windows Installers for Conformal Projects
+
+Conformal contains helpers to build Windows installers for your project, using the [WiX Toolset](https://wixtoolset.org/). There are two ways you can make an installer:
+
+1.  Locally, on your own Windows computer
+2.  With GitHub Actions
+
+This guide will cover both methods.
+
+## Common Set-up
+
+These steps need to be done regardless of the method you choose.
+
+<Steps>
+### Add license information to `about.hbs`
+
+This guide is not legal advice!
+
+It's important to set licensing terms before distributing your plug-in. Any license information in `about.hbs` will be shown to users as part of the install process. Note that required license information for dependencies directly included in `Cargo.toml` or `package.json` files will be automatically included, but it pays to double check as **you** are responsible for satisfying the license requirements of any dependencies you distribute as part of the installer.
+
+<Callout type="warning">
+  Your installer package *will* include code derived from Steinberg's VST SDK,
+  which is licensed under the MIT license.
+</Callout>
+
+### Ensure `bundle.json` metadata is correct
+
+In `web/<your-plugin-name>/bundle.json`, ensure that the `id` and `sig` fields are unique to your project.
+
+- `sig` is a four-character code that refers to your plug-in vendor in some formats. While it can be shared between _plug-ins_, it should be unique to you.
+- `id` is the bundle identifier for your plug-in. This should be unique to your plug-in and scoped to your project, something like `com.yourvendor.yourplugin`.
+
+</Steps>
+
+## Building Installer Locally
+
+<Steps>
+### Install the WiX Toolset
+
+The WiX Toolset v3 is required to build installers. Download and install it from the [WiX Toolset releases page](https://github.com/wixtoolset/wix3/releases). After installation, ensure that `candle.exe`, `light.exe`, and `heat.exe` are available on your `PATH`.
+
+### Build the Installer
+
+Build an installer by running the following command from the root of your project, with `<plugin_slug>` set to the name of the web package for the plug-in:
+
+```sh copy
+bun run package "<plugin_slug>" --dist
+```
+
+The output MSI will be at `target/release/<PluginName>.msi`.
+
+</Steps>
+
+## Building Installer with GitHub Actions
+
+A workflow to build an installer with GitHub Actions is provided in the template project, so it should already be there if you used `bun create conformal` to create your project. In the template, this workflow will run whenever a version tag is pushed to the repo. If you set up your project some other way, you can copy the workflow in `web/create/template/.github/workflows/release.yml`.
+
+With the common set-up done, building an installer should happen automatically when you push a version tag to the repository:
+
+```sh copy
+git tag v0.1.0 && git push --tag
+```
+
+Both the macOS DMG and Windows MSI will be attached to the GitHub release.
+
+## Code Signing
+
+<Callout type="info">
+  The Windows installer produced by Conformal is not signed. Unsigned installers
+  will show an "unknown publisher" warning to users.
+</Callout>
+
+The installer is built to `target/release/<PluginName>.msi`. To sign it, add steps to the `release-windows` job in your release workflow _after_ the `bun run package` step and _before_ the release step. The exact steps depend on your signing provider, please follow their documentation.
