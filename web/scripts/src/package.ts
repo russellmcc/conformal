@@ -4,6 +4,7 @@ import { Config, configArgs, parseConfigArg } from "./configArg";
 import { createBundle } from "./bundle";
 import { createInstaller } from "./installer";
 import { createWindowsVstBundle } from "./windowsVstBundle";
+import { createWindowsInstaller } from "./windowsInstaller";
 import { findWorkspaceRoot } from "./workspaceRoot";
 import { Command } from "@commander-js/extra-typings";
 
@@ -102,6 +103,10 @@ const executeWindows = async (
     config,
     linkToLibrary,
   });
+
+  if (dist) {
+    await createWindowsInstaller({ packageRoot, bundleData });
+  }
 };
 
 export const execute = async (
