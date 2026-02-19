@@ -4,6 +4,7 @@ import { codecFromZod, useUiStateAtom } from "./ui_state";
 import { UiStateProvider } from "./ui_state_provider";
 import { describe, test, expect } from "bun:test";
 import { renderHook, waitFor } from "@testing-library/react";
+import { ReactNode } from "react";
 import { useAtom } from "jotai";
 const testSchema = z.object({
   a: z.number(),
@@ -12,7 +13,7 @@ const testSchema = z.object({
 
 type TestData = z.infer<typeof testSchema>;
 
-const wrapper = ({ children }: { children: React.ReactNode }) => (
+const wrapper = ({ children }: { children: ReactNode }) => (
   <Provider mockInfos={new Map()}>
     <UiStateProvider codec={codecFromZod(testSchema)}>
       {children}

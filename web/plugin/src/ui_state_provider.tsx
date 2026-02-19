@@ -1,6 +1,7 @@
 import { Codec, context, UiStateData } from "./ui_state";
 import { atom } from "jotai";
 import { useStores } from "./stores_react";
+import { ReactNode } from "react";
 
 /**
  * Provides the ui state to the component tree.
@@ -14,7 +15,7 @@ export const UiStateProvider = <T,>({
   children,
 }: {
   codec: Codec<T>;
-  children: React.ReactNode;
+  children: ReactNode;
 }) => {
   const rawState = useStores().bytes("ui-state");
   const stateAtom = atom(
