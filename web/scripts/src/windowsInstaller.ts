@@ -61,7 +61,12 @@ const textToRtf = (text: string): string => {
     .replace(/\}/g, "\\}")
     .replace(/\r\n/g, "\n")
     .replace(/\r/g, "\n")
-    .replace(/\n/g, "\\par\n");
+    .replace(/\n/g, "\\par\n")
+    .replace(/[\u0080-\uFFFF]/g, (ch) => {
+      const code = ch.codePointAt(0)!;
+      const signed = code > 32767 ? code - 65536 : code;
+      return `\\u${signed}?`;
+    });
   return `{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0\\fswiss Helvetica;}}\\f0\\fs20\n${escaped}\n}`;
 };
 
@@ -87,7 +92,6 @@ const generateWxs = (
     Id="*"
     Name="${bundleData.name}"
     Language="1033"
-    Codepage="65001"
     Version="${bundleData.version}"
     Manufacturer="${bundleData.vendor}"
     UpgradeCode="${upgradeCode}">
