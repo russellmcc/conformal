@@ -22,13 +22,17 @@ export const addWebScriptCommand = (command: Command): void => {
   command
     .command("web-script")
     .description(
-      "Run a script defined in a specific web-package. If no package is provided, it will run on all packages that define the script.",
+      "Run a script defined in a specific web-package. If no package is provided, it will run on all packages that define the script. The package, if provided, must be the first argument after the script name.",
     )
     .requiredOption("-s, --script <script>", "The script to run")
-    .arguments("[package]")
-    .arguments("[args...]")
-    .allowUnknownOption()
-    .action(async (p, args, { script }) => {
-      await execute(p, script, args);
+    .argument("[args...]")
+    .passThroughOptions()
+    .action(async (rawArgs: string[] | undefined, { script }) => {
+      const args = rawArgs ?? [];
+      const [first, ...rest] = args;
+      const pkg =
+        first !== undefined && !first.startsWith("-") ? first : undefined;
+      const scriptArgs = pkg !== undefined ? rest : args;
+      await execute(pkg, script, scriptArgs);
     });
 };

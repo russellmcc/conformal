@@ -9,7 +9,8 @@
     "check-format": "prettier --ignore-path .gitignore -c .",
     "format": "prettier --ignore-path .gitignore --write .",
     "package": "conformal-scripts package",
-    "validate": "conformal-scripts validate"
+    "validate": "conformal-scripts validate",
+    "dev-mode": "conformal-scripts dev-mode"
   },
   "type": "module",
   "dependencies": {
