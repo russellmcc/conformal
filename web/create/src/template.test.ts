@@ -31,21 +31,17 @@ const runShell = async (args: string[], options: { cwd?: string } = {}) => {
   }
 };
 
-const packageJsonSchema = z
-  .object({
-    catalog: z.optional(z.record(z.string(), z.string())),
-    dependencies: z.optional(z.record(z.string(), z.string())),
-    devDependencies: z.optional(z.record(z.string(), z.string())),
-    scripts: z.optional(
-      z
-        .object({
-          prepack: z.optional(z.string()),
-          postpack: z.optional(z.string()),
-        })
-        .passthrough(),
-    ),
-  })
-  .passthrough();
+const packageJsonSchema = z.looseObject({
+  catalog: z.optional(z.record(z.string(), z.string())),
+  dependencies: z.optional(z.record(z.string(), z.string())),
+  devDependencies: z.optional(z.record(z.string(), z.string())),
+  scripts: z.optional(
+    z.looseObject({
+      prepack: z.optional(z.string()),
+      postpack: z.optional(z.string()),
+    }),
+  ),
+});
 
 describe("create-conformal template", () => {
   test(

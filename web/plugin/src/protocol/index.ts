@@ -30,7 +30,7 @@ export type Request = z.infer<typeof Request>;
 export const Response = z.union([
   z.object({
     m: z.literal("values"),
-    values: z.record(Value),
+    values: z.record(z.string(), Value),
   }),
   z.object({
     m: z.literal("subscribe_error"),

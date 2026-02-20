@@ -6,11 +6,9 @@ import { parse, stringify } from "smol-toml";
 import { z } from "zod";
 
 const workspaceCargoTomlSchema = z.object({
-  workspace: z
-    .object({
-      members: z.array(z.string()),
-    })
-    .passthrough(),
+  workspace: z.looseObject({
+    members: z.array(z.string()),
+  }),
 });
 
 export const toTemplate = (config: Config): Promise<string> => {

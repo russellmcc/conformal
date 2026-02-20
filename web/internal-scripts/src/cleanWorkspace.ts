@@ -1,12 +1,10 @@
 import { $ } from "bun";
 import { z } from "zod";
 
-const packageJsonSchema = z
-  .object({
-    catalog: z.optional(z.record(z.string(), z.string())),
-    dependencies: z.optional(z.record(z.string(), z.string())),
-  })
-  .passthrough();
+const packageJsonSchema = z.looseObject({
+  catalog: z.optional(z.record(z.string(), z.string())),
+  dependencies: z.optional(z.record(z.string(), z.string())),
+});
 
 // Cleans any `workspace` and `catalog` protocols for publishing.
 // This mutates the package.json files in place.

@@ -13,15 +13,15 @@ const getRustPackagePath = async (rustPackage: string) => {
     ),
   });
   const maybeMetadata = await metadataParser.safeParseAsync(
-    await Bun.readableStreamToJSON(
+    await (
       await gatherShell([
         "cargo",
         "metadata",
         "--no-deps",
         "--format-version",
         "1",
-      ]),
-    ),
+      ])
+    ).json(),
   );
   if (!maybeMetadata.success) {
     throw new Error(maybeMetadata.error.message);
