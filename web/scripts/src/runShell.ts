@@ -25,9 +25,7 @@ export const pipeShell = async (args: string[], output_path: string) => {
   }
 };
 
-export const gatherShell = async (
-  args: string[],
-): Promise<ReadableStream<Uint8Array>> => {
+export const gatherShell = async (args: string[]): Promise<Response> => {
   const proc = Bun.spawn(args, {
     stdio: ["inherit", "pipe", "inherit"],
     env: process.env,
@@ -37,7 +35,7 @@ export const gatherShell = async (
   if (proc.exitCode !== 0) {
     process.exit(proc.exitCode ?? undefined);
   }
-  return proc.stdout;
+  return new Response(proc.stdout);
 };
 
 export default runShell;
