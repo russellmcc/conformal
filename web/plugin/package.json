@@ -26,7 +26,9 @@
   "devDependencies": {
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "eslint-config-custom": "workspace:0.0.0"
+    "eslint-config-custom": "workspace:0.0.0",
+    "tsconfig": "workspace:0.0.0",
+    "conformal-internal-scripts": "workspace:0.0.0"
   },
   "peerDependencies": {
     "react": "^19.2.4",

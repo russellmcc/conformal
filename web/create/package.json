@@ -21,6 +21,7 @@
   },
   "devDependencies": {
     "tmp-promise": "catalog:",
+    "tsconfig": "workspace:0.0.0",
     "eslint-config-custom": "workspace:0.0.0",
     "zod": "catalog:"
   }

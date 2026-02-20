@@ -8,12 +8,20 @@ import { Command } from "@commander-js/extra-typings";
 import dts from "bun-plugin-dts";
 import { reactCompiler } from "bun-plugin-react-compiler";
 import * as fs from "node:fs/promises";
+import * as path from "node:path";
 
 export const prepack = async () => {
   await Bun.build({
     entrypoints: ["./src/index.ts"],
     outdir: "./dist",
-    plugins: [dts(), reactCompiler()],
+    plugins: [
+      dts({
+        compilationOptions: {
+          preferredConfigPath: path.resolve("tsconfig.build.json"),
+        },
+      }),
+      reactCompiler(),
+    ],
     target: "browser",
     packages: "external",
   });
