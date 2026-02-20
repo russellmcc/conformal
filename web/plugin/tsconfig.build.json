@@ -1,0 +1,7 @@
+{
+  "extends": "tsconfig/tsconfig.json",
+  "include": ["src"],
+  "compilerOptions": {
+    "types": []
+  }
+}

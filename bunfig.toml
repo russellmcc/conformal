@@ -1,6 +1,6 @@
 [install]
 registry = { url = "https://registry.npmjs.org", token = "$NPM_TOKEN" }
-linker = "hoisted"
+linker = "isolated"
 
 [test]
 preload = "./happydom.ts"

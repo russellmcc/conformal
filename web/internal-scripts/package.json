@@ -1,5 +1,6 @@
 {
   "name": "conformal-internal-scripts",
+  "version": "0.0.0",
   "description": "Build scripts for building the conformal audio framework itself",
   "private": true,
   "homepage": "https://github.com/russellmcc/conformal",
@@ -23,6 +24,7 @@
   },
   "devDependencies": {
     "@morlay/bunpublish": "catalog:",
-    "eslint-config-custom": "workspace:0.0.0"
+    "eslint-config-custom": "workspace:0.0.0",
+    "tsconfig": "workspace:0.0.0"
   }
 }

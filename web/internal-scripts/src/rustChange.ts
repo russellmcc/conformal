@@ -1,6 +1,5 @@
 import { Command } from "@commander-js/extra-typings";
 import { $ } from "bun";
-import * as fs from "node:fs/promises";
 
 const withKnope = async (f: () => Promise<void>) => {
   // UGH! both changesets and knope are hyper-opinionated and NEED their change
@@ -13,14 +12,14 @@ const withKnope = async (f: () => Promise<void>) => {
   await $`mv ${changesetDir} ${tsDir}`;
 
   // Move the checked-in knopeDir to the changesetDir, if it exists
-  if (await fs.exists(knopeDir)) {
+  if (await Bun.file(knopeDir).exists()) {
     await $`mv ${knopeDir} ${changesetDir}`;
   }
   try {
     await f();
   } finally {
     // Restore paths
-    if (await fs.exists(changesetDir)) {
+    if (await Bun.file(changesetDir).exists()) {
       await $`mv ${changesetDir} ${knopeDir}`;
     }
     await $`mv ${tsDir} ${changesetDir}`;

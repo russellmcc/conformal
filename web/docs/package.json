@@ -18,10 +18,21 @@
     "next": "catalog:",
     "next-image-export-optimizer": "catalog:",
     "nextra": "catalog:",
-    "nextra-theme-docs": "catalog:"
+    "nextra-theme-docs": "catalog:",
+    "jotai": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "next-themes": "catalog:",
+    "katex": "catalog:",
+    "@theguild/remark-mermaid": "catalog:"
   },
   "devDependencies": {
+    "@types/react": "catalog:",
+    "typescript": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react-dom": "catalog:",
     "eslint-config-custom": "workspace:0.0.0",
+    "tsconfig": "workspace:0.0.0",
     "@next/eslint-plugin-next": "catalog:",
     "@eslint/eslintrc": "catalog:"
   }

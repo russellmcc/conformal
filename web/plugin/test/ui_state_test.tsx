@@ -1,7 +1,7 @@
 import { z } from "zod";
-import Provider from "./stores_provider";
-import { codecFromZod, useUiStateAtom } from "./ui_state";
-import { UiStateProvider } from "./ui_state_provider";
+import Provider from "../src/stores_provider";
+import { codecFromZod, useUiStateAtom } from "../src/ui_state";
+import { UiStateProvider } from "../src/ui_state_provider";
 import { describe, test, expect } from "bun:test";
 import { renderHook, waitFor } from "@testing-library/react";
 import { ReactNode } from "react";

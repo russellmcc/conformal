@@ -25,6 +25,7 @@
     "commander": "catalog:"
   },
   "devDependencies": {
-    "eslint-config-custom": "workspace:0.0.0"
+    "eslint-config-custom": "workspace:0.0.0",
+    "tsconfig": "workspace:0.0.0"
   }
 }
