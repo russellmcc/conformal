@@ -4,11 +4,9 @@ import path from "node:path";
 import { z } from "zod";
 
 const workspaceCargoTomlSchema = z.object({
-  workspace: z
-    .object({
-      members: z.array(z.string()),
-    })
-    .passthrough(),
+  workspace: z.looseObject({
+    members: z.array(z.string()),
+  }),
 });
 
 const workspaceRoot = await findWorkspaceRoot(process.cwd());
@@ -18,12 +16,10 @@ const members = workspaceCargoTomlSchema.parse(
 ).workspace.members;
 
 const crateCargoTomlSchema = z.object({
-  package: z
-    .object({
-      name: z.string(),
-      version: z.string(),
-    })
-    .passthrough(),
+  package: z.looseObject({
+    name: z.string(),
+    version: z.string(),
+  }),
 });
 
 const createVersions: Record<string, string> = {};
