@@ -1,3 +1,4 @@
+"use client";
 import { useTheme } from "next-themes";
 
 type SvgProps = { alt: string } & (

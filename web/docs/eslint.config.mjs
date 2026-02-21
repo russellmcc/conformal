@@ -1,14 +1,10 @@
 import { defineConfig } from "eslint/config";
+import next from "@next/eslint-plugin-next";
 import config from "eslint-config-custom";
-import { FlatCompat } from "@eslint/eslintrc";
-
-const compat = new FlatCompat({
-  baseDirectory: import.meta.dirname,
-});
 
 export default defineConfig([
   config,
-  compat.extends("plugin:@next/next/recommended"),
+  next.configs.recommended,
   {
     ignores: ["out", ".next"],
   },

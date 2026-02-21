@@ -1,10 +1,11 @@
-import { useRouter } from "next/router";
+"use client";
+import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 const Page = () => {
   const router = useRouter();
   useEffect(() => {
-    void router.push("/docs");
+    router.push("/docs");
   });
   return <></>;
 };

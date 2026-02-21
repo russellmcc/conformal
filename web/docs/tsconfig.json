@@ -1,6 +1,6 @@
 {
   "extends": "tsconfig/tsconfig.json",
-  "include": ["theme.config.tsx", "pages", "src", "next-env.d.ts"],
+  "include": ["content", "app", "src", "next-env.d.ts"],
   "compilerOptions": {
     "allowJs": false,
     "incremental": false,

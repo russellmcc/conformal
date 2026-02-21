@@ -476,7 +476,9 @@ export default Layout;
 
 Running `bun run package` and re-launching our DAW should show something like this:
 
-<Image src={stubUi_img} alt="Stub UI" />
+<div style={{ maxWidth: "400px" }}>
+  <Image src={stubUi_img} alt="Stub UI" />
+</div>
 
 We can now start building the UI by making changes to `Layout.tsx` and then remembering to call `bun run package` and re-launching our DAW to see the changes. However, there's a _much_ faster way to work on UIs, the Dev Server! To start the dev server, run:
 

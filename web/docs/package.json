@@ -9,9 +9,9 @@
     "lint": "tsc && eslint . --max-warnings 0",
     "check-format": "prettier -c .",
     "format": "prettier --write .",
-    "gen-scripts": "bun ../scripts/src/selfDoc.ts > pages/docs/reference/scripts.md",
+    "gen-scripts": "bun ../scripts/src/selfDoc.ts > content/docs/reference/scripts.md",
     "dev": "bun run gen-scripts && bun x --bun next dev",
-    "build": "bun run gen-scripts && bun x --bun next build && bun x next-image-export-optimizer"
+    "build": "bun run gen-scripts && bun x --bun next build && bun x next-image-export-optimizer && bun x --bun pagefind --site .next/server/app --output-path out/_pagefind"
   },
   "type": "module",
   "dependencies": {
@@ -27,13 +27,14 @@
     "@theguild/remark-mermaid": "catalog:"
   },
   "devDependencies": {
-    "@types/react": "catalog:",
-    "typescript": "catalog:",
+    "@eslint/eslintrc": "catalog:",
+    "@next/eslint-plugin-next": "catalog:",
     "@types/node": "catalog:",
+    "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "eslint-config-custom": "workspace:0.0.0",
+    "pagefind": "catalog:",
     "tsconfig": "workspace:0.0.0",
-    "@next/eslint-plugin-next": "catalog:",
-    "@eslint/eslintrc": "catalog:"
+    "typescript": "catalog:"
   }
 }
