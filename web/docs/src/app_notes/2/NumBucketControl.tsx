@@ -1,3 +1,4 @@
+"use client";
 import { useAtom } from "jotai";
 import { numBucketsAtom } from "./Controls";
 

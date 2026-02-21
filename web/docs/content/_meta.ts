@@ -4,7 +4,9 @@ export default {
     type: "page",
     display: "hidden",
     theme: {
-      layout: "raw",
+      layout: "full",
+      sidebar: false,
+      toc: false,
     },
   },
   docs: {

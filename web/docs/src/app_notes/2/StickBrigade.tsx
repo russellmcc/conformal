@@ -1,3 +1,4 @@
+"use client";
 import { useEffect, useRef, useState } from "react";
 import { clockRateAtom, numBucketsAtom } from "./Controls";
 import { useAtom } from "jotai";
