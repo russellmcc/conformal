@@ -170,6 +170,7 @@
     },
   },
   "overrides": {
+    "@sigstore/sign": "4.1.0",
     "libnpmpublish": "^11.1.3",
   },
   "catalog": {
@@ -2519,8 +2520,6 @@
     "pacote/sigstore/@sigstore/core": ["@sigstore/core@1.1.0", "", {}, "sha512-JzBqdVIyqm2FRQCulY6nbQzMpJJpSiJ8XXWMhtOX9eKgaXXpfNOF53lzQEjIydlStnd/eFtuC1dW4VYdD93oRg=="],
 
     "pacote/sigstore/@sigstore/protobuf-specs": ["@sigstore/protobuf-specs@0.3.3", "", {}, "sha512-RpacQhBlwpBWd7KEJsRKcBQalbV28fvkxwTOJIqhIuDysMMaJW47V4OqW30iJB9uRpqOSxxEAQFdr8tTattReQ=="],
-
-    "pacote/sigstore/@sigstore/sign": ["@sigstore/sign@2.3.2", "", { "dependencies": { "@sigstore/bundle": "^2.3.2", "@sigstore/core": "^1.0.0", "@sigstore/protobuf-specs": "^0.3.2", "make-fetch-happen": "^13.0.1", "proc-log": "^4.2.0", "promise-retry": "^2.0.1" } }, "sha512-5Vz5dPVuunIIvC5vBb0APwo7qKA4G9yM48kPWJT+OEERs40md5GoUR1yedwpekWZ4m0Hhw44m6zU+ObsON+iDA=="],
 
     "pacote/sigstore/@sigstore/tuf": ["@sigstore/tuf@2.3.4", "", { "dependencies": { "@sigstore/protobuf-specs": "^0.3.2", "tuf-js": "^2.2.1" } }, "sha512-44vtsveTPUpqhm9NCrbU8CWLe3Vck2HO1PNLw7RIajbB7xhtn5RBPm1VNSCMwqGYHhDsBJG8gDF0q4lgydsJvw=="],
 
