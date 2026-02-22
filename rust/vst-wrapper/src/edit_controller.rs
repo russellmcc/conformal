@@ -15,7 +15,7 @@ use crate::{
 use std::{
     cell::RefCell,
     collections::{HashMap, hash_map},
-    io::{Read, Write},
+    io::Read,
     rc,
 };
 
@@ -24,6 +24,7 @@ use conformal_core::parameters::serialization::{DeserializationError, ReadInfoRe
 use conformal_core::parameters::store;
 
 use conformal_ui::Size;
+use serde::{Deserialize, Serialize};
 use vst3::{
     Class, ComPtr, ComRef,
     Steinberg::{
@@ -94,7 +95,8 @@ struct ParameterStore {
 
     ui_state: Vec<u8>,
 
-    ui_size: LogicalSize,
+    initial_ui_size: LogicalSize,
+    ui_size_override: Option<LogicalSize>,
 
     // Note that unsized weak types can't dangle, so we use Option here to allow dangling.
     listener: Option<rc::Weak<dyn store::Listener>>,
@@ -419,10 +421,25 @@ impl store::Store for SharedStore {
 
 impl SizePersistance for SharedStore {
     fn set_size(&mut self, size: LogicalSize) {
-        self.store.borrow_mut().ui_size = size;
+        self.store.borrow_mut().ui_size_override = Some(size);
+
+        // Tell the host
+        if let ParameterStore {
+            component_handler: Some(component_handler),
+            ..
+        } = &(*self.store.borrow())
+            && let Some(component_handler2) = component_handler.cast::<IComponentHandler2>()
+        {
+            unsafe {
+                component_handler2.setDirty(1);
+            }
+        }
     }
     fn get_size(&self) -> LogicalSize {
-        self.store.borrow().ui_size
+        self.store
+            .borrow()
+            .ui_size_override
+            .unwrap_or(self.store.borrow().initial_ui_size)
     }
 }
 
@@ -531,7 +548,8 @@ impl IPluginBaseTrait for EditController {
                         .collect(),
                         component_handler: Default::default(),
                         ui_state: Default::default(),
-                        ui_size: self.ui_initial_size.into(),
+                        initial_ui_size: self.ui_initial_size.into(),
+                        ui_size_override: None,
                         listener: Default::default(),
                     }))},
                     parameter_model,
@@ -588,6 +606,48 @@ fn apply_values<'a>(
 ) {
     for (id, value) in new_values {
         parameter_values.insert(id.to_string(), value);
+    }
+}
+
+struct SerializedState {
+    ui_state: Vec<u8>,
+    ui_size_override: Option<LogicalSize>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+struct SerializedStateV1 {
+    magic: u32,
+    #[serde(with = "serde_bytes")]
+    ui_state: Vec<u8>,
+    ui_size_override: Option<LogicalSize>,
+}
+
+#[derive(Serialize, Debug, Clone)]
+struct SerializedStateV1Ref<'a> {
+    magic: u32,
+    #[serde(with = "serde_bytes")]
+    ui_state: &'a [u8],
+    ui_size_override: Option<LogicalSize>,
+}
+
+const MAGIC: u32 = 0x0053_5631; // 'sv1'
+
+fn deserialize_state(mut read: StreamRead<'_>) -> Option<SerializedState> {
+    if let Ok(v1) = rmp_serde::from_read::<_, SerializedStateV1>(read.clone())
+        && v1.magic == MAGIC
+    {
+        Some(SerializedState {
+            ui_state: v1.ui_state,
+            ui_size_override: v1.ui_size_override,
+        })
+    } else {
+        // In this case, we just read the whole stream as the ui_state
+        let mut ui_state = Vec::new();
+        read.read_to_end(&mut ui_state).ok()?;
+        Some(SerializedState {
+            ui_state,
+            ui_size_override: None,
+        })
     }
 }
 
@@ -658,15 +718,15 @@ impl IEditControllerTrait for EditController {
                 self.s.borrow_mut().as_mut().unwrap()
             {
                 let ParameterStore {
-                    ui_state, listener, ..
+                    ui_state,
+                    ui_size_override,
+                    listener,
+                    ..
                 } = &mut *store.store.borrow_mut();
                 if let Some(com_stream) = ComRef::from_raw(state) {
-                    let mut new_state = Vec::new();
-                    if StreamRead::new(com_stream)
-                        .read_to_end(&mut new_state)
-                        .is_ok()
-                    {
-                        *ui_state = new_state;
+                    if let Some(serialized_state) = deserialize_state(StreamRead::new(com_stream)) {
+                        *ui_state = serialized_state.ui_state;
+                        *ui_size_override = serialized_state.ui_size_override;
                         if let Some(listener) = listener
                             && let Some(listener) = listener.upgrade()
                         {
@@ -686,11 +746,23 @@ impl IEditControllerTrait for EditController {
             if let State::Initialized(Initialized { store, .. }) =
                 self.s.borrow_mut().as_mut().unwrap()
             {
-                let ParameterStore { ui_state, .. } = &*store.store.borrow();
+                let ParameterStore {
+                    ui_state,
+                    ui_size_override,
+                    ..
+                } = &*store.store.borrow();
 
                 if let Some(com_state) = ComRef::from_raw(state) {
-                    let mut writer = StreamWrite::new(com_state);
-                    if writer.write_all(ui_state).is_ok() {
+                    let writer = StreamWrite::new(com_state);
+
+                    if (SerializedStateV1Ref {
+                        magic: MAGIC,
+                        ui_state: ui_state.as_slice(),
+                        ui_size_override: *ui_size_override,
+                    })
+                    .serialize(&mut rmp_serde::Serializer::new(writer).with_struct_map())
+                    .is_ok()
+                    {
                         return vst3::Steinberg::kResultOk;
                     }
                     return vst3::Steinberg::kInternalError;

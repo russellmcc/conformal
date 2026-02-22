@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use std::{cell::RefCell, ops::Deref, rc};
 use vst3::{
     Class, ComPtr, ComRef, ComWrapper,
@@ -23,7 +24,7 @@ impl<S> Clone for SharedStore<S> {
 }
 
 /// Unscaled size of the UI in logical pixels.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct LogicalSize {
     pub width: f32,
     pub height: f32,

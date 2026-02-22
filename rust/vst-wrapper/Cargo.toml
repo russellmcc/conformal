@@ -21,6 +21,7 @@ conformal_core = { workspace = true }
 rmp-serde = { workspace = true }
 itertools = { workspace = true }
 const_format = { workspace = true }
+serde_bytes = { workspace = true }
 
 [dev-dependencies]
 assert_approx_eq = { workspace = true }

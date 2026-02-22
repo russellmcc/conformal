@@ -35,6 +35,7 @@ impl std::io::Write for StreamWrite<'_> {
     }
 }
 
+#[derive(Clone)]
 pub struct StreamRead<'a> {
     buffer: ComRef<'a, IBStream>,
 }
