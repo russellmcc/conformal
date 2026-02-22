@@ -23,8 +23,10 @@
     "react": "catalog:",
     "react-dom": "catalog:",
     "next-themes": "catalog:",
-    "katex": "catalog:",
-    "@theguild/remark-mermaid": "catalog:"
+    "katex": "catalog:"
+  },
+  "peerDependencies": {
+    "@theguild/remark-mermaid": "*"
   },
   "devDependencies": {
     "@eslint/eslintrc": "catalog:",

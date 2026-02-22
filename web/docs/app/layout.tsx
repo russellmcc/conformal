@@ -51,7 +51,6 @@ const MyLayout = async ({ children }: { children: React.ReactNode }) => {
               </Anchor>
             ),
           }}
-          sidebar={{ defaultMenuCollapseLevel: 1 }}
           pageMap={await getPageMap()}
         >
           {children}
