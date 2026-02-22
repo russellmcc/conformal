@@ -5,6 +5,7 @@
     "web/*"
   ],
   "dependencies": {
+    "@morlay/bunpublish": "catalog:",
     "@changesets/cli": "^2.29.8",
     "@happy-dom/global-registrator": "^20.6.3",
     "@next/eslint-plugin-next": "^16.1.6",

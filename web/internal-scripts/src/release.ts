@@ -119,7 +119,7 @@ export const release = async ({ skipPublish }: { skipPublish?: boolean }) => {
   //  - https://github.com/oven-sh/bun/issues/5050 <- bun publish doesn't support monorepos (we could
   //    simply work around this by sorting packages topologically and publishing each one)
   //  - https://github.com/oven-sh/bun/issues/15601 <- bun publish doesn't support `provenance` flag
-  await $`bunx @morlay/bunpublish --provenance`;
+  await $`bunpublish --provenance`;
 
   // Publish documentation
   await deployDocs();
