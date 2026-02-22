@@ -1,6 +1,6 @@
 use std::{cell::RefCell, ops::Deref, rc};
 use vst3::{
-    Class, ComPtr, ComWrapper,
+    Class, ComPtr, ComRef, ComWrapper,
     Steinberg::{
         IPlugFrame, IPlugFrameTrait, IPlugView, IPlugViewContentScaleSupport,
         IPlugViewContentScaleSupport_::ScaleFactor, IPlugViewContentScaleSupportTrait,
@@ -379,7 +379,8 @@ impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
     }
 
     unsafe fn setFrame(&self, frame: *mut vst3::Steinberg::IPlugFrame) -> vst3::Steinberg::tresult {
-        self.borrow_mut().frame = unsafe { ComPtr::from_raw(frame) };
+        self.borrow_mut().frame =
+            (unsafe { ComRef::from_raw(frame) }).map(|frame| frame.to_com_ptr());
         vst3::Steinberg::kResultOk
     }
 
