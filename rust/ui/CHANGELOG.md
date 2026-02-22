@@ -1,3 +1,14 @@
+## 0.5.0 (2026-02-22)
+
+### Breaking Changes
+
+- API Change: UI Resource Root is now an argument to UI creation
+- MSRV is now 1.93.1
+
+### Features
+
+- Remove conformal_macos_bundle, fold functionality to conformal_core
+
 ## 0.4.0 (2026-02-08)
 
 ### Breaking Changes

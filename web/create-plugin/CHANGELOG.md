@@ -1,5 +1,16 @@
 # @conformal/create-plugin
 
+## 0.12.0
+
+### Minor Changes
+
+- b729eed: Add vendor to bundle.json
+- b078959: don't depend on vst3 crate directly
+
+### Patch Changes
+
+- 77adb9c: Hook up dev-mode script
+
 ## 0.11.0
 
 ### Minor Changes

@@ -1,5 +1,16 @@
 # @conformal/plugin
 
+## 0.6.0
+
+### Minor Changes
+
+- 0f5584a: Remove low-level jotai API
+
+### Patch Changes
+
+- 0f5584a: Add docs
+- b729eed: Use jotai-family for family support
+
 ## 0.5.0
 
 ### Minor Changes
