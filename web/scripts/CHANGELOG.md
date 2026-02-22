@@ -1,5 +1,28 @@
 # @conformal/scripts
 
+## 0.11.0
+
+### Minor Changes
+
+- b729eed: Require vendor in bundle.json
+- b729eed: Support package script on windows
+- 1a40ff9: Stricter license checks
+- 58150bb: Support building windows installers
+- 4446ab2: MSRV 1.93.1
+- 99ca765: workaround powershell
+- 77adb9c: Change parsing for web-scripts
+
+### Patch Changes
+
+- 77adb9c: Add script to turn dev-mode on or off for a plug-in
+- d15c573: Support windows in bootstrap script
+- Updated dependencies [b729eed]
+- Updated dependencies [77adb9c]
+- Updated dependencies [b729eed]
+- Updated dependencies [b078959]
+  - @conformal/create-plugin@0.12.0
+  - @conformal/stamp@0.5.0
+
 ## 0.10.0
 
 ### Minor Changes

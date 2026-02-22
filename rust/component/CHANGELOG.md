@@ -1,3 +1,9 @@
+## 0.5.0 (2026-02-22)
+
+### Breaking Changes
+
+- MSRV is now 1.93.1
+
 ## 0.4.2 (2026-02-09)
 
 ### Features

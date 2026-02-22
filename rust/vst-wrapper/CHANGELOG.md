@@ -1,3 +1,24 @@
+## 0.5.0 (2026-02-22)
+
+### Breaking Changes
+
+- API Change: UI Resource Root is now an argument to UI creation
+- MSRV is now 1.93.1
+- use builder api for class info
+
+### Features
+
+- Allow basic resizable plug-ins
+- Builds on windows
+- Don't require vst3 dependency in all users of the wrap factory macro
+- Remove conformal_macos_bundle, fold functionality to conformal_core
+- support getting preference path from DLL metadata on windows
+- support getting ui resource path on windows vst3 bundles
+
+### Fixes
+
+- Supports VST3 scale factor api
+
 ## 0.4.1 (2026-02-09)
 
 ### Features
