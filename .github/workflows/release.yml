@@ -5,6 +5,7 @@ on:
   pull_request:
     types: [closed]
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,7 +14,7 @@ permissions:
 
 jobs:
   release:
-    if: github.head_ref == 'next-release' && github.event.pull_request.merged == true
+    if: github.event_name == 'workflow_dispatch' || (github.head_ref == 'next-release' && github.event.pull_request.merged == true)
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
