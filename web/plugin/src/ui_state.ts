@@ -24,7 +24,14 @@ export type Codec<T> = {
   decode: (value: Uint8Array) => T;
 };
 
-export const codecFromZod = <T>(schema: z.ZodType<T>) => ({
+/**
+ * Helper function to create a {@link Codec} from a Zod schema.
+ *
+ * @typeParam T - The type of the value to encode and decode.
+ * @param schema - The Zod schema to create a codec for.
+ * @returns A {@link Codec} for the given Zod schema.
+ */
+export const codecFromZod = <T>(schema: z.ZodType<T>): Codec<T> => ({
   encode: (value: z.infer<typeof schema>) => encode(value),
   decode: (value: Uint8Array) => schema.parse(decode(value)),
 });
@@ -51,6 +58,14 @@ const useUiStateAtom = <T>(): WritableAtom<
 };
 
 /**
+ * Hook to get and set the ui state.
+ *
+ * This is only valid in a subtree that is wrapped in a {@link UiStateProvider}.
+ *
+ * UI State is arbitrary data managed by the react UI that is not connected
+ * to any plug-in parameters. This data is saved in the DAW alongside the plug-in,
+ * and persists between DAW sessions.
+ *
  * @group Hooks
  */
 export const useUiState = <T>(): {

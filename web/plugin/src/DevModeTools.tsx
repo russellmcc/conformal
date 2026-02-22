@@ -36,6 +36,8 @@ const DevModeToolsInternal = () => {
 /**
  * Component that displays developer tools if the `dev_mode` preference is enabled.
  *
+ * This includes for example, a toggle to render the UI embedded in the plug-in or the dev server UI.
+ *
  * @group Components
  */
 const DevModeTools = () => (

@@ -14,11 +14,16 @@ const stores = wryTransport
  * @group Component Props
  */
 export type ProviderProps = {
+  /** Mock information about parameters. Setting this allows you to iterate on the UI without having to run the full plug-in. */
   mockInfos?: Map<string, Info>;
+  /** @hidden */
   children: ReactNode;
 };
 
 /**
+ * Context provider for connection with the plug-in.
+ *
+ * This must wrap any react subtree that uses the hooks from this package.
  *
  * @group Components
  */

@@ -45,7 +45,7 @@
  * React components exported by this package.
  *
  * @groupDescription Component Props
- * Props for React {@link Components}
+ * Props for React Components
  *
  * @groupDescription Hooks
  * React hooks exported by this package.
@@ -58,10 +58,10 @@ export type { Info } from "./protocol/param_info";
 export { default as Provider, type ProviderProps } from "./stores_provider";
 export {
   useEnumParam,
-  type EnumParamInfo,
   useNumericParam,
-  type NumericParamInfo,
   useSwitchParam,
+  type NumericParamInfo,
+  type EnumParamInfo,
   type SwitchParamInfo,
   type Param,
 } from "./params";
