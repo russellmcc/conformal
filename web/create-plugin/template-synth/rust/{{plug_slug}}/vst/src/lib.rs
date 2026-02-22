@@ -1,6 +1,6 @@
 use {{plug_slug}}_component::Component;
 
-use conformal_vst_wrapper::{ClassID, ClassInfo, HostInfo, Info, SynthClass};
+use conformal_vst_wrapper::{ClassID, ClassInfoBuilder, HostInfo, Info, SynthClass};
 
 const CID: ClassID = [
     {{class_id}}
@@ -12,15 +12,16 @@ const EDIT_CONTROLLER_CID: ClassID = [
 conformal_vst_wrapper::wrap_factory!(
     &const {
         [&SynthClass {
-            info: ClassInfo {
-                name: "{{plug_name}}",
-                cid: CID,
-                edit_controller_cid: EDIT_CONTROLLER_CID,
-                ui_initial_size: conformal_vst_wrapper::UiSize {
+            info: ClassInfoBuilder::new(
+                "{{plug_name}}",
+                CID,
+                EDIT_CONTROLLER_CID,
+                conformal_vst_wrapper::UiSize {
                     width: 400,
                     height: 400,
                 },
-            },
+            )
+            .build(),
             factory: |_: &HostInfo| -> Component { Default::default() },
         }]
     },
