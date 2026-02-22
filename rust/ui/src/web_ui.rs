@@ -125,8 +125,10 @@ fn default_preferences() -> HashMap<String, conformal_preferences::Value> {
     ])
 }
 
+#[derive(Debug)]
 pub enum UiError {
     CouldNotConstruct(wry::Error),
+    CouldNotSetSize(wry::Error),
 }
 
 /// Size in logical pixels
@@ -211,5 +213,26 @@ impl<S: super::ParameterStore + 'static> Ui<S> {
         if let Ok(mut server) = self.server.try_borrow_mut() {
             server.update_ui_state(state);
         }
+    }
+
+    /// Changes the size of the UI.
+    ///
+    /// # Errors
+    ///
+    /// - returns `UiError::CouldNotSetSize` if the size could not be set.
+    pub fn set_size(&mut self, size: Size) -> Result<(), UiError> {
+        self.web_view
+            .set_bounds(wry::Rect {
+                position: wry::dpi::Position::Logical(wry::dpi::LogicalPosition {
+                    x: 0f64,
+                    y: 0f64,
+                }),
+                size: wry::dpi::Size::Logical(wry::dpi::LogicalSize {
+                    width: f64::from(size.width),
+                    height: f64::from(size.height),
+                }),
+            })
+            .map_err(UiError::CouldNotSetSize)?;
+        Ok(())
     }
 }

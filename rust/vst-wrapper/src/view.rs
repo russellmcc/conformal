@@ -1,6 +1,7 @@
+use serde::{Deserialize, Serialize};
 use std::{cell::RefCell, ops::Deref, rc};
 use vst3::{
-    Class, ComPtr, ComWrapper,
+    Class, ComPtr, ComRef, ComWrapper,
     Steinberg::{
         IPlugFrame, IPlugFrameTrait, IPlugView, IPlugViewContentScaleSupport,
         IPlugViewContentScaleSupport_::ScaleFactor, IPlugViewContentScaleSupportTrait,
@@ -12,12 +13,70 @@ use conformal_component::parameters;
 use conformal_core::parameters::store;
 use conformal_ui::{self, Size, Ui, raw_window_handle};
 
+use crate::Resizability;
+
 struct SharedStore<S>(rc::Rc<RefCell<S>>);
 
 impl<S> Clone for SharedStore<S> {
     fn clone(&self) -> Self {
         SharedStore(self.0.clone())
     }
+}
+
+/// Unscaled size of the UI in logical pixels.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct LogicalSize {
+    pub width: f32,
+    pub height: f32,
+}
+
+fn from_vst3_size(size: vst3::Steinberg::ViewRect) -> Size {
+    Size {
+        width: size.right - size.left,
+        height: size.bottom - size.top,
+    }
+}
+
+fn scale_size(size: LogicalSize, scale_factor: f32) -> LogicalSize {
+    LogicalSize {
+        width: (size.width * scale_factor),
+        height: (size.height * scale_factor),
+    }
+}
+
+#[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
+fn round_size(size: LogicalSize) -> Size {
+    Size {
+        width: size.width.round() as i32,
+        height: size.height.round() as i32,
+    }
+}
+
+impl From<Size> for LogicalSize {
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
+    fn from(size: Size) -> Self {
+        LogicalSize {
+            width: size.width as f32,
+            height: size.height as f32,
+        }
+    }
+}
+
+#[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
+fn unscale_size(size: Size, scale_factor: f32) -> LogicalSize {
+    LogicalSize {
+        width: (size.width as f32 / scale_factor),
+        height: (size.height as f32 / scale_factor),
+    }
+}
+
+/// Trait representing persistent storage for the current size of the UI.
+///
+/// Note that this is a persistance layer but NOT a reactivity layer -
+/// while a view is active, it is the source of truth for the size.
+pub trait SizePersistance {
+    fn set_size(&mut self, size: LogicalSize);
+    fn get_size(&self) -> LogicalSize;
 }
 
 struct View<S> {
@@ -27,26 +86,38 @@ struct View<S> {
 
     domain: String,
 
-    initial_size: Size,
+    resizability: Resizability,
 
+    /// Note we always store the current size _scaled_! This lets us ensure we don't
+    /// get rounding errors.
+    current_size: Size,
     scale_factor: f32,
+
+    /// When the scale factor changes, the VST3 spec is a bit weird:
+    ///
+    /// 1) Host notifies us of the new scale factor with `setContentScaleFactor`
+    ///    a) We are expected to call `IPlugFrame::resizeView` with the new size
+    /// 2) Host is expected to call `IPlugView::onSize` with the new size
+    ///
+    /// In this scenario, if the host gets size after step 1 but before step 2,
+    /// it's illegal for us to return the new value.
+    ///
+    /// That said, we need to behave a bit differently on "true" resizes vs these
+    /// scale factor changes:
+    ///
+    /// A) We shouldn't change size of the wry view, since wry manages scale factor internally.
+    /// B) We shouldn't persist the change, since this wasn't a _logical_ resize.
+    ///
+    /// We implement this by setting this variable in step 1a, and clearing it after
+    /// step 2, if we end up receiving a notification for the same size we asked for.
+    /// In this case, we skip updating the size of the wry view and the persistance layer.
+    pending_scale_factor_change_size: Option<Size>,
 
     frame: Option<ComPtr<IPlugFrame>>,
 
     /// Raw self-pointer to our own `IPlugView` interface, needed for passing to
     /// `IPlugFrame::resizeView`. This is set in `create`.
     plug_view_ptr: *mut IPlugView,
-}
-
-impl<S> View<S> {
-    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
-    fn get_size(&self) -> Size {
-        let scale = self.scale_factor;
-        Size {
-            width: (self.initial_size.width as f32 * scale).round() as i32,
-            height: (self.initial_size.height as f32 * scale).round() as i32,
-        }
-    }
 }
 
 struct ViewCell<S>(RefCell<View<S>>);
@@ -111,16 +182,29 @@ impl<S: store::Store> conformal_ui::ParameterStore for SharedStore<S> {
     }
 }
 
-pub fn create<S: store::Store + 'static>(
+impl<S: SizePersistance> SizePersistance for SharedStore<S> {
+    fn set_size(&mut self, size: LogicalSize) {
+        self.0.borrow_mut().set_size(size);
+    }
+
+    fn get_size(&self) -> LogicalSize {
+        self.0.borrow().get_size()
+    }
+}
+
+pub fn create<S: store::Store + SizePersistance + 'static>(
     store: S,
     domain: String,
-    initial_size: Size,
+    resizability: Resizability,
 ) -> ComPtr<IPlugView> {
+    let initial_size = store.get_size();
     let view = SharedView(rc::Rc::new(ViewCell(RefCell::new(View {
         store: SharedStore(rc::Rc::new(RefCell::new(store))),
         ui: Default::default(),
         domain,
-        initial_size,
+        resizability,
+        current_size: round_size(initial_size),
+        pending_scale_factor_change_size: None,
         scale_factor: 1.0,
         frame: None,
         plug_view_ptr: std::ptr::null_mut(),
@@ -224,7 +308,7 @@ fn get_rsrc_root_or_panic() -> std::path::PathBuf {
     resources_path
 }
 
-impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
+impl<S: store::Store + SizePersistance + 'static> IPlugViewTrait for SharedView<S> {
     unsafe fn isPlatformTypeSupported(
         &self,
         platform_type: vst3::Steinberg::FIDString,
@@ -248,10 +332,10 @@ impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
                 let handle = to_window_handle(&platform_type, parent);
                 let store = self.borrow().store.clone();
                 let domain = self.borrow().domain.clone();
-                let initial_size = self.borrow().initial_size;
+                let current_size = self.borrow().current_size;
                 let rsrc_root = get_rsrc_root_or_panic().join("web-ui");
                 self.borrow_mut().ui =
-                    Ui::new(handle, store, rsrc_root, domain.as_str(), initial_size).ok();
+                    Ui::new(handle, store, rsrc_root, domain.as_str(), current_size).ok();
                 return vst3::Steinberg::kResultOk;
             }
             vst3::Steinberg::kInvalidArgument
@@ -292,7 +376,7 @@ impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
     }
 
     unsafe fn getSize(&self, size: *mut vst3::Steinberg::ViewRect) -> vst3::Steinberg::tresult {
-        let view_size = self.borrow().get_size();
+        let view_size = self.borrow().current_size;
         unsafe {
             (*size).top = 0;
             (*size).left = 0;
@@ -302,8 +386,53 @@ impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
         }
     }
 
-    unsafe fn onSize(&self, _new_size: *mut vst3::Steinberg::ViewRect) -> vst3::Steinberg::tresult {
-        vst3::Steinberg::kNotImplemented
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
+    unsafe fn onSize(
+        &self,
+        scaled_new_size_ptr: *mut vst3::Steinberg::ViewRect,
+    ) -> vst3::Steinberg::tresult {
+        // Note that the new size will be scaled by the scale factor!
+        let scaled_new_size = from_vst3_size(unsafe { *scaled_new_size_ptr });
+
+        // Special case, if this is simply the result of a scale factor change, we do need to
+        // update our internal scaled size, even if we're not resizable.
+        let pending_scale_factor_change_size = self.borrow().pending_scale_factor_change_size;
+        if let Some(pending_scale_factor_change_size) = pending_scale_factor_change_size
+            && pending_scale_factor_change_size.width == scaled_new_size.width
+            && pending_scale_factor_change_size.height == scaled_new_size.height
+        {
+            self.borrow_mut().pending_scale_factor_change_size = None;
+            self.borrow_mut().current_size = scaled_new_size;
+            return vst3::Steinberg::kResultOk;
+        }
+
+        // Otherwise, we got some other update from the host before our pending scale factor change
+        // - so just clear it.
+        self.borrow_mut().pending_scale_factor_change_size = None;
+
+        // Nothing to do if we're not resizable.
+        if let Resizability::FixedSize = self.borrow().resizability {
+            return vst3::Steinberg::kResultOk;
+        }
+
+        self.borrow_mut().current_size = scaled_new_size;
+        let scale_factor = self.borrow().scale_factor;
+
+        // Also alert our web UI that the size has changed.
+        if let Some(ui) = self.borrow_mut().ui.as_mut()
+            && ui
+                .set_size(round_size(unscale_size(scaled_new_size, scale_factor)))
+                .is_err()
+        {
+            return vst3::Steinberg::kInternalError;
+        }
+
+        // Also alert our size persistance layer that the size has changed.
+        self.borrow_mut()
+            .store
+            .set_size(unscale_size(scaled_new_size, scale_factor));
+
+        vst3::Steinberg::kResultOk
     }
 
     unsafe fn onFocus(&self, _state: vst3::Steinberg::TBool) -> vst3::Steinberg::tresult {
@@ -313,35 +442,88 @@ impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
     }
 
     unsafe fn setFrame(&self, frame: *mut vst3::Steinberg::IPlugFrame) -> vst3::Steinberg::tresult {
-        self.borrow_mut().frame = unsafe { ComPtr::from_raw(frame) };
+        self.borrow_mut().frame =
+            (unsafe { ComRef::from_raw(frame) }).map(|frame| frame.to_com_ptr());
         vst3::Steinberg::kResultOk
     }
 
     unsafe fn canResize(&self) -> vst3::Steinberg::tresult {
-        // See #135
-        vst3::Steinberg::kResultFalse
+        match self.borrow().resizability {
+            Resizability::FixedSize => vst3::Steinberg::kResultFalse,
+            Resizability::Resizable { .. } => vst3::Steinberg::kResultTrue,
+        }
     }
 
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
     unsafe fn checkSizeConstraint(
         &self,
-        _rect: *mut vst3::Steinberg::ViewRect,
+        new_scaled_size_ptr: *mut vst3::Steinberg::ViewRect,
     ) -> vst3::Steinberg::tresult {
-        vst3::Steinberg::kNotImplemented
+        match self.borrow().resizability {
+            Resizability::FixedSize => vst3::Steinberg::kResultFalse,
+            Resizability::Resizable {
+                ui_min_size,
+                ui_max_size,
+            } => {
+                let scale = self.borrow().scale_factor;
+                let scaled_new_size = from_vst3_size(unsafe { *new_scaled_size_ptr });
+
+                if let Some(unscaled_ui_min_size) = ui_min_size {
+                    let scaled_ui_min_size =
+                        round_size(scale_size(unscaled_ui_min_size.into(), scale));
+                    if scaled_new_size.width < scaled_ui_min_size.width {
+                        unsafe {
+                            (*new_scaled_size_ptr).right =
+                                (*new_scaled_size_ptr).left + scaled_ui_min_size.width;
+                        }
+                    }
+                    if scaled_new_size.height < scaled_ui_min_size.height {
+                        unsafe {
+                            (*new_scaled_size_ptr).bottom =
+                                (*new_scaled_size_ptr).top + scaled_ui_min_size.height;
+                        }
+                    }
+                }
+                if let Some(unscaled_ui_max_size) = ui_max_size {
+                    let scaled_ui_max_size =
+                        round_size(scale_size(unscaled_ui_max_size.into(), scale));
+                    if scaled_new_size.width > scaled_ui_max_size.width {
+                        unsafe {
+                            (*new_scaled_size_ptr).right =
+                                (*new_scaled_size_ptr).left + scaled_ui_max_size.width;
+                        }
+                    }
+                    if scaled_new_size.height > scaled_ui_max_size.height {
+                        unsafe {
+                            (*new_scaled_size_ptr).bottom =
+                                (*new_scaled_size_ptr).top + scaled_ui_max_size.height;
+                        }
+                    }
+                }
+                vst3::Steinberg::kResultOk
+            }
+        }
     }
 }
 
 impl<S: store::Store + 'static> IPlugViewContentScaleSupportTrait for SharedView<S> {
     unsafe fn setContentScaleFactor(&self, factor: ScaleFactor) -> vst3::Steinberg::tresult {
+        println!("setting content scale factor");
+        let old_scale_factor = self.borrow().scale_factor;
+        let unscaled_size = unscale_size(self.borrow().current_size, old_scale_factor);
         self.borrow_mut().scale_factor = factor;
-        if let Some(frame) = self.borrow().frame.as_ref() {
-            let new_size = self.borrow().get_size();
+        let new_scaled_size = round_size(scale_size(unscaled_size, factor));
+        let frame = self.borrow().frame.clone();
+        let plug_view_ptr = self.borrow().plug_view_ptr;
+        self.borrow_mut().pending_scale_factor_change_size = Some(new_scaled_size);
+        if let Some(frame) = frame {
             let mut new_rect = vst3::Steinberg::ViewRect {
                 top: 0,
                 left: 0,
-                right: new_size.width,
-                bottom: new_size.height,
+                right: new_scaled_size.width,
+                bottom: new_scaled_size.height,
             };
-            unsafe { frame.resizeView(self.borrow().plug_view_ptr, &raw mut new_rect) };
+            unsafe { frame.resizeView(plug_view_ptr, &raw mut new_rect) };
         }
         vst3::Steinberg::kResultOk
     }
@@ -354,9 +536,14 @@ impl<S> Class for SharedView<S> {
 // Only include tests in test config on macos
 #[cfg(all(test, target_os = "macos"))]
 mod tests {
-    use vst3::Steinberg::IPlugViewTrait;
+    use vst3::Steinberg::{
+        IPlugViewContentScaleSupport_::ScaleFactor, IPlugViewContentScaleSupportTrait,
+        IPlugViewTrait,
+    };
 
-    use super::create;
+    use crate::Resizability;
+
+    use super::{LogicalSize, SizePersistance, create};
     use conformal_component::parameters;
     use conformal_core::parameters::store;
     struct DummyStore;
@@ -395,16 +582,19 @@ mod tests {
         }
     }
 
+    impl SizePersistance for DummyStore {
+        fn set_size(&mut self, _size: LogicalSize) {}
+        fn get_size(&self) -> LogicalSize {
+            LogicalSize {
+                width: 100.0,
+                height: 100.0,
+            }
+        }
+    }
+
     #[test]
     fn nsview_platform_supported() {
-        let v = create(
-            DummyStore {},
-            "test".to_string(),
-            conformal_ui::Size {
-                width: 100,
-                height: 100,
-            },
-        );
+        let v = create(DummyStore {}, "test".to_string(), Resizability::FixedSize);
         let nsview = std::ffi::CString::new("NSView").unwrap();
         unsafe {
             assert_eq!(
@@ -416,14 +606,7 @@ mod tests {
 
     #[test]
     fn bananas_platform_not_supported() {
-        let v = create(
-            DummyStore {},
-            "test".to_string(),
-            conformal_ui::Size {
-                width: 100,
-                height: 100,
-            },
-        );
+        let v = create(DummyStore {}, "test".to_string(), Resizability::FixedSize);
         // Maybe some day, we will support bananas...
         let nsview = std::ffi::CString::new("Bananas").unwrap();
         unsafe {
@@ -436,18 +619,68 @@ mod tests {
 
     #[test]
     fn defends_against_null_parent() {
-        let v = create(
-            DummyStore {},
-            "test".to_string(),
-            conformal_ui::Size {
-                width: 100,
-                height: 100,
-            },
-        );
+        let v = create(DummyStore {}, "test".to_string(), Resizability::FixedSize);
         let nsview = std::ffi::CString::new("NSView").unwrap();
         assert_ne!(
             unsafe { v.attached(std::ptr::null_mut(), nsview.as_ptr()) },
             vst3::Steinberg::kResultOk
         );
+    }
+
+    #[test]
+    fn set_content_scale_factor_then_on_size_succeeds() {
+        let view = create(DummyStore {}, "test".to_string(), Resizability::FixedSize);
+        let scale_support = view
+            .cast::<vst3::Steinberg::IPlugViewContentScaleSupport>()
+            .unwrap();
+        unsafe {
+            assert_eq!(
+                scale_support
+                    .as_com_ref()
+                    .setContentScaleFactor(2.0f32 as ScaleFactor),
+                vst3::Steinberg::kResultOk
+            );
+        }
+        {
+            let mut get_before_size = vst3::Steinberg::ViewRect {
+                left: 0,
+                top: 0,
+                right: 0,
+                bottom: 0,
+            };
+            unsafe {
+                assert_eq!(
+                    view.getSize(&raw mut get_before_size),
+                    vst3::Steinberg::kResultOk
+                );
+            }
+            assert_eq!(get_before_size.right, 100);
+            assert_eq!(get_before_size.bottom, 100);
+        }
+        let mut rect = vst3::Steinberg::ViewRect {
+            left: 0,
+            top: 0,
+            right: 200,
+            bottom: 200,
+        };
+        unsafe {
+            assert_eq!(view.onSize(&raw mut rect), vst3::Steinberg::kResultOk);
+        }
+        {
+            let mut get_after_size = vst3::Steinberg::ViewRect {
+                left: 0,
+                top: 0,
+                right: 0,
+                bottom: 0,
+            };
+            unsafe {
+                assert_eq!(
+                    view.getSize(&raw mut get_after_size),
+                    vst3::Steinberg::kResultOk
+                );
+            }
+            assert_eq!(get_after_size.right, 200);
+            assert_eq!(get_after_size.bottom, 200);
+        }
     }
 }

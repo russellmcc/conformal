@@ -41,6 +41,15 @@ impl<C, F: Fn(&HostInfo) -> C + Clone> ComponentFactory for F {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+enum Resizability {
+    FixedSize,
+    Resizable {
+        ui_min_size: Option<UiSize>,
+        ui_max_size: Option<UiSize>,
+    },
+}
+
 /// Information about a VST3 component
 #[derive(Debug, Clone, Copy)]
 pub struct ClassInfo<'a> {
@@ -56,6 +65,9 @@ pub struct ClassInfo<'a> {
 
     /// Initial size of the UI in logical pixels
     ui_initial_size: UiSize,
+
+    /// Whether the component is resizable
+    resizability: Resizability,
 }
 
 /// A builder for `ClassInfo`
@@ -65,10 +77,16 @@ pub struct ClassInfo<'a> {
 /// We use a builder here to allow future additional options to not break the API.
 #[derive(Debug, Clone, Copy)]
 pub struct ClassInfoBuilder<'a> {
-    name: &'a str,
-    cid: ClassID,
-    edit_controller_cid: ClassID,
-    ui_initial_size: UiSize,
+    info: ClassInfo<'a>,
+}
+
+/// Options for components with resizable UI
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ResizingOptions {
+    /// Minimum size of UI, if any
+    pub ui_min_size: Option<UiSize>,
+    /// Maximum size of UI, if any
+    pub ui_max_size: Option<UiSize>,
 }
 
 impl<'a> ClassInfoBuilder<'a> {
@@ -81,22 +99,40 @@ impl<'a> ClassInfoBuilder<'a> {
         ui_initial_size: UiSize,
     ) -> Self {
         Self {
-            name,
-            cid,
-            edit_controller_cid,
-            ui_initial_size,
+            info: ClassInfo {
+                name,
+                cid,
+                edit_controller_cid,
+                ui_initial_size,
+                resizability: Resizability::FixedSize,
+            },
+        }
+    }
+
+    /// Make the component resizeable with optional min and max sizes.
+    ///
+    /// If you don't provide min or max sizes, there will be no size constraints.
+    #[must_use]
+    pub const fn resizable(self, options: ResizingOptions) -> Self {
+        Self {
+            info: ClassInfo {
+                resizability: Resizability::Resizable {
+                    ui_min_size: options.ui_min_size,
+                    ui_max_size: options.ui_max_size,
+                },
+                ..self.info
+            },
         }
     }
 
     /// Build the `ClassInfo`
+    ///
+    /// # Panics
+    ///
+    /// If the initial size is not within the min and max size bounds or the min size is greater than the max size in either dimension.
     #[must_use]
     pub const fn build(self) -> ClassInfo<'a> {
-        ClassInfo {
-            name: self.name,
-            cid: self.cid,
-            edit_controller_cid: self.edit_controller_cid,
-            ui_initial_size: self.ui_initial_size,
-        }
+        self.info
     }
 }
 

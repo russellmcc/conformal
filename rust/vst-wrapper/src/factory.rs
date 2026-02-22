@@ -86,6 +86,7 @@ impl IPluginFactoryTrait for Factory {
                     let com_ptr = ComWrapper::new(edit_controller::create(
                         class.create_parameter_model(),
                         class.info().ui_initial_size,
+                        class.info().resizability,
                         class.get_kind(),
                     ))
                     .to_com_ptr::<IPluginBase>()

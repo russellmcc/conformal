@@ -256,6 +256,7 @@ dependencies = [
  "process_path",
  "rmp-serde",
  "serde",
+ "serde_bytes",
  "vst3",
 ]
 

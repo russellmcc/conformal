@@ -10,11 +10,12 @@ use crate::{
         MOD_WHEEL_PARAMETER, PITCH_BEND_PARAMETER, SUSTAIN_PARAMETER, TIMBRE_PARAMETER,
     },
     u32_to_enum,
+    view::{LogicalSize, SizePersistance},
 };
 use std::{
     cell::RefCell,
     collections::{HashMap, hash_map},
-    io::{Read, Write},
+    io::Read,
     rc,
 };
 
@@ -23,6 +24,7 @@ use conformal_core::parameters::serialization::{DeserializationError, ReadInfoRe
 use conformal_core::parameters::store;
 
 use conformal_ui::Size;
+use serde::{Deserialize, Serialize};
 use vst3::{
     Class, ComPtr, ComRef,
     Steinberg::{
@@ -93,6 +95,9 @@ struct ParameterStore {
 
     ui_state: Vec<u8>,
 
+    initial_ui_size: LogicalSize,
+    ui_size_override: Option<LogicalSize>,
+
     // Note that unsized weak types can't dangle, so we use Option here to allow dangling.
     listener: Option<rc::Weak<dyn store::Listener>>,
 }
@@ -131,6 +136,7 @@ struct EditController {
     s: RefCell<Option<State>>,
     host: RefCell<Option<ComPtr<IHostApplication>>>,
     ui_initial_size: Size,
+    resizability: crate::Resizability,
     kind: Kind,
 }
 
@@ -139,12 +145,14 @@ fn create_internal(
     parameter_model: ParameterModel,
     pref_domain: String,
     ui_initial_size: Size,
+    resizability: crate::Resizability,
     kind: Kind,
 ) -> EditController {
     EditController {
         s: Some(State::ReadyForInitialization(parameter_model, pref_domain)).into(),
         host: Default::default(),
         ui_initial_size,
+        resizability,
         kind,
     }
 }
@@ -169,6 +177,7 @@ fn get_pref_domain() -> String {
 pub fn create(
     parameter_model: ParameterModel,
     ui_initial_size: Size,
+    resizability: crate::Resizability,
     kind: Kind,
 ) -> impl Class<
     Interfaces = (
@@ -185,7 +194,13 @@ pub fn create(
 + INoteExpressionControllerTrait
 + INoteExpressionPhysicalUIMappingTrait
 + 'static {
-    create_internal(parameter_model, get_pref_domain(), ui_initial_size, kind)
+    create_internal(
+        parameter_model,
+        get_pref_domain(),
+        ui_initial_size,
+        resizability,
+        kind,
+    )
 }
 
 fn get_default(info: &TypeSpecificInfo) -> parameters::InternalValue {
@@ -404,6 +419,30 @@ impl store::Store for SharedStore {
     }
 }
 
+impl SizePersistance for SharedStore {
+    fn set_size(&mut self, size: LogicalSize) {
+        self.store.borrow_mut().ui_size_override = Some(size);
+
+        // Tell the host
+        if let ParameterStore {
+            component_handler: Some(component_handler),
+            ..
+        } = &(*self.store.borrow())
+            && let Some(component_handler2) = component_handler.cast::<IComponentHandler2>()
+        {
+            unsafe {
+                component_handler2.setDirty(1);
+            }
+        }
+    }
+    fn get_size(&self) -> LogicalSize {
+        self.store
+            .borrow()
+            .ui_size_override
+            .unwrap_or(self.store.borrow().initial_ui_size)
+    }
+}
+
 /// For testing only.
 #[cfg(test)]
 trait GetStore {
@@ -509,6 +548,8 @@ impl IPluginBaseTrait for EditController {
                         .collect(),
                         component_handler: Default::default(),
                         ui_state: Default::default(),
+                        initial_ui_size: self.ui_initial_size.into(),
+                        ui_size_override: None,
                         listener: Default::default(),
                     }))},
                     parameter_model,
@@ -565,6 +606,48 @@ fn apply_values<'a>(
 ) {
     for (id, value) in new_values {
         parameter_values.insert(id.to_string(), value);
+    }
+}
+
+struct SerializedState {
+    ui_state: Vec<u8>,
+    ui_size_override: Option<LogicalSize>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+struct SerializedStateV1 {
+    magic: u32,
+    #[serde(with = "serde_bytes")]
+    ui_state: Vec<u8>,
+    ui_size_override: Option<LogicalSize>,
+}
+
+#[derive(Serialize, Debug, Clone)]
+struct SerializedStateV1Ref<'a> {
+    magic: u32,
+    #[serde(with = "serde_bytes")]
+    ui_state: &'a [u8],
+    ui_size_override: Option<LogicalSize>,
+}
+
+const MAGIC: u32 = 0x0053_5631; // 'sv1'
+
+fn deserialize_state(mut read: StreamRead<'_>) -> Option<SerializedState> {
+    if let Ok(v1) = rmp_serde::from_read::<_, SerializedStateV1>(read.clone())
+        && v1.magic == MAGIC
+    {
+        Some(SerializedState {
+            ui_state: v1.ui_state,
+            ui_size_override: v1.ui_size_override,
+        })
+    } else {
+        read.seek_to_start().ok()?;
+        let mut ui_state = Vec::new();
+        read.read_to_end(&mut ui_state).ok()?;
+        Some(SerializedState {
+            ui_state,
+            ui_size_override: None,
+        })
     }
 }
 
@@ -635,15 +718,15 @@ impl IEditControllerTrait for EditController {
                 self.s.borrow_mut().as_mut().unwrap()
             {
                 let ParameterStore {
-                    ui_state, listener, ..
+                    ui_state,
+                    ui_size_override,
+                    listener,
+                    ..
                 } = &mut *store.store.borrow_mut();
                 if let Some(com_stream) = ComRef::from_raw(state) {
-                    let mut new_state = Vec::new();
-                    if StreamRead::new(com_stream)
-                        .read_to_end(&mut new_state)
-                        .is_ok()
-                    {
-                        *ui_state = new_state;
+                    if let Some(serialized_state) = deserialize_state(StreamRead::new(com_stream)) {
+                        *ui_state = serialized_state.ui_state;
+                        *ui_size_override = serialized_state.ui_size_override;
                         if let Some(listener) = listener
                             && let Some(listener) = listener.upgrade()
                         {
@@ -663,11 +746,23 @@ impl IEditControllerTrait for EditController {
             if let State::Initialized(Initialized { store, .. }) =
                 self.s.borrow_mut().as_mut().unwrap()
             {
-                let ParameterStore { ui_state, .. } = &*store.store.borrow();
+                let ParameterStore {
+                    ui_state,
+                    ui_size_override,
+                    ..
+                } = &*store.store.borrow();
 
                 if let Some(com_state) = ComRef::from_raw(state) {
-                    let mut writer = StreamWrite::new(com_state);
-                    if writer.write_all(ui_state).is_ok() {
+                    let writer = StreamWrite::new(com_state);
+
+                    if (SerializedStateV1Ref {
+                        magic: MAGIC,
+                        ui_state: ui_state.as_slice(),
+                        ui_size_override: *ui_size_override,
+                    })
+                    .serialize(&mut rmp_serde::Serializer::new(writer).with_struct_map())
+                    .is_ok()
+                    {
                         return vst3::Steinberg::kResultOk;
                     }
                     return vst3::Steinberg::kInternalError;
@@ -1048,7 +1143,7 @@ impl IEditControllerTrait for EditController {
                 && let State::Initialized(Initialized { store, .. }) =
                     self.s.borrow().as_ref().unwrap()
             {
-                return view::create(store.clone(), get_pref_domain(), self.ui_initial_size)
+                return view::create(store.clone(), get_pref_domain(), self.resizability)
                     .into_raw();
             }
             std::ptr::null_mut()
@@ -1375,6 +1470,7 @@ mod tests {
 
     use super::GetStore;
     use crate::fake_ibstream::Stream;
+    use crate::io::StreamRead;
     use crate::parameters::{
         AFTERTOUCH_PARAMETER, EXPRESSION_PEDAL_PARAMETER, MOD_WHEEL_PARAMETER,
         PITCH_BEND_PARAMETER, SUSTAIN_PARAMETER,
@@ -1382,6 +1478,7 @@ mod tests {
     use crate::processor::test_utils::{
         ParameterValueQueueImpl, ParameterValueQueuePoint, mock_no_audio_process_data, setup_proc,
     };
+    use crate::view::LogicalSize;
     use crate::{HostInfo, enum_to_u32};
     use crate::{ParameterModel, processor};
     use crate::{dummy_host, from_utf16_buffer, to_utf16};
@@ -1395,6 +1492,7 @@ mod tests {
     };
     use conformal_core::parameters::store;
     use conformal_core::parameters::store::Store;
+    use serde::Serialize;
 
     #[derive(Default)]
     struct DummyComponent {}
@@ -1590,6 +1688,7 @@ mod tests {
                 width: 0,
                 height: 0,
             },
+            crate::Resizability::FixedSize,
             super::Kind::Effect {
                 bypass_id: SWITCH_ID,
             },
@@ -2179,6 +2278,64 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_state_pre_v1_raw_bytes() {
+        let stream = ComWrapper::new(Stream::new([1_u8, 2, 3]));
+        let com_ref = stream.as_com_ref::<vst3::Steinberg::IBStream>().unwrap();
+        let state = super::deserialize_state(StreamRead::new(com_ref));
+        let state = state.expect("pre-v1 should deserialize");
+        assert_eq!(state.ui_state, vec![1, 2, 3]);
+        assert!(state.ui_size_override.is_none());
+    }
+
+    #[test]
+    fn deserialize_state_v1_without_logical_size() {
+        let v1_bytes = {
+            let mut buf = Vec::new();
+            (super::SerializedStateV1Ref {
+                magic: super::MAGIC,
+                ui_state: &[1, 2, 3],
+                ui_size_override: None,
+            })
+            .serialize(&mut rmp_serde::Serializer::new(&mut buf).with_struct_map())
+            .unwrap();
+            buf
+        };
+        let stream = ComWrapper::new(Stream::new(v1_bytes));
+        let com_ref = stream.as_com_ref::<vst3::Steinberg::IBStream>().unwrap();
+        let state = super::deserialize_state(StreamRead::new(com_ref));
+        let state = state.expect("v1 without size should deserialize");
+        assert_eq!(state.ui_state, vec![1, 2, 3]);
+        assert!(state.ui_size_override.is_none());
+    }
+
+    #[test]
+    fn deserialize_state_v1_with_logical_size() {
+        let size = LogicalSize {
+            width: 100.0,
+            height: 200.0,
+        };
+        let v1_bytes = {
+            let mut buf = Vec::new();
+            (super::SerializedStateV1Ref {
+                magic: super::MAGIC,
+                ui_state: &[4, 5, 6],
+                ui_size_override: Some(size),
+            })
+            .serialize(&mut rmp_serde::Serializer::new(&mut buf).with_struct_map())
+            .unwrap();
+            buf
+        };
+        let stream = ComWrapper::new(Stream::new(v1_bytes));
+        let com_ref = stream.as_com_ref::<vst3::Steinberg::IBStream>().unwrap();
+        let state = super::deserialize_state(StreamRead::new(com_ref));
+        let state = state.expect("v1 with size should deserialize");
+        assert_eq!(state.ui_state, vec![4, 5, 6]);
+        let got = state.ui_size_override.expect("expected Some(size)");
+        assert_eq!(got.width, size.width);
+        assert_eq!(got.height, size.height);
+    }
+
+    #[test]
     fn set_component_state_basics() {
         let proc = dummy_processor();
         let ec = dummy_edit_controller();
@@ -2472,6 +2629,7 @@ mod tests {
                 width: 0,
                 height: 0,
             },
+            crate::Resizability::FixedSize,
             super::Kind::Synth(),
         );
         let host = ComWrapper::new(dummy_host::Host::default());
@@ -2835,6 +2993,7 @@ mod tests {
                 width: 0,
                 height: 0,
             },
+            crate::Resizability::FixedSize,
             super::Kind::Effect {
                 bypass_id: "missing",
             },
@@ -2855,6 +3014,7 @@ mod tests {
                 width: 0,
                 height: 0,
             },
+            crate::Resizability::FixedSize,
             super::Kind::Effect {
                 bypass_id: NUMERIC_ID,
             },
@@ -2883,6 +3043,7 @@ mod tests {
                 width: 0,
                 height: 0,
             },
+            crate::Resizability::FixedSize,
             super::Kind::Effect {
                 bypass_id: SWITCH_ID,
             },
@@ -2910,6 +3071,7 @@ mod tests {
                 width: 0,
                 height: 0,
             },
+            crate::Resizability::FixedSize,
             super::Kind::Effect {
                 bypass_id: SWITCH_ID,
             },
@@ -2962,6 +3124,7 @@ mod tests {
                 width: 0,
                 height: 0,
             },
+            crate::Resizability::FixedSize,
             super::Kind::Synth(),
         )
     }
@@ -3438,6 +3601,7 @@ mod tests {
                 width: 0,
                 height: 0,
             },
+            crate::Resizability::FixedSize,
             super::Kind::Effect {
                 bypass_id: SWITCH_ID,
             },
