@@ -11,7 +11,7 @@ const checkLicensesForCrate = async (crate: string): Promise<void> => {
   const outputFile = join(tmpDir, "output.html");
   console.log(`Checking licenses for ${crate}`);
   try {
-    await $`cargo about generate -m ${cargoTomlPath} -o ${outputFile} ${aboutPath}`.quiet();
+    await $`cargo about generate --frozen --fail -m ${cargoTomlPath} -o ${outputFile} ${aboutPath}`;
   } finally {
     await rm(tmpDir, { recursive: true }).catch(() => {});
   }
