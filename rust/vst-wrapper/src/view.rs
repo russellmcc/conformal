@@ -23,7 +23,7 @@ impl<S> Clone for SharedStore<S> {
 }
 
 /// Unscaled size of the UI in logical pixels.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy)]
 pub struct LogicalSize {
     pub width: f32,
     pub height: f32,
@@ -43,16 +43,16 @@ fn scale_size(size: LogicalSize, scale_factor: f32) -> LogicalSize {
     }
 }
 
-impl From<LogicalSize> for Size {
-    fn from(size: LogicalSize) -> Self {
-        Size {
-            width: size.width.round() as i32,
-            height: size.height.round() as i32,
-        }
+#[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
+fn round_size(size: LogicalSize) -> Size {
+    Size {
+        width: size.width.round() as i32,
+        height: size.height.round() as i32,
     }
 }
 
 impl From<Size> for LogicalSize {
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
     fn from(size: Size) -> Self {
         LogicalSize {
             width: size.width as f32,
@@ -61,6 +61,7 @@ impl From<Size> for LogicalSize {
     }
 }
 
+#[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
 fn unscale_size(size: Size, scale_factor: f32) -> LogicalSize {
     LogicalSize {
         width: (size.width as f32 / scale_factor),
@@ -181,7 +182,7 @@ pub fn create<S: store::Store + SizePersistance + 'static>(
         ui: Default::default(),
         domain,
         resizability,
-        current_size: initial_size.into(),
+        current_size: round_size(initial_size),
         scale_factor: 1.0,
         frame: None,
         plug_view_ptr: std::ptr::null_mut(),
@@ -381,7 +382,7 @@ impl<S: store::Store + SizePersistance + 'static> IPlugViewTrait for SharedView<
         // Also alert our web UI that the size has changed.
         if let Some(ui) = self.borrow_mut().ui.as_mut()
             && ui
-                .set_size(unscale_size(scaled_new_size, scale_factor).into())
+                .set_size(round_size(unscale_size(scaled_new_size, scale_factor)))
                 .is_err()
         {
             return vst3::Steinberg::kInternalError;
@@ -390,7 +391,7 @@ impl<S: store::Store + SizePersistance + 'static> IPlugViewTrait for SharedView<
         // Also alert our size persistance layer that the size has changed.
         self.borrow_mut()
             .store
-            .set_size(unscale_size(scaled_new_size, scale_factor).into());
+            .set_size(unscale_size(scaled_new_size, scale_factor));
 
         vst3::Steinberg::kResultOk
     }
@@ -429,8 +430,8 @@ impl<S: store::Store + SizePersistance + 'static> IPlugViewTrait for SharedView<
                 let scaled_new_size = from_vst3_size(unsafe { *new_scaled_size_ptr });
 
                 if let Some(unscaled_ui_min_size) = ui_min_size {
-                    let scaled_ui_min_size: Size =
-                        scale_size(unscaled_ui_min_size.into(), scale).into();
+                    let scaled_ui_min_size =
+                        round_size(scale_size(unscaled_ui_min_size.into(), scale));
                     if scaled_new_size.width < scaled_ui_min_size.width {
                         unsafe {
                             (*new_scaled_size_ptr).right =
@@ -445,8 +446,8 @@ impl<S: store::Store + SizePersistance + 'static> IPlugViewTrait for SharedView<
                     }
                 }
                 if let Some(unscaled_ui_max_size) = ui_max_size {
-                    let scaled_ui_max_size: Size =
-                        scale_size(unscaled_ui_max_size.into(), scale).into();
+                    let scaled_ui_max_size =
+                        round_size(scale_size(unscaled_ui_max_size.into(), scale));
                     if scaled_new_size.width > scaled_ui_max_size.width {
                         unsafe {
                             (*new_scaled_size_ptr).right =
@@ -473,7 +474,7 @@ impl<S: store::Store + 'static> IPlugViewContentScaleSupportTrait for SharedView
         {
             self.borrow_mut().scale_factor = factor;
         }
-        let new_scaled_size: Size = scale_size(unscaled_size, factor).into();
+        let new_scaled_size = round_size(scale_size(unscaled_size, factor));
         let frame = self.borrow().frame.clone();
         let plug_view_ptr = self.borrow().plug_view_ptr;
         if let Some(frame) = frame {

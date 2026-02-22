@@ -422,7 +422,7 @@ impl SizePersistance for SharedStore {
         self.store.borrow_mut().ui_size = size;
     }
     fn get_size(&self) -> LogicalSize {
-        self.store.borrow().ui_size.clone()
+        self.store.borrow().ui_size
     }
 }
 
