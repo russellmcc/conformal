@@ -390,9 +390,6 @@ impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
         }
     }
 
-    // TODO - make helper to get unscaled size from scaled size
-    // TODO - re-call size constraints in onsize!
-
     #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
     unsafe fn checkSizeConstraint(
         &self,
