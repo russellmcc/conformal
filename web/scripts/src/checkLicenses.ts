@@ -11,6 +11,10 @@ const checkLicensesForCrate = async (crate: string): Promise<void> => {
   const outputFile = join(tmpDir, "output.html");
   console.log(`Checking licenses for ${crate}`);
   try {
+    // Make sure we have all dependencies downloaded.
+    await $`cargo fetch`;
+    // Generate the about file. Using frozen mode will prevent us from querying
+    // any flaky APIs such as clearlydefined.
     await $`cargo about generate --frozen --fail -m ${cargoTomlPath} -o ${outputFile} ${aboutPath}`;
   } finally {
     await rm(tmpDir, { recursive: true }).catch(() => {});

@@ -147,11 +147,16 @@ export const createWindowsInstaller = async ({
   await withDir(
     async ({ path: tmpDir }) => {
       const licenseTmpPath = join(tmpDir, "license_temp");
+      // Make sure we have all dependencies downloaded.
+      await runShell(["cargo", "fetch"]);
+      // Generate the about file. Using frozen mode will prevent us from querying
+      // any flaky APIs such as clearlydefined.
       await pipeShell(
         [
           "cargo",
           "about",
           "generate",
+          "--frozen",
           "-m",
           `${rustPackagePath}/Cargo.toml`,
           `${rustPackagePath}/about.hbs`,
