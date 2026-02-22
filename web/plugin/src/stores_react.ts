@@ -7,6 +7,7 @@ export const Context = createContext<Stores | null>(null);
 /**
  *
  * @group Hooks
+ * @category Advanced
  */
 export const useStores = (): Stores => {
   const storage = useContext(Context);

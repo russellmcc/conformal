@@ -9,7 +9,10 @@
   "customCss": "web/docs/ts-doc.css",
   "plugin": ["typedoc-plugin-zod"],
   "hideGenerator": true,
+  "categorizeByGroup": true,
   "packageOptions": {
-    "readme": "none"
+    "readme": "none",
+    "categorizeByGroup": true,
+    "groupOrder": ["Hooks", "Components", "Component Props", "*"]
   }
 }

@@ -1,5 +1,5 @@
 import IgnoreErrorBoundary from "./IgnoreErrorBoundary";
-import { useBooleanAtom, useBooleanValue } from "@conformal/plugin";
+import { useBooleanAtom, useBooleanValue } from "./stores_react";
 
 const DevModeToolsInternal = () => {
   const isDevMode = useBooleanValue("prefs/dev_mode");

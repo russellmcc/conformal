@@ -10,6 +10,9 @@ const stores = wryTransport
   ? storesWithTransport(msgpackTransport(wryTransport))
   : undefined;
 
+/**
+ * @group Component Props
+ */
 export type ProviderProps = {
   mockInfos?: Map<string, Info>;
   children: ReactNode;

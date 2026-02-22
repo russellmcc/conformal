@@ -1,5 +1,4 @@
-import * as Jotai from "jotai";
-import { Info, Provider, useNumericParam } from "@conformal/plugin";
+import { Info, useNumericParam } from "@conformal/plugin";
 import { createRoot } from "react-dom/client";
 
 //#region hook-usage
@@ -27,12 +26,11 @@ const ResetGainButton = () => {
 void ResetGainButton;
 
 //#region required-providers
+import { Provider } from "@conformal/plugin";
 createRoot(document.getElementById("root")!).render(
-  <Jotai.Provider>
-    <Provider>
-      <DisplayGain />
-    </Provider>
-  </Jotai.Provider>,
+  <Provider>
+    <DisplayGain />
+  </Provider>,
 );
 //#endregion required-providers
 
@@ -52,10 +50,8 @@ const mockInfos = new Map<string, Info>(
 );
 
 createRoot(document.getElementById("root")!).render(
-  <Jotai.Provider>
-    <Provider mockInfos={mockInfos}>
-      <DisplayGain />
-    </Provider>
-  </Jotai.Provider>,
+  <Provider mockInfos={mockInfos}>
+    <DisplayGain />
+  </Provider>,
 );
 //#endregion mocking-parameters

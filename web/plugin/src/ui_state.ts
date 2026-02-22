@@ -1,4 +1,4 @@
-import { WritableAtom } from "jotai";
+import { useAtom, WritableAtom } from "jotai";
 import { createContext, useContext } from "react";
 import { z } from "zod";
 import { decode, encode } from "@msgpack/msgpack";
@@ -33,7 +33,7 @@ export const context = createContext<any>(null);
  * Gets the atom for the ui state. Note that the type must match the type
  * of the state in the UiStateProvider.
  */
-export const useUiStateAtom = <T>(): WritableAtom<
+const useUiStateAtom = <T>(): WritableAtom<
   T | undefined,
   [update: T],
   void
@@ -41,4 +41,13 @@ export const useUiStateAtom = <T>(): WritableAtom<
   // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
   const state = useContext(context) as UiStateData<T>;
   return state.atom;
+};
+
+export const useUiState = <T>(): {
+  value: T | undefined;
+  set: (update: T) => void;
+} => {
+  const atom = useUiStateAtom<T>();
+  const [value, set] = useAtom(atom);
+  return { value, set };
 };

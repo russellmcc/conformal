@@ -1,5 +1,5 @@
 import { decode } from "@msgpack/msgpack";
-import { Info } from "./protocol/param_info";
+import { InfoSchema, Info } from "./protocol/param_info";
 import {
   useBooleanAtom,
   useExtended,
@@ -8,7 +8,7 @@ import {
   useStringAtom,
 } from "./stores_react";
 
-const infoExtended = (b: Uint8Array) => Info.parse(decode(b));
+const infoExtended = (b: Uint8Array) => InfoSchema.parse(decode(b));
 type TypedInfo<T, I> = {
   infoTransformer: (info: Info) => I;
   atomGetter: (path: string) => [T, (v: T) => void];

@@ -17,3 +17,11 @@ footer {
 .tsd-page-navigation-section > div {
   margin-left: 24px !important;
 }
+
+.site-menu {
+  max-height: calc(100vh - 72px) !important;
+}
+
+.page-menu {
+  max-height: calc(100vh - 72px) !important;
+}

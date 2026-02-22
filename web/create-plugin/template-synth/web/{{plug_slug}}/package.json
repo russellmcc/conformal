@@ -16,8 +16,7 @@
   "dependencies": {
     "@conformal/plugin": "catalog:",
     "react": "catalog:",
-    "react-dom": "catalog:",
-    "jotai": "catalog:"
+    "react-dom": "catalog:"
   },
   "devDependencies": {
     "rollup-plugin-license": "catalog:",

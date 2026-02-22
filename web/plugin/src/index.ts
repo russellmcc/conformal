@@ -16,8 +16,7 @@
  *
  * ## Required providers
  *
- * In order to use the hooks, your application must be wrapped in a {@link Provider} component,
- * which itself requires a `Jotai.Provider` from [jotai](https://jotai.org) to be present.
+ * In order to use the hooks, your application must be wrapped in a {@link Provider} component.
  *
  * {@includeCode ../examples/basic.tsx#required-providers}
  *
@@ -29,8 +28,24 @@
  *
  * {@includeCode ../examples/basic.tsx#mocking-parameters}
  *
+ * ## UI State
+ *
+ * Conformal UI can store custom state unrelated to parameters that will persist
+ * in the DAW save file. This allows you to retain UI state in the file.
+ * The entry point for this is the {@link useUiStateAtom} hook, please
+ * see the docs there.
+ *
+ * ## DevModeTools
+ *
+ * The {@link DevModeTools} component displays a toggle to switch between the
+ * version of the UI that is embedded into the plug-in and a dev server for
+ * iterative development.
+ *
  * @groupDescription Components
  * React components exported by this package.
+ *
+ * @groupDescription Component Props
+ * Props for React {@link Components}
  *
  * @groupDescription Hooks
  * React hooks exported by this package.
@@ -39,27 +54,10 @@
  *
  */
 
-export { Info } from "./protocol/param_info";
-export { storesFromGenericStore } from "./stores";
-export type { Family, Stores } from "./stores";
-export {
-  useStores,
-  useBooleanAtom,
-  useBooleanValue,
-  useBytesAtom,
-  useBytesValue,
-  useExtended,
-  useGenericAtom,
-  useGenericValue,
-  useGrab,
-  useNumericAtom,
-  useNumericValue,
-  useStringAtom,
-  useStringValue,
-} from "./stores_react";
+export type { Info } from "./protocol/param_info";
 export { default as Provider, type ProviderProps } from "./stores_provider";
 export { useEnumParam, useNumericParam, useSwitchParam } from "./params";
 export { default as DevModeTools } from "./DevModeTools";
-export { useUiStateAtom, codecFromZod } from "./ui_state";
+export { useUiState, codecFromZod } from "./ui_state";
 export type { Codec } from "./ui_state";
 export { UiStateProvider } from "./ui_state_provider";

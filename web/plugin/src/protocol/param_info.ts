@@ -19,8 +19,8 @@ export const TypeSpecific = z.union([
 ]);
 export type TypeSpecific = z.infer<typeof TypeSpecific>;
 
-export const Info = z.object({
+export const InfoSchema = z.object({
   title: z.string(),
   type_specific: TypeSpecific,
 });
-export type Info = z.infer<typeof Info>;
+export type Info = z.infer<typeof InfoSchema>;
