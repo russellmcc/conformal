@@ -93,6 +93,26 @@ struct View<S> {
     current_size: Size,
     scale_factor: f32,
 
+    /// When the scale factor changes, the VST3 spec is a bit weird:
+    ///
+    /// 1) Host notifies us of the new scale factor with `setContentScaleFactor`
+    ///    a) We are expected to call `IPlugFrame::resizeView` with the new size
+    /// 2) Host is expected to call `IPlugView::onSize` with the new size
+    ///
+    /// In this scenario, if the host gets size after step 1 but before step 2,
+    /// it's illegal for us to return the new value.
+    ///
+    /// That said, we need to behave a bit differently on "true" resizes vs these
+    /// scale factor changes:
+    ///
+    /// A) We shouldn't change size of the wry view, since wry manages scale factor internally.
+    /// B) We shouldn't persist the change, since this wasn't a _logical_ resize.
+    ///
+    /// We implement this by setting this variable in step 1a, and clearing it after
+    /// step 2, if we end up receiving a notification for the same size we asked for.
+    /// In this case, we skip updating the size of the wry view and the persistance layer.
+    pending_scale_factor_change_size: Option<Size>,
+
     frame: Option<ComPtr<IPlugFrame>>,
 
     /// Raw self-pointer to our own `IPlugView` interface, needed for passing to
@@ -184,6 +204,7 @@ pub fn create<S: store::Store + SizePersistance + 'static>(
         domain,
         resizability,
         current_size: round_size(initial_size),
+        pending_scale_factor_change_size: None,
         scale_factor: 1.0,
         frame: None,
         plug_view_ptr: std::ptr::null_mut(),
@@ -370,13 +391,30 @@ impl<S: store::Store + SizePersistance + 'static> IPlugViewTrait for SharedView<
         &self,
         scaled_new_size_ptr: *mut vst3::Steinberg::ViewRect,
     ) -> vst3::Steinberg::tresult {
+        // Note that the new size will be scaled by the scale factor!
+        let scaled_new_size = from_vst3_size(unsafe { *scaled_new_size_ptr });
+
+        // Special case, if this is simply the result of a scale factor change, we do need to
+        // update our internal scaled size, even if we're not resizable.
+        if let Some(pending_scale_factor_change_size) =
+            self.borrow().pending_scale_factor_change_size
+            && pending_scale_factor_change_size.width == scaled_new_size.width
+            && pending_scale_factor_change_size.height == scaled_new_size.height
+        {
+            self.borrow_mut().pending_scale_factor_change_size = None;
+            self.borrow_mut().current_size = scaled_new_size;
+            return vst3::Steinberg::kResultOk;
+        }
+
+        // Otherwise, we got some other update from the host before our pending scale factor change
+        // - so just clear it.
+        self.borrow_mut().pending_scale_factor_change_size = None;
+
         // Nothing to do if we're not resizable.
         if let Resizability::FixedSize = self.borrow().resizability {
             return vst3::Steinberg::kResultOk;
         }
 
-        // Note that the new size will be scaled by the scale factor!
-        let scaled_new_size = from_vst3_size(unsafe { *scaled_new_size_ptr });
         self.borrow_mut().current_size = scaled_new_size;
         let scale_factor = self.borrow().scale_factor;
 
@@ -472,13 +510,12 @@ impl<S: store::Store + 'static> IPlugViewContentScaleSupportTrait for SharedView
     unsafe fn setContentScaleFactor(&self, factor: ScaleFactor) -> vst3::Steinberg::tresult {
         let old_scale_factor = self.borrow().scale_factor;
         let unscaled_size = unscale_size(self.borrow().current_size, old_scale_factor);
-        {
-            self.borrow_mut().scale_factor = factor;
-        }
+        self.borrow_mut().scale_factor = factor;
         let new_scaled_size = round_size(scale_size(unscaled_size, factor));
         let frame = self.borrow().frame.clone();
         let plug_view_ptr = self.borrow().plug_view_ptr;
         if let Some(frame) = frame {
+            self.borrow_mut().pending_scale_factor_change_size = Some(new_scaled_size);
             let mut new_rect = vst3::Steinberg::ViewRect {
                 top: 0,
                 left: 0,

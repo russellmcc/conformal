@@ -1478,6 +1478,7 @@ mod tests {
     use crate::processor::test_utils::{
         ParameterValueQueueImpl, ParameterValueQueuePoint, mock_no_audio_process_data, setup_proc,
     };
+    use crate::view::LogicalSize;
     use crate::{HostInfo, enum_to_u32};
     use crate::{ParameterModel, processor};
     use crate::{dummy_host, from_utf16_buffer, to_utf16};
@@ -1492,7 +1493,6 @@ mod tests {
     use conformal_core::parameters::store;
     use conformal_core::parameters::store::Store;
     use serde::Serialize;
-    use crate::view::LogicalSize;
 
     #[derive(Default)]
     struct DummyComponent {}
@@ -2280,9 +2280,7 @@ mod tests {
     #[test]
     fn deserialize_state_pre_v1_raw_bytes() {
         let stream = ComWrapper::new(Stream::new([1_u8, 2, 3]));
-        let com_ref = stream
-            .as_com_ref::<vst3::Steinberg::IBStream>()
-            .unwrap();
+        let com_ref = stream.as_com_ref::<vst3::Steinberg::IBStream>().unwrap();
         let state = super::deserialize_state(StreamRead::new(com_ref));
         let state = state.expect("pre-v1 should deserialize");
         assert_eq!(state.ui_state, vec![1, 2, 3]);
@@ -2303,9 +2301,7 @@ mod tests {
             buf
         };
         let stream = ComWrapper::new(Stream::new(v1_bytes));
-        let com_ref = stream
-            .as_com_ref::<vst3::Steinberg::IBStream>()
-            .unwrap();
+        let com_ref = stream.as_com_ref::<vst3::Steinberg::IBStream>().unwrap();
         let state = super::deserialize_state(StreamRead::new(com_ref));
         let state = state.expect("v1 without size should deserialize");
         assert_eq!(state.ui_state, vec![1, 2, 3]);
@@ -2330,9 +2326,7 @@ mod tests {
             buf
         };
         let stream = ComWrapper::new(Stream::new(v1_bytes));
-        let com_ref = stream
-            .as_com_ref::<vst3::Steinberg::IBStream>()
-            .unwrap();
+        let com_ref = stream.as_com_ref::<vst3::Steinberg::IBStream>().unwrap();
         let state = super::deserialize_state(StreamRead::new(com_ref));
         let state = state.expect("v1 with size should deserialize");
         assert_eq!(state.ui_state, vec![4, 5, 6]);

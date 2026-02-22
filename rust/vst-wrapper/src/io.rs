@@ -1,10 +1,6 @@
 use vst3::{
     ComRef,
-    Steinberg::{
-        IBStream,
-        IBStream_::IStreamSeekMode_::kIBSeekSet,
-        IBStreamTrait,
-    },
+    Steinberg::{IBStream, IBStream_::IStreamSeekMode_::kIBSeekSet, IBStreamTrait},
 };
 
 pub struct StreamWrite<'a> {
