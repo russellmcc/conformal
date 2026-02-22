@@ -44,18 +44,60 @@ impl<C, F: Fn(&HostInfo) -> C + Clone> ComponentFactory for F {
 /// Information about a VST3 component
 #[derive(Debug, Clone, Copy)]
 pub struct ClassInfo<'a> {
-    /// User-visibile name of the component.
-    pub name: &'a str,
+    /// User-visible name of the component.
+    name: &'a str,
 
     /// Class ID for the processor component.  This is used by the host to identify the VST.
-    pub cid: ClassID,
+    cid: ClassID,
 
     /// Class ID for the so-called "edit controller" component.  This is arbitrary
     /// but must be unique.
-    pub edit_controller_cid: ClassID,
+    edit_controller_cid: ClassID,
 
     /// Initial size of the UI in logical pixels
-    pub ui_initial_size: UiSize,
+    ui_initial_size: UiSize,
+}
+
+/// A builder for `ClassInfo`
+///
+/// See [general documentation about this pattern](https://rust-unofficial.github.io/patterns/patterns/creational/builder.html).
+///
+/// We use a builder here to allow future additional options to not break the API.
+#[derive(Debug, Clone, Copy)]
+pub struct ClassInfoBuilder<'a> {
+    name: &'a str,
+    cid: ClassID,
+    edit_controller_cid: ClassID,
+    ui_initial_size: UiSize,
+}
+
+impl<'a> ClassInfoBuilder<'a> {
+    /// Create a new `ClassInfoBuilder`
+    #[must_use]
+    pub const fn new(
+        name: &'a str,
+        cid: ClassID,
+        edit_controller_cid: ClassID,
+        ui_initial_size: UiSize,
+    ) -> Self {
+        Self {
+            name,
+            cid,
+            edit_controller_cid,
+            ui_initial_size,
+        }
+    }
+
+    /// Build the `ClassInfo`
+    #[must_use]
+    pub const fn build(self) -> ClassInfo<'a> {
+        ClassInfo {
+            name: self.name,
+            cid: self.cid,
+            edit_controller_cid: self.edit_controller_cid,
+            ui_initial_size: self.ui_initial_size,
+        }
+    }
 }
 
 #[doc(hidden)]
@@ -189,7 +231,7 @@ pub struct Info<'a> {
     /// The vendor's email
     pub email: &'a str,
 
-    /// User-visibile version of components in this factory
+    /// User-visible version of components in this factory
     pub version: &'a str,
 }
 
@@ -278,7 +320,7 @@ fn from_utf16_buffer(buffer: &[u16]) -> Option<String> {
 /// # Example
 ///
 /// ```
-/// use conformal_vst_wrapper::{ClassID, ClassInfo, EffectClass, HostInfo, Info};
+/// use conformal_vst_wrapper::{ClassID, ClassInfoBuilder, EffectClass, HostInfo, Info};
 /// use conformal_component::audio::{channels, channels_mut, Buffer, BufferMut};
 /// use conformal_component::effect::Effect as EffectTrait;
 /// use conformal_component::parameters::{self, BufferStates, Flags, InfoRef, TypeSpecificInfoRef};
@@ -362,15 +404,15 @@ fn from_utf16_buffer(buffer: &[u16]) -> Option<String> {
 /// conformal_vst_wrapper::wrap_factory!(
 ///     &const {
 ///         [&EffectClass {
-///             info: ClassInfo {
-///                 name: "My effect",
-///                 cid: CID,
-///                 edit_controller_cid: EDIT_CONTROLLER_CID,
-///                 ui_initial_size: conformal_vst_wrapper::UiSize {
+///             info: ClassInfoBuilder::new(
+///                 "My effect",
+///                 CID,
+///                 EDIT_CONTROLLER_CID,
+///                 conformal_vst_wrapper::UiSize {
 ///                     width: 400,
 ///                     height: 400,
 ///                 },
-///             },
+///             ).build(),
 ///             factory: |_: &HostInfo| -> Component { Default::default() },
 ///             category: "Fx",
 ///             bypass_id: "bypass",
