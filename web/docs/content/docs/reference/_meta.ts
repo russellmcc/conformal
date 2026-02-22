@@ -3,6 +3,9 @@ export default {
     title: "Rust API",
     href: "/rust-doc/conformal_component",
   },
-  ts: "TypeScript APIs (coming soon!)",
+  ts: {
+    title: "TypeScript API",
+    href: "/ts-doc",
+  },
   scripts: "@conformal/scripts",
 };

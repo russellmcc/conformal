@@ -20,7 +20,8 @@
     "tmp-promise": "catalog:",
     "zod": "catalog:",
     "bun-plugin-dts": "catalog:",
-    "bun-plugin-react-compiler": "catalog:"
+    "bun-plugin-react-compiler": "catalog:",
+    "typedoc": "catalog:"
   },
   "devDependencies": {
     "@morlay/bunpublish": "catalog:",

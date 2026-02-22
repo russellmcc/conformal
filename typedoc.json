@@ -1,0 +1,11 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["web/plugin"],
+  "entryPointStrategy": "packages",
+  "alwaysCreateEntryPointModule": true,
+  "name": "Conformal TypeScript API",
+  "out": "ts-doc",
+  "readme": "none",
+  "customCss": "web/docs/ts-doc.css",
+  "hideGenerator": true
+}

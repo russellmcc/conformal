@@ -1,4 +1,5 @@
 /target
+/ts-doc
 .DS_Store
 node_modules
 /.env
