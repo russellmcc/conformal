@@ -641,7 +641,7 @@ fn deserialize_state(mut read: StreamRead<'_>) -> Option<SerializedState> {
             ui_size_override: v1.ui_size_override,
         })
     } else {
-        // In this case, we just read the whole stream as the ui_state
+        read.seek_to_start().ok()?;
         let mut ui_state = Vec::new();
         read.read_to_end(&mut ui_state).ok()?;
         Some(SerializedState {
@@ -1470,6 +1470,7 @@ mod tests {
 
     use super::GetStore;
     use crate::fake_ibstream::Stream;
+    use crate::io::StreamRead;
     use crate::parameters::{
         AFTERTOUCH_PARAMETER, EXPRESSION_PEDAL_PARAMETER, MOD_WHEEL_PARAMETER,
         PITCH_BEND_PARAMETER, SUSTAIN_PARAMETER,
@@ -1490,6 +1491,8 @@ mod tests {
     };
     use conformal_core::parameters::store;
     use conformal_core::parameters::store::Store;
+    use serde::Serialize;
+    use crate::view::LogicalSize;
 
     #[derive(Default)]
     struct DummyComponent {}
@@ -2272,6 +2275,70 @@ mod tests {
             unsafe { ec.setComponentState(std::ptr::null_mut()) },
             vst3::Steinberg::kResultOk
         );
+    }
+
+    #[test]
+    fn deserialize_state_pre_v1_raw_bytes() {
+        let stream = ComWrapper::new(Stream::new([1_u8, 2, 3]));
+        let com_ref = stream
+            .as_com_ref::<vst3::Steinberg::IBStream>()
+            .unwrap();
+        let state = super::deserialize_state(StreamRead::new(com_ref));
+        let state = state.expect("pre-v1 should deserialize");
+        assert_eq!(state.ui_state, vec![1, 2, 3]);
+        assert!(state.ui_size_override.is_none());
+    }
+
+    #[test]
+    fn deserialize_state_v1_without_logical_size() {
+        let v1_bytes = {
+            let mut buf = Vec::new();
+            (super::SerializedStateV1Ref {
+                magic: super::MAGIC,
+                ui_state: &[1, 2, 3],
+                ui_size_override: None,
+            })
+            .serialize(&mut rmp_serde::Serializer::new(&mut buf).with_struct_map())
+            .unwrap();
+            buf
+        };
+        let stream = ComWrapper::new(Stream::new(v1_bytes));
+        let com_ref = stream
+            .as_com_ref::<vst3::Steinberg::IBStream>()
+            .unwrap();
+        let state = super::deserialize_state(StreamRead::new(com_ref));
+        let state = state.expect("v1 without size should deserialize");
+        assert_eq!(state.ui_state, vec![1, 2, 3]);
+        assert!(state.ui_size_override.is_none());
+    }
+
+    #[test]
+    fn deserialize_state_v1_with_logical_size() {
+        let size = LogicalSize {
+            width: 100.0,
+            height: 200.0,
+        };
+        let v1_bytes = {
+            let mut buf = Vec::new();
+            (super::SerializedStateV1Ref {
+                magic: super::MAGIC,
+                ui_state: &[4, 5, 6],
+                ui_size_override: Some(size),
+            })
+            .serialize(&mut rmp_serde::Serializer::new(&mut buf).with_struct_map())
+            .unwrap();
+            buf
+        };
+        let stream = ComWrapper::new(Stream::new(v1_bytes));
+        let com_ref = stream
+            .as_com_ref::<vst3::Steinberg::IBStream>()
+            .unwrap();
+        let state = super::deserialize_state(StreamRead::new(com_ref));
+        let state = state.expect("v1 with size should deserialize");
+        assert_eq!(state.ui_state, vec![4, 5, 6]);
+        let got = state.ui_size_override.expect("expected Some(size)");
+        assert_eq!(got.width, size.width);
+        assert_eq!(got.height, size.height);
     }
 
     #[test]
