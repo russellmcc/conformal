@@ -211,11 +211,17 @@ More info [here](https://developer.apple.com/documentation/security/notarizing_m
       const rsrcPath = join(tmpDir, "installer_resources");
       await runShell(["mkdir", "-p", rsrcPath]);
       const licenseTmpPath = join(tmpDir, "license_temp");
+
+      // Make sure we have all dependencies downloaded.
+      await runShell(["cargo", "fetch"]);
+      // Generate the about file. Using frozen mode will prevent us from querying
+      // any flaky APIs such as clearlydefined.
       await pipeShell(
         [
           "cargo",
           "about",
           "generate",
+          "--frozen",
           "-m",
           `${rustPackagePath}/Cargo.toml`,
           `${rustPackagePath}/about.hbs`,

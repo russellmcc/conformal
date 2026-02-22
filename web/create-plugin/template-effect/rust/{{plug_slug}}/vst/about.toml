@@ -9,3 +9,4 @@ accepted = [
     "Zlib",
 ]
 ignore-dev-dependencies = true
+private = { ignore = true }
