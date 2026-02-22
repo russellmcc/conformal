@@ -2,6 +2,16 @@ import { Atom, WritableAtom, atom } from "jotai";
 import { Response, Transport, Value } from "./protocol";
 import { atomFamily } from "jotai-family";
 
+/**
+ * Represents a [jotai](https://jotai.org) atom family of a specific type.
+ *
+ * See [jotai docs](https://jotai.org/docs/utilities/family) for more on atom
+ * families, but the TLDR is that they are a function that gets a jotai family
+ * by a path.
+ *
+ * @param path - The path of the value to look up. See {@link @conformal/plugin! | module docs} for more.
+ * @typeParam T - The type of the value stored in the atom family.
+ */
 export type Family<T> = (
   path: string,
 ) => WritableAtom<Promise<T> | T, [T], void>;

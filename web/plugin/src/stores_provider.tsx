@@ -10,14 +10,15 @@ const stores = wryTransport
   ? storesWithTransport(msgpackTransport(wryTransport))
   : undefined;
 
-export const Provider = ({
-  mockInfos,
-  children,
-}: {
-  mockInfos: Map<string, Info>;
+export type ProviderProps = {
+  mockInfos?: Map<string, Info>;
   children: ReactNode;
-}) => (
-  <Context.Provider value={stores ?? mockStore(mockInfos)}>
+};
+
+export const Provider = ({ mockInfos, children }: ProviderProps) => (
+  <Context.Provider
+    value={stores ?? mockStore(mockInfos ?? new Map<string, Info>())}
+  >
     {children}
   </Context.Provider>
 );

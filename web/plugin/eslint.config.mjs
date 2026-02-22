@@ -12,4 +12,10 @@ export default defineConfig([
       },
     },
   },
+  {
+    files: ["examples/**/*.ts", "examples/**/*.tsx"],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
 ]);
