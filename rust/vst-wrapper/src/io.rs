@@ -3,6 +3,8 @@ use vst3::{
     Steinberg::{IBStream, IBStream_::IStreamSeekMode_::kIBSeekSet, IBStreamTrait},
 };
 
+use crate::enum_to_i32;
+
 pub struct StreamWrite<'a> {
     buffer: ComRef<'a, IBStream>,
 }
@@ -48,7 +50,9 @@ impl<'a> StreamRead<'a> {
 
     pub fn seek_to_start(&self) -> std::io::Result<()> {
         unsafe {
-            let result = self.buffer.seek(0, kIBSeekSet as i32, std::ptr::null_mut());
+            let result =
+                self.buffer
+                    .seek(0, enum_to_i32(kIBSeekSet).unwrap(), std::ptr::null_mut());
             if result == vst3::Steinberg::kResultOk {
                 Ok(())
             } else {
