@@ -10,6 +10,7 @@ use crate::{
         MOD_WHEEL_PARAMETER, PITCH_BEND_PARAMETER, SUSTAIN_PARAMETER, TIMBRE_PARAMETER,
     },
     u32_to_enum,
+    view::{LogicalSize, SizePersistance},
 };
 use std::{
     cell::RefCell,
@@ -92,6 +93,8 @@ struct ParameterStore {
     component_handler: Option<ComPtr<IComponentHandler>>,
 
     ui_state: Vec<u8>,
+
+    ui_size: LogicalSize,
 
     // Note that unsized weak types can't dangle, so we use Option here to allow dangling.
     listener: Option<rc::Weak<dyn store::Listener>>,
@@ -414,6 +417,15 @@ impl store::Store for SharedStore {
     }
 }
 
+impl SizePersistance for SharedStore {
+    fn set_size(&mut self, size: LogicalSize) {
+        self.store.borrow_mut().ui_size = size;
+    }
+    fn get_size(&self) -> LogicalSize {
+        self.store.borrow().ui_size.clone()
+    }
+}
+
 /// For testing only.
 #[cfg(test)]
 trait GetStore {
@@ -519,6 +531,7 @@ impl IPluginBaseTrait for EditController {
                         .collect(),
                         component_handler: Default::default(),
                         ui_state: Default::default(),
+                        ui_size: self.ui_initial_size.into(),
                         listener: Default::default(),
                     }))},
                     parameter_model,
@@ -1058,13 +1071,8 @@ impl IEditControllerTrait for EditController {
                 && let State::Initialized(Initialized { store, .. }) =
                     self.s.borrow().as_ref().unwrap()
             {
-                return view::create(
-                    store.clone(),
-                    get_pref_domain(),
-                    self.ui_initial_size,
-                    self.resizability,
-                )
-                .into_raw();
+                return view::create(store.clone(), get_pref_domain(), self.resizability)
+                    .into_raw();
             }
             std::ptr::null_mut()
         }

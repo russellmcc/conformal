@@ -22,6 +22,13 @@ impl<S> Clone for SharedStore<S> {
     }
 }
 
+/// Unscaled size of the UI in logical pixels.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LogicalSize {
+    pub width: f32,
+    pub height: f32,
+}
+
 fn from_vst3_size(size: vst3::Steinberg::ViewRect) -> Size {
     Size {
         width: size.right - size.left,
@@ -29,18 +36,45 @@ fn from_vst3_size(size: vst3::Steinberg::ViewRect) -> Size {
     }
 }
 
-fn scale_size(size: Size, scale_factor: f32) -> Size {
-    Size {
-        width: (size.width as f32 * scale_factor).round() as i32,
-        height: (size.height as f32 * scale_factor).round() as i32,
+fn scale_size(size: LogicalSize, scale_factor: f32) -> LogicalSize {
+    LogicalSize {
+        width: (size.width * scale_factor),
+        height: (size.height * scale_factor),
     }
 }
 
-fn unscale_size(size: Size, scale_factor: f32) -> Size {
-    Size {
-        width: (size.width as f32 / scale_factor).round() as i32,
-        height: (size.height as f32 / scale_factor).round() as i32,
+impl From<LogicalSize> for Size {
+    fn from(size: LogicalSize) -> Self {
+        Size {
+            width: size.width.round() as i32,
+            height: size.height.round() as i32,
+        }
     }
+}
+
+impl From<Size> for LogicalSize {
+    fn from(size: Size) -> Self {
+        LogicalSize {
+            width: size.width as f32,
+            height: size.height as f32,
+        }
+    }
+}
+
+fn unscale_size(size: Size, scale_factor: f32) -> LogicalSize {
+    LogicalSize {
+        width: (size.width as f32 / scale_factor),
+        height: (size.height as f32 / scale_factor),
+    }
+}
+
+/// Trait representing persistent storage for the current size of the UI.
+///
+/// Note that this is a persistance layer but NOT a reactivity layer -
+/// while a view is active, it is the source of truth for the size.
+pub trait SizePersistance {
+    fn set_size(&mut self, size: LogicalSize);
+    fn get_size(&self) -> LogicalSize;
 }
 
 struct View<S> {
@@ -126,18 +160,28 @@ impl<S: store::Store> conformal_ui::ParameterStore for SharedStore<S> {
     }
 }
 
-pub fn create<S: store::Store + 'static>(
+impl<S: SizePersistance> SizePersistance for SharedStore<S> {
+    fn set_size(&mut self, size: LogicalSize) {
+        self.0.borrow_mut().set_size(size);
+    }
+
+    fn get_size(&self) -> LogicalSize {
+        self.0.borrow().get_size()
+    }
+}
+
+pub fn create<S: store::Store + SizePersistance + 'static>(
     store: S,
     domain: String,
-    initial_size: Size,
     resizability: Resizability,
 ) -> ComPtr<IPlugView> {
+    let initial_size = store.get_size();
     let view = SharedView(rc::Rc::new(ViewCell(RefCell::new(View {
         store: SharedStore(rc::Rc::new(RefCell::new(store))),
         ui: Default::default(),
         domain,
         resizability,
-        current_size: initial_size,
+        current_size: initial_size.into(),
         scale_factor: 1.0,
         frame: None,
         plug_view_ptr: std::ptr::null_mut(),
@@ -241,7 +285,7 @@ fn get_rsrc_root_or_panic() -> std::path::PathBuf {
     resources_path
 }
 
-impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
+impl<S: store::Store + SizePersistance + 'static> IPlugViewTrait for SharedView<S> {
     unsafe fn isPlatformTypeSupported(
         &self,
         platform_type: vst3::Steinberg::FIDString,
@@ -337,11 +381,16 @@ impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
         // Also alert our web UI that the size has changed.
         if let Some(ui) = self.borrow_mut().ui.as_mut()
             && ui
-                .set_size(unscale_size(scaled_new_size, scale_factor))
+                .set_size(unscale_size(scaled_new_size, scale_factor).into())
                 .is_err()
         {
             return vst3::Steinberg::kInternalError;
         }
+
+        // Also alert our size persistance layer that the size has changed.
+        self.borrow_mut()
+            .store
+            .set_size(unscale_size(scaled_new_size, scale_factor).into());
 
         vst3::Steinberg::kResultOk
     }
@@ -380,7 +429,8 @@ impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
                 let scaled_new_size = from_vst3_size(unsafe { *new_scaled_size_ptr });
 
                 if let Some(unscaled_ui_min_size) = ui_min_size {
-                    let scaled_ui_min_size = scale_size(unscaled_ui_min_size, scale);
+                    let scaled_ui_min_size: Size =
+                        scale_size(unscaled_ui_min_size.into(), scale).into();
                     if scaled_new_size.width < scaled_ui_min_size.width {
                         unsafe {
                             (*new_scaled_size_ptr).right =
@@ -395,7 +445,8 @@ impl<S: store::Store + 'static> IPlugViewTrait for SharedView<S> {
                     }
                 }
                 if let Some(unscaled_ui_max_size) = ui_max_size {
-                    let scaled_ui_max_size = scale_size(unscaled_ui_max_size, scale);
+                    let scaled_ui_max_size: Size =
+                        scale_size(unscaled_ui_max_size.into(), scale).into();
                     if scaled_new_size.width > scaled_ui_max_size.width {
                         unsafe {
                             (*new_scaled_size_ptr).right =
@@ -422,7 +473,7 @@ impl<S: store::Store + 'static> IPlugViewContentScaleSupportTrait for SharedView
         {
             self.borrow_mut().scale_factor = factor;
         }
-        let new_scaled_size = scale_size(unscaled_size, factor);
+        let new_scaled_size: Size = scale_size(unscaled_size, factor).into();
         let frame = self.borrow().frame.clone();
         let plug_view_ptr = self.borrow().plug_view_ptr;
         if let Some(frame) = frame {
@@ -449,7 +500,7 @@ mod tests {
 
     use crate::Resizability;
 
-    use super::create;
+    use super::{LogicalSize, SizePersistance, create};
     use conformal_component::parameters;
     use conformal_core::parameters::store;
     struct DummyStore;
@@ -488,17 +539,19 @@ mod tests {
         }
     }
 
+    impl SizePersistance for DummyStore {
+        fn set_size(&mut self, _size: LogicalSize) {}
+        fn get_size(&self) -> LogicalSize {
+            LogicalSize {
+                width: 100.0,
+                height: 100.0,
+            }
+        }
+    }
+
     #[test]
     fn nsview_platform_supported() {
-        let v = create(
-            DummyStore {},
-            "test".to_string(),
-            conformal_ui::Size {
-                width: 100,
-                height: 100,
-            },
-            Resizability::FixedSize,
-        );
+        let v = create(DummyStore {}, "test".to_string(), Resizability::FixedSize);
         let nsview = std::ffi::CString::new("NSView").unwrap();
         unsafe {
             assert_eq!(
@@ -510,15 +563,7 @@ mod tests {
 
     #[test]
     fn bananas_platform_not_supported() {
-        let v = create(
-            DummyStore {},
-            "test".to_string(),
-            conformal_ui::Size {
-                width: 100,
-                height: 100,
-            },
-            Resizability::FixedSize,
-        );
+        let v = create(DummyStore {}, "test".to_string(), Resizability::FixedSize);
         // Maybe some day, we will support bananas...
         let nsview = std::ffi::CString::new("Bananas").unwrap();
         unsafe {
@@ -531,15 +576,7 @@ mod tests {
 
     #[test]
     fn defends_against_null_parent() {
-        let v = create(
-            DummyStore {},
-            "test".to_string(),
-            conformal_ui::Size {
-                width: 100,
-                height: 100,
-            },
-            Resizability::FixedSize,
-        );
+        let v = create(DummyStore {}, "test".to_string(), Resizability::FixedSize);
         let nsview = std::ffi::CString::new("NSView").unwrap();
         assert_ne!(
             unsafe { v.attached(std::ptr::null_mut(), nsview.as_ptr()) },
