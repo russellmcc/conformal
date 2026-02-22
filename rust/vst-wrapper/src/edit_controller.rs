@@ -131,6 +131,7 @@ struct EditController {
     s: RefCell<Option<State>>,
     host: RefCell<Option<ComPtr<IHostApplication>>>,
     ui_initial_size: Size,
+    resizability: crate::Resizability,
     kind: Kind,
 }
 
@@ -139,12 +140,14 @@ fn create_internal(
     parameter_model: ParameterModel,
     pref_domain: String,
     ui_initial_size: Size,
+    resizability: crate::Resizability,
     kind: Kind,
 ) -> EditController {
     EditController {
         s: Some(State::ReadyForInitialization(parameter_model, pref_domain)).into(),
         host: Default::default(),
         ui_initial_size,
+        resizability,
         kind,
     }
 }
@@ -169,6 +172,7 @@ fn get_pref_domain() -> String {
 pub fn create(
     parameter_model: ParameterModel,
     ui_initial_size: Size,
+    resizability: crate::Resizability,
     kind: Kind,
 ) -> impl Class<
     Interfaces = (
@@ -185,7 +189,13 @@ pub fn create(
 + INoteExpressionControllerTrait
 + INoteExpressionPhysicalUIMappingTrait
 + 'static {
-    create_internal(parameter_model, get_pref_domain(), ui_initial_size, kind)
+    create_internal(
+        parameter_model,
+        get_pref_domain(),
+        ui_initial_size,
+        resizability,
+        kind,
+    )
 }
 
 fn get_default(info: &TypeSpecificInfo) -> parameters::InternalValue {
@@ -1590,6 +1600,7 @@ mod tests {
                 width: 0,
                 height: 0,
             },
+            crate::Resizability::FixedSize,
             super::Kind::Effect {
                 bypass_id: SWITCH_ID,
             },
@@ -2472,6 +2483,7 @@ mod tests {
                 width: 0,
                 height: 0,
             },
+            crate::Resizability::FixedSize,
             super::Kind::Synth(),
         );
         let host = ComWrapper::new(dummy_host::Host::default());
@@ -2835,6 +2847,7 @@ mod tests {
                 width: 0,
                 height: 0,
             },
+            crate::Resizability::FixedSize,
             super::Kind::Effect {
                 bypass_id: "missing",
             },
@@ -2855,6 +2868,7 @@ mod tests {
                 width: 0,
                 height: 0,
             },
+            crate::Resizability::FixedSize,
             super::Kind::Effect {
                 bypass_id: NUMERIC_ID,
             },
@@ -2883,6 +2897,7 @@ mod tests {
                 width: 0,
                 height: 0,
             },
+            crate::Resizability::FixedSize,
             super::Kind::Effect {
                 bypass_id: SWITCH_ID,
             },
@@ -2910,6 +2925,7 @@ mod tests {
                 width: 0,
                 height: 0,
             },
+            crate::Resizability::FixedSize,
             super::Kind::Effect {
                 bypass_id: SWITCH_ID,
             },
@@ -2962,6 +2978,7 @@ mod tests {
                 width: 0,
                 height: 0,
             },
+            crate::Resizability::FixedSize,
             super::Kind::Synth(),
         )
     }
@@ -3438,6 +3455,7 @@ mod tests {
                 width: 0,
                 height: 0,
             },
+            crate::Resizability::FixedSize,
             super::Kind::Effect {
                 bypass_id: SWITCH_ID,
             },
