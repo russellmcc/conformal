@@ -7,5 +7,9 @@
   "out": "ts-doc",
   "readme": "none",
   "customCss": "web/docs/ts-doc.css",
-  "hideGenerator": true
+  "plugin": ["typedoc-plugin-zod"],
+  "hideGenerator": true,
+  "packageOptions": {
+    "readme": "none"
+  }
 }
