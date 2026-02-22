@@ -1,5 +1,11 @@
 # @conformal/plugin
 
+## 0.5.1
+
+### Patch Changes
+
+- b729eed: Use jotai-family for family support
+
 ## 0.5.0
 
 ### Minor Changes
