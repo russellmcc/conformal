@@ -36,6 +36,7 @@ const DevModeToolsInternal = () => {
 /**
  * Component that displays developer tools if the `dev_mode` preference is enabled.
  *
+ * @group Components
  */
 const DevModeTools = () => (
   <IgnoreErrorBoundary>

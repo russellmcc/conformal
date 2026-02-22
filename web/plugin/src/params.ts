@@ -14,9 +14,20 @@ type TypedInfo<T, I> = {
   atomGetter: (path: string) => [T, (v: T) => void];
 };
 
+/**
+ * @group Types
+ */
+export type Param<T, I> = {
+  info: I;
+  grab: () => void;
+  release: () => void;
+  value: T;
+  set: (v: T) => void;
+};
+
 const makeUseParam =
   <T, I>(typedInfo: TypedInfo<T, I>) =>
-  (param: string) => {
+  (param: string): Param<T, I> => {
     const info = typedInfo.infoTransformer(
       useExtended(`params-info/${param}`, infoExtended),
     );
@@ -25,7 +36,20 @@ const makeUseParam =
     return { info, grab, release, value, set };
   };
 
-export const useNumericParam = makeUseParam({
+/**
+ * @group Types
+ */
+export type NumericParamInfo = {
+  title: string;
+  default: number;
+  valid_range: readonly [number, number];
+  units: string;
+};
+
+/**
+ * @group Hooks
+ */
+export const useNumericParam = makeUseParam<number, NumericParamInfo>({
   infoTransformer: (info) => {
     if (info.type_specific.t === "numeric") {
       return {
@@ -41,7 +65,19 @@ export const useNumericParam = makeUseParam({
   atomGetter: useNumericAtom,
 });
 
-export const useEnumParam = makeUseParam({
+/**
+ * @group Types
+ */
+export type EnumParamInfo = {
+  title: string;
+  default: string;
+  values: readonly string[];
+};
+
+/**
+ * @group Hooks
+ */
+export const useEnumParam = makeUseParam<string, EnumParamInfo>({
   infoTransformer: (info) => {
     if (info.type_specific.t === "enum") {
       return {
@@ -56,7 +92,18 @@ export const useEnumParam = makeUseParam({
   atomGetter: useStringAtom,
 });
 
-export const useSwitchParam = makeUseParam({
+/**
+ * @group Types
+ */
+export type SwitchParamInfo = {
+  title: string;
+  default: boolean;
+};
+
+/**
+ * @group Hooks
+ */
+export const useSwitchParam = makeUseParam<boolean, SwitchParamInfo>({
   infoTransformer: (info) => {
     if (info.type_specific.t === "switch") {
       return {

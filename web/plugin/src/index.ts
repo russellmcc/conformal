@@ -32,7 +32,7 @@
  *
  * Conformal UI can store custom state unrelated to parameters that will persist
  * in the DAW save file. This allows you to retain UI state in the file.
- * The entry point for this is the {@link useUiStateAtom} hook, please
+ * The entry point for this is the {@link useUiState} hook, please
  * see the docs there.
  *
  * ## DevModeTools
@@ -56,8 +56,19 @@
 
 export type { Info } from "./protocol/param_info";
 export { default as Provider, type ProviderProps } from "./stores_provider";
-export { useEnumParam, useNumericParam, useSwitchParam } from "./params";
+export {
+  useEnumParam,
+  type EnumParamInfo,
+  useNumericParam,
+  type NumericParamInfo,
+  useSwitchParam,
+  type SwitchParamInfo,
+  type Param,
+} from "./params";
 export { default as DevModeTools } from "./DevModeTools";
 export { useUiState, codecFromZod } from "./ui_state";
 export type { Codec } from "./ui_state";
-export { UiStateProvider } from "./ui_state_provider";
+export {
+  UiStateProvider,
+  type UiStateProviderProps,
+} from "./ui_state_provider";

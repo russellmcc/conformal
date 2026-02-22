@@ -18,6 +18,10 @@ export type ProviderProps = {
   children: ReactNode;
 };
 
+/**
+ *
+ * @group Components
+ */
 export const Provider = ({ mockInfos, children }: ProviderProps) => (
   <Context.Provider
     value={stores ?? mockStore(mockInfos ?? new Map<string, Info>())}

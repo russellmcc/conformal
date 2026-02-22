@@ -4,19 +4,26 @@ import { useStores } from "./stores_react";
 import { ReactNode } from "react";
 
 /**
+ * @group Component Props
+ */
+export type UiStateProviderProps<T> = {
+  codec: Codec<T>;
+  children: ReactNode;
+};
+
+/**
  * Provides the ui state to the component tree.
  *
  * Use the `useUiStateAtom` hook to get the atom for the ui state.
  *
  * Note that this requires a `Provider` to be present to use the store.
+ *
+ * @group Components
  */
 export const UiStateProvider = <T,>({
   codec,
   children,
-}: {
-  codec: Codec<T>;
-  children: ReactNode;
-}) => {
+}: UiStateProviderProps<T>) => {
   const rawState = useStores().bytes("ui-state");
   const stateAtom = atom(
     (get) => {

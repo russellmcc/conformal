@@ -2,6 +2,14 @@
   display: none !important;
 }
 
+:root {
+  --dim-footer-height: 0rem;
+}
+
+.container-main {
+  margin-bottom: 0 !important;
+}
+
 footer {
   display: none !important;
 }
@@ -19,9 +27,13 @@ footer {
 }
 
 .site-menu {
-  max-height: calc(100vh - 72px) !important;
+  max-height: calc(
+    100vh - var(--dim-header-height) - var(--dim-container-main-margin-y)
+  ) !important;
 }
 
 .page-menu {
-  max-height: calc(100vh - 72px) !important;
+  max-height: calc(
+    100vh - var(--dim-header-height) - var(--dim-container-main-margin-y)
+  ) !important;
 }

@@ -3,13 +3,20 @@ import { createContext, useContext } from "react";
 import { z } from "zod";
 import { decode, encode } from "@msgpack/msgpack";
 
+/**
+ * A `Codec` for a type `T` defines how to serialize and deserialize
+ * the value to and from a binary format.
+ *
+ * @typeParam T - The type of the value to encode and decode.
+ * @group Types
+ */
 export type Codec<T> = {
-  /*
+  /**
    * Encode a value into a binary format.
    */
   encode: (value: T) => Uint8Array;
 
-  /*
+  /**
    * Decode a value from a binary format.
    *
    * Should throw an error if the value is not deserializable.
@@ -43,6 +50,9 @@ const useUiStateAtom = <T>(): WritableAtom<
   return state.atom;
 };
 
+/**
+ * @group Hooks
+ */
 export const useUiState = <T>(): {
   value: T | undefined;
   set: (update: T) => void;

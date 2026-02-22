@@ -23,4 +23,7 @@ export const InfoSchema = z.object({
   title: z.string(),
   type_specific: TypeSpecific,
 });
+/**
+ * @group Types
+ */
 export type Info = z.infer<typeof InfoSchema>;
