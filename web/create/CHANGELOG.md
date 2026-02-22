@@ -1,5 +1,24 @@
 # create-conformal
 
+## 0.12.0
+
+### Minor Changes
+
+- b729eed: Add vendor to bundle.json
+- 4446ab2: MSRV 1.93.1
+
+### Patch Changes
+
+- 58150bb: Support building windows installer in github workflow
+- d15c573: add \_ to unused var patterns in eslint defaults
+- 77adb9c: Hook up dev-mode script
+- Updated dependencies [b729eed]
+- Updated dependencies [77adb9c]
+- Updated dependencies [b729eed]
+- Updated dependencies [b078959]
+  - @conformal/create-plugin@0.12.0
+  - @conformal/stamp@0.5.0
+
 ## 0.11.0
 
 ### Minor Changes

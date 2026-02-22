@@ -1,5 +1,11 @@
 # @conformal/stamp
 
+## 0.5.0
+
+### Minor Changes
+
+- b729eed: support stamping templates on windows
+
 ## 0.4.1
 
 ### Patch Changes
