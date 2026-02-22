@@ -396,8 +396,8 @@ impl<S: store::Store + SizePersistance + 'static> IPlugViewTrait for SharedView<
 
         // Special case, if this is simply the result of a scale factor change, we do need to
         // update our internal scaled size, even if we're not resizable.
-        if let Some(pending_scale_factor_change_size) =
-            self.borrow().pending_scale_factor_change_size
+        let pending_scale_factor_change_size = self.borrow().pending_scale_factor_change_size;
+        if let Some(pending_scale_factor_change_size) = pending_scale_factor_change_size
             && pending_scale_factor_change_size.width == scaled_new_size.width
             && pending_scale_factor_change_size.height == scaled_new_size.height
         {
@@ -508,14 +508,15 @@ impl<S: store::Store + SizePersistance + 'static> IPlugViewTrait for SharedView<
 
 impl<S: store::Store + 'static> IPlugViewContentScaleSupportTrait for SharedView<S> {
     unsafe fn setContentScaleFactor(&self, factor: ScaleFactor) -> vst3::Steinberg::tresult {
+        println!("setting content scale factor");
         let old_scale_factor = self.borrow().scale_factor;
         let unscaled_size = unscale_size(self.borrow().current_size, old_scale_factor);
         self.borrow_mut().scale_factor = factor;
         let new_scaled_size = round_size(scale_size(unscaled_size, factor));
         let frame = self.borrow().frame.clone();
         let plug_view_ptr = self.borrow().plug_view_ptr;
+        self.borrow_mut().pending_scale_factor_change_size = Some(new_scaled_size);
         if let Some(frame) = frame {
-            self.borrow_mut().pending_scale_factor_change_size = Some(new_scaled_size);
             let mut new_rect = vst3::Steinberg::ViewRect {
                 top: 0,
                 left: 0,
@@ -535,7 +536,10 @@ impl<S> Class for SharedView<S> {
 // Only include tests in test config on macos
 #[cfg(all(test, target_os = "macos"))]
 mod tests {
-    use vst3::Steinberg::IPlugViewTrait;
+    use vst3::Steinberg::{
+        IPlugViewContentScaleSupport_::ScaleFactor, IPlugViewContentScaleSupportTrait,
+        IPlugViewTrait,
+    };
 
     use crate::Resizability;
 
@@ -621,5 +625,62 @@ mod tests {
             unsafe { v.attached(std::ptr::null_mut(), nsview.as_ptr()) },
             vst3::Steinberg::kResultOk
         );
+    }
+
+    #[test]
+    fn set_content_scale_factor_then_on_size_succeeds() {
+        let view = create(DummyStore {}, "test".to_string(), Resizability::FixedSize);
+        let scale_support = view
+            .cast::<vst3::Steinberg::IPlugViewContentScaleSupport>()
+            .unwrap();
+        unsafe {
+            assert_eq!(
+                scale_support
+                    .as_com_ref()
+                    .setContentScaleFactor(2.0f32 as ScaleFactor),
+                vst3::Steinberg::kResultOk
+            );
+        }
+        {
+            let mut get_before_size = vst3::Steinberg::ViewRect {
+                left: 0,
+                top: 0,
+                right: 0,
+                bottom: 0,
+            };
+            unsafe {
+                assert_eq!(
+                    view.getSize(&raw mut get_before_size),
+                    vst3::Steinberg::kResultOk
+                );
+            }
+            assert_eq!(get_before_size.right, 100);
+            assert_eq!(get_before_size.bottom, 100);
+        }
+        let mut rect = vst3::Steinberg::ViewRect {
+            left: 0,
+            top: 0,
+            right: 200,
+            bottom: 200,
+        };
+        unsafe {
+            assert_eq!(view.onSize(&raw mut rect), vst3::Steinberg::kResultOk);
+        }
+        {
+            let mut get_after_size = vst3::Steinberg::ViewRect {
+                left: 0,
+                top: 0,
+                right: 0,
+                bottom: 0,
+            };
+            unsafe {
+                assert_eq!(
+                    view.getSize(&raw mut get_after_size),
+                    vst3::Steinberg::kResultOk
+                );
+            }
+            assert_eq!(get_after_size.right, 200);
+            assert_eq!(get_after_size.bottom, 200);
+        }
     }
 }
