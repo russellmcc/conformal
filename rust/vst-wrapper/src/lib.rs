@@ -81,12 +81,12 @@ pub struct ClassInfoBuilder<'a> {
 }
 
 /// Options for components with resizable UI
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct ResizingOptions {
     /// Minimum size of UI, if any
-    ui_min_size: Option<UiSize>,
+    pub ui_min_size: Option<UiSize>,
     /// Maximum size of UI, if any
-    ui_max_size: Option<UiSize>,
+    pub ui_max_size: Option<UiSize>,
 }
 
 impl<'a> ClassInfoBuilder<'a> {
@@ -109,7 +109,9 @@ impl<'a> ClassInfoBuilder<'a> {
         }
     }
 
-    /// Set the resizability of the component
+    /// Make the component resizeable with optional min and max sizes.
+    ///
+    /// If you don't provide min or max sizes, there will be no size constraints.
     #[must_use]
     pub const fn resizable(self, options: ResizingOptions) -> Self {
         Self {
@@ -124,6 +126,10 @@ impl<'a> ClassInfoBuilder<'a> {
     }
 
     /// Build the `ClassInfo`
+    ///
+    /// # Panics
+    ///
+    /// If the initial size is not within the min and max size bounds or the min size is greater than the max size in either dimension.
     #[must_use]
     pub const fn build(self) -> ClassInfo<'a> {
         self.info

@@ -1058,8 +1058,13 @@ impl IEditControllerTrait for EditController {
                 && let State::Initialized(Initialized { store, .. }) =
                     self.s.borrow().as_ref().unwrap()
             {
-                return view::create(store.clone(), get_pref_domain(), self.ui_initial_size)
-                    .into_raw();
+                return view::create(
+                    store.clone(),
+                    get_pref_domain(),
+                    self.ui_initial_size,
+                    self.resizability,
+                )
+                .into_raw();
             }
             std::ptr::null_mut()
         }
