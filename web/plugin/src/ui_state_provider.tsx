@@ -4,19 +4,36 @@ import { useStores } from "./stores_react";
 import { ReactNode } from "react";
 
 /**
+ * Props for the {@link UiStateProvider} component.
+ *
+ * @typeParam T - The type of the ui state.
+ * @group Component Props
+ */
+export type UiStateProviderProps<T> = {
+  /** The codec to use to encode and decode the ui state */
+  codec: Codec<T>;
+  /** @hidden */
+  children: ReactNode;
+};
+
+/**
  * Provides the ui state to the component tree.
  *
- * Use the `useUiStateAtom` hook to get the atom for the ui state.
+ * Use the {@link useUiState} hook to get and set the UI State.
  *
- * Note that this requires a `Provider` to be present to use the store.
+ * UI State is arbitrary data managed by the react UI that is not connected
+ * to any plug-in parameters. This data is saved in the DAW alongside the plug-in,
+ * and persists between DAW sessions.
+ *
+ * Note that this requires a {@link Provider} to be present to use the store.
+ *
+ * @typeParam T - The type of the ui state.
+ * @group Components
  */
 export const UiStateProvider = <T,>({
   codec,
   children,
-}: {
-  codec: Codec<T>;
-  children: ReactNode;
-}) => {
+}: UiStateProviderProps<T>) => {
   const rawState = useStores().bytes("ui-state");
   const stateAtom = atom(
     (get) => {

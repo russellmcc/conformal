@@ -1,7 +1,10 @@
+[changes]
+ignore_conventional_commits = true
+
 [packages.conformal_vst_wrapper]
 versioned_files = ["rust/vst-wrapper/Cargo.toml", "Cargo.lock"]
-scopes = ["conformal_vst_wrapper"]
 changelog = "rust/vst-wrapper/CHANGELOG.md"
+scopes = ["conformal_vst_wrapper"]
 
 [packages.conformal_preferences]
 versioned_files = [
@@ -9,8 +12,8 @@ versioned_files = [
     { path = "Cargo.toml", dependency = "conformal_preferences" },
     "Cargo.lock"
 ]
-scopes = ["conformal_preferences"]
 changelog = "rust/preferences/CHANGELOG.md"
+scopes = ["conformal_preferences"]
 
 [packages.conformal_component]
 versioned_files = [
@@ -18,8 +21,8 @@ versioned_files = [
     "rust/component/Cargo.toml",
     "Cargo.lock"
 ]
-scopes = ["conformal_component"]
 changelog = "rust/component/CHANGELOG.md"
+scopes = ["conformal_component"]
 
 [packages.conformal_ui]
 versioned_files = [
@@ -27,8 +30,8 @@ versioned_files = [
     "rust/ui/Cargo.toml",
     "Cargo.lock"
 ]
-scopes = ["conformal_ui"]
 changelog = "rust/ui/CHANGELOG.md"
+scopes = ["conformal_ui"]
 
 [packages.conformal_core]
 versioned_files = [
@@ -36,20 +39,19 @@ versioned_files = [
     "rust/core/Cargo.toml",
     "Cargo.lock"
 ]
-scopes = ["conformal_core"]
 changelog = "rust/core/CHANGELOG.md"
+scopes = ["conformal_core"]
 
 [packages.conformal_poly]
 versioned_files = ["rust/poly/Cargo.toml", "Cargo.lock"]
-scopes = ["conformal_poly"]
 changelog = "rust/poly/CHANGELOG.md"
+scopes = ["conformal_poly"]
 
 [[workflows]]
 name = "prepare-release"
 
 [[workflows.steps]]
 type = "PrepareRelease"
-ignore_conventional_commits = true
 allow_empty = true
 
 [[workflows]]

@@ -1,26 +1,36 @@
 import { z } from "zod";
 
-export const TypeSpecific = z.union([
-  z.object({
-    t: z.literal("numeric"),
-    default: z.number(),
-    valid_range: z.tuple([z.number(), z.number()]).readonly(),
-    units: z.string(),
-  }),
-  z.object({
-    t: z.literal("enum"),
-    default: z.string(),
-    values: z.array(z.string()).readonly(),
-  }),
-  z.object({
-    t: z.literal("switch"),
-    default: z.boolean(),
-  }),
-]);
-export type TypeSpecific = z.infer<typeof TypeSpecific>;
-
-export const Info = z.object({
+export const InfoSchema = z.object({
+  /** The title of the parameter */
   title: z.string(),
-  type_specific: TypeSpecific,
+  /** Information that depends on the type of the parameter */
+  type_specific: z.union([
+    z.object({
+      t: z.literal("numeric"),
+      /** The default value of the parameter */
+      default: z.number(),
+      /** The valid range of the parameter */
+      valid_range: z.tuple([z.number(), z.number()]).readonly(),
+      /** The units of the parameter */
+      units: z.string(),
+    }),
+    z.object({
+      t: z.literal("enum"),
+      /** The default value of the parameter */
+      default: z.string(),
+      /** The values of the parameter */
+      values: z.array(z.string()).readonly(),
+    }),
+    z.object({
+      t: z.literal("switch"),
+      /** The default value of the parameter */
+      default: z.boolean(),
+    }),
+  ]),
 });
-export type Info = z.infer<typeof Info>;
+/**
+ * Information about a parameter.
+ *
+ * @group Types
+ */
+export type Info = z.infer<typeof InfoSchema>;

@@ -10,14 +10,27 @@ const stores = wryTransport
   ? storesWithTransport(msgpackTransport(wryTransport))
   : undefined;
 
-export const Provider = ({
-  mockInfos,
-  children,
-}: {
-  mockInfos: Map<string, Info>;
+/**
+ * @group Component Props
+ */
+export type ProviderProps = {
+  /** Mock information about parameters. Setting this allows you to iterate on the UI without having to run the full plug-in. */
+  mockInfos?: Map<string, Info>;
+  /** @hidden */
   children: ReactNode;
-}) => (
-  <Context.Provider value={stores ?? mockStore(mockInfos)}>
+};
+
+/**
+ * Context provider for connection with the plug-in.
+ *
+ * This must wrap any react subtree that uses the hooks from this package.
+ *
+ * @group Components
+ */
+export const Provider = ({ mockInfos, children }: ProviderProps) => (
+  <Context.Provider
+    value={stores ?? mockStore(mockInfos ?? new Map<string, Info>())}
+  >
     {children}
   </Context.Provider>
 );

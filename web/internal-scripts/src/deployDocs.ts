@@ -17,6 +17,9 @@ export const deployDocs = async () => {
   --exclude conformal_core\
   --workspace`.cwd(workspacePath);
 
+  // Build the TypeScript documentation
+  await $`bun x typedoc`.cwd(workspacePath);
+
   // Clear the output directory
   await $`rm -rf ${outDir}`.cwd(workspacePath);
 
@@ -24,6 +27,7 @@ export const deployDocs = async () => {
   await $`mkdir -p ${outDir}`.cwd(workspacePath);
   await $`cp -r web/docs/out/* ${outDir}/`.cwd(workspacePath);
   await $`cp -r target/doc ${outDir}/rust-doc`.cwd(workspacePath);
+  await $`cp -r ts-doc ${outDir}/ts-doc`.cwd(workspacePath);
 };
 
 export const addDeployDocsCommand = (command: Command) =>

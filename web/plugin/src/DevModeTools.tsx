@@ -1,5 +1,5 @@
 import IgnoreErrorBoundary from "./IgnoreErrorBoundary";
-import { useBooleanAtom, useBooleanValue } from "@conformal/plugin";
+import { useBooleanAtom, useBooleanValue } from "./stores_react";
 
 const DevModeToolsInternal = () => {
   const isDevMode = useBooleanValue("prefs/dev_mode");
@@ -36,6 +36,9 @@ const DevModeToolsInternal = () => {
 /**
  * Component that displays developer tools if the `dev_mode` preference is enabled.
  *
+ * This includes for example, a toggle to render the UI embedded in the plug-in or the dev server UI.
+ *
+ * @group Components
  */
 const DevModeTools = () => (
   <IgnoreErrorBoundary>

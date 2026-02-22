@@ -1,0 +1,39 @@
+.tsd-kind-icon {
+  display: none !important;
+}
+
+:root {
+  --dim-footer-height: 0rem;
+}
+
+.container-main {
+  margin-bottom: 0 !important;
+}
+
+footer {
+  display: none !important;
+}
+
+.tsd-nested-navigation {
+  margin-left: 24px !important;
+}
+
+.tsd-page-navigation-section > summary {
+  padding-left: 0 !important;
+}
+
+.tsd-page-navigation-section > div {
+  margin-left: 24px !important;
+}
+
+.site-menu {
+  max-height: calc(
+    100vh - var(--dim-header-height) - var(--dim-container-main-margin-y)
+  ) !important;
+}
+
+.page-menu {
+  max-height: calc(
+    100vh - var(--dim-header-height) - var(--dim-container-main-margin-y)
+  ) !important;
+}

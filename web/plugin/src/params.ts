@@ -1,5 +1,5 @@
 import { decode } from "@msgpack/msgpack";
-import { Info } from "./protocol/param_info";
+import { InfoSchema, Info } from "./protocol/param_info";
 import {
   useBooleanAtom,
   useExtended,
@@ -8,15 +8,35 @@ import {
   useStringAtom,
 } from "./stores_react";
 
-const infoExtended = (b: Uint8Array) => Info.parse(decode(b));
+const infoExtended = (b: Uint8Array) => InfoSchema.parse(decode(b));
 type TypedInfo<T, I> = {
   infoTransformer: (info: Info) => I;
   atomGetter: (path: string) => [T, (v: T) => void];
 };
 
+/**
+ * Return value of parameter hooks.
+ *
+ * @typeParam T - The type of the parameter value.
+ * @typeParam I - The type of information about the parameter.
+ * @group Types
+ */
+export type Param<T, I> = {
+  /** Information about the parameter */
+  info: I;
+  /** Grab the parameter */
+  grab: () => void;
+  /** Release (un-grab)the parameter */
+  release: () => void;
+  /** The current value of the parameter */
+  value: T;
+  /** Set the value of the parameter */
+  set: (v: T) => void;
+};
+
 const makeUseParam =
   <T, I>(typedInfo: TypedInfo<T, I>) =>
-  (param: string) => {
+  (param: string): Param<T, I> => {
     const info = typedInfo.infoTransformer(
       useExtended(`params-info/${param}`, infoExtended),
     );
@@ -25,7 +45,29 @@ const makeUseParam =
     return { info, grab, release, value, set };
   };
 
-export const useNumericParam = makeUseParam({
+/**
+ * Information about a numeric parameter.
+ * @group Types
+ */
+export type NumericParamInfo = {
+  /** The title of the parameter */
+  title: string;
+  /** The default value of the parameter */
+  default: number;
+  /** The valid range of the parameter */
+  valid_range: readonly [number, number];
+  /** The units of the parameter */
+  units: string;
+};
+
+/**
+ * Hook to get a numeric parameter.
+ *
+ * {@includeCode ../examples/basic.tsx#hook-usage}
+ *
+ * @group Hooks
+ */
+export const useNumericParam = makeUseParam<number, NumericParamInfo>({
   infoTransformer: (info) => {
     if (info.type_specific.t === "numeric") {
       return {
@@ -41,7 +83,26 @@ export const useNumericParam = makeUseParam({
   atomGetter: useNumericAtom,
 });
 
-export const useEnumParam = makeUseParam({
+/**
+ * Information about an enum parameter.
+ *
+ * @group Types
+ */
+export type EnumParamInfo = {
+  /** The title of the parameter */
+  title: string;
+  /** The default value of the parameter */
+  default: string;
+  /** The values of the parameter */
+  values: readonly string[];
+};
+
+/**
+ * Hook to get an enum parameter.
+ *
+ * @group Hooks
+ */
+export const useEnumParam = makeUseParam<string, EnumParamInfo>({
   infoTransformer: (info) => {
     if (info.type_specific.t === "enum") {
       return {
@@ -56,7 +117,23 @@ export const useEnumParam = makeUseParam({
   atomGetter: useStringAtom,
 });
 
-export const useSwitchParam = makeUseParam({
+/**
+ * Information about a switch parameter.
+ * @group Types
+ */
+export type SwitchParamInfo = {
+  /** The title of the parameter */
+  title: string;
+  /** The default value of the parameter */
+  default: boolean;
+};
+
+/**
+ * Hook to get a switch parameter.
+ *
+ * @group Hooks
+ */
+export const useSwitchParam = makeUseParam<boolean, SwitchParamInfo>({
   infoTransformer: (info) => {
     if (info.type_specific.t === "switch") {
       return {
