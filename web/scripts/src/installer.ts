@@ -41,33 +41,38 @@ const getRustPackagePath = async (rustPackage: string) => {
 export const createInstaller = async ({
   packageRoot,
   bundleData,
+  adHocSign = false,
 }: {
   packageRoot: string;
   bundleData: BundleData;
+  adHocSign?: boolean;
 }) => {
   const rustPackagePath = await getRustPackagePath(bundleData.rustPackage);
   const bundlePath = `target/release/${bundleData.name}.vst3`;
 
-  const notaryToolKeychainPath = env.NOTARYTOOL_KEYCHAIN_PATH;
-
-  // Check required env variables ahead of time
-  const developerIdApplication = env.DEVELOPER_ID_APPLICATION;
-  if (!developerIdApplication) {
-    throw new Error(
-      "No application Developer ID set, make sure `DEVELOPER_ID_APPLICATION` is set",
-    );
-  }
-  const developerIdInstaller = env.DEVELOPER_ID_INSTALLER;
-  if (!developerIdInstaller) {
-    throw new Error(
-      "No installater Developer ID set, make sure `DEVELOPER_ID_INSTALLER` is set",
-    );
-  }
-  const notarytoolCredentialsKeychainItem =
-    env.NOTARYTOOL_CREDENTIALS_KEYCHAIN_ITEM;
-  if (!notarytoolCredentialsKeychainItem) {
-    throw new Error(
-      `No notary tool credentials keychain item set, make sure \`NOTARYTOOL_CREDENTIALS_KEYCHAIN_ITEM\` is set. 
+  let signIdentity: string;
+  let installerIdentity: string;
+  if (adHocSign) {
+    signIdentity = "-";
+    installerIdentity = "-";
+  } else {
+    const developerIdApplication = env.DEVELOPER_ID_APPLICATION;
+    const developerIdInstaller = env.DEVELOPER_ID_INSTALLER;
+    if (!developerIdApplication) {
+      throw new Error(
+        "No application Developer ID set, make sure `DEVELOPER_ID_APPLICATION` is set",
+      );
+    }
+    if (!developerIdInstaller) {
+      throw new Error(
+        "No installater Developer ID set, make sure `DEVELOPER_ID_INSTALLER` is set",
+      );
+    }
+    const notarytoolCredentialsKeychainItem =
+      env.NOTARYTOOL_CREDENTIALS_KEYCHAIN_ITEM;
+    if (!notarytoolCredentialsKeychainItem) {
+      throw new Error(
+        `No notary tool credentials keychain item set, make sure \`NOTARYTOOL_CREDENTIALS_KEYCHAIN_ITEM\` is set. 
 
 To get these credentials, run something like this:
 
@@ -82,7 +87,10 @@ This will create a keychain item named notarytool-password
 
 More info [here](https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/customizing_the_notarization_workflow)
 `,
-    );
+      );
+    }
+    signIdentity = developerIdApplication;
+    installerIdentity = developerIdInstaller;
   }
 
   type ManifestEntry = {
@@ -110,15 +118,18 @@ More info [here](https://developer.apple.com/documentation/security/notarizing_m
           const itemDest = `${tmpDir}/${dest}/${basename(local)}`;
           await runShell(["ditto", local, itemDest]);
           if (sign) {
-            await runShell([
-              "codesign",
-              "-f",
-              "--options=runtime",
-              "--timestamp",
-              "-s",
-              developerIdApplication,
-              itemDest,
-            ]);
+            const codesignArgs: string[] = adHocSign
+              ? ["codesign", "-f", "-s", signIdentity, itemDest]
+              : [
+                  "codesign",
+                  "-f",
+                  "--options=runtime",
+                  "--timestamp",
+                  "-s",
+                  signIdentity,
+                  itemDest,
+                ];
+            await runShell(codesignArgs);
 
             // Check bundle signature
             await runShell([
@@ -151,13 +162,14 @@ More info [here](https://developer.apple.com/documentation/security/notarizing_m
           qualifiedIdent,
           "--version",
           bundleData.version,
-          "--sign",
-          developerIdInstaller,
+          ...(adHocSign ? [] : ["--sign", installerIdentity]),
           path,
         ]);
 
         // check signature
-        await runShell(["pkgutil", "--check-signature", path]);
+        if (!adHocSign) {
+          await runShell(["pkgutil", "--check-signature", path]);
+        }
 
         data.current = { ident: qualifiedIdent, path: relativePath };
       },
@@ -247,13 +259,14 @@ More info [here](https://developer.apple.com/documentation/security/notarizing_m
         rsrcPath,
         "--version",
         bundleData.version,
-        "--sign",
-        developerIdInstaller,
+        ...(adHocSign ? [] : ["--sign", installerIdentity]),
         pkgPath,
       ]);
 
       // check signature
-      await runShell(["pkgutil", "--check-signature", pkgPath]);
+      if (!adHocSign) {
+        await runShell(["pkgutil", "--check-signature", pkgPath]);
+      }
 
       // Now make a dmg, deleting any previous ones
       const dmgName = `${bundleData.name}.dmg`;
@@ -282,23 +295,30 @@ More info [here](https://developer.apple.com/documentation/security/notarizing_m
         dmgTmpPath,
       ]);
 
-      // Notarize!
-      await runShell(
-        [
-          "xcrun",
-          "notarytool",
-          "submit",
-          dmgTmpPath,
-          "--keychain-profile",
-          notarytoolCredentialsKeychainItem,
-          "--wait",
-        ].concat(
-          notaryToolKeychainPath ? ["--keychain", notaryToolKeychainPath] : [],
-        ),
-      );
-
-      // Staple!
-      await runShell(["xcrun", "stapler", "staple", dmgTmpPath]);
+      if (!adHocSign) {
+        const notaryToolKeychainPath = env.NOTARYTOOL_KEYCHAIN_PATH;
+        const notarytoolCredentialsKeychainItem =
+          env.NOTARYTOOL_CREDENTIALS_KEYCHAIN_ITEM;
+        if (!notarytoolCredentialsKeychainItem) {
+          throw new Error("NOTARYTOOL_CREDENTIALS_KEYCHAIN_ITEM is not set");
+        }
+        await runShell(
+          [
+            "xcrun",
+            "notarytool",
+            "submit",
+            dmgTmpPath,
+            "--keychain-profile",
+            notarytoolCredentialsKeychainItem,
+            "--wait",
+          ].concat(
+            notaryToolKeychainPath
+              ? ["--keychain", notaryToolKeychainPath]
+              : [],
+          ),
+        );
+        await runShell(["xcrun", "stapler", "staple", dmgTmpPath]);
+      }
 
       await runShell(["rm", "-f", dmgOutput]);
       await runShell(["mv", dmgTmpPath, dmgOutput]);

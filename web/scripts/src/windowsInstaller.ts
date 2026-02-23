@@ -96,7 +96,7 @@ const generateWxs = (
     Manufacturer="${bundleData.vendor}"
     UpgradeCode="${upgradeCode}">
 
-    <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" Platform="x64" SummaryCodepage="65001" />
+    <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" Platform="x64" />
     <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
@@ -151,18 +151,17 @@ export const createWindowsInstaller = async ({
       await runShell(["cargo", "fetch"]);
       // Generate the about file. Using frozen mode will prevent us from querying
       // any flaky APIs such as clearlydefined.
-      await pipeShell(
-        [
-          "cargo",
-          "about",
-          "generate",
-          "--frozen",
-          "-m",
-          `${rustPackagePath}/Cargo.toml`,
-          `${rustPackagePath}/about.hbs`,
-        ],
+      await runShell([
+        "cargo",
+        "about",
+        "generate",
+        "--frozen",
+        "-m",
+        `${rustPackagePath}/Cargo.toml`,
+        `${rustPackagePath}/about.hbs`,
+        "-o",
         licenseTmpPath,
-      );
+      ]);
       const combinedLicensePath = join(tmpDir, "license_combined.txt");
       await pipeShell(
         [

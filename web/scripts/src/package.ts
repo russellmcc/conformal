@@ -15,6 +15,7 @@ const executeMacos = async (
   config: Config,
   dist: boolean,
   linkToLibrary: boolean,
+  adHocSign: boolean,
 ) => {
   const packageRoot = process.cwd();
   const workspaceRoot = await findWorkspaceRoot(packageRoot);
@@ -66,7 +67,11 @@ const executeMacos = async (
   await createBundle({ packageRoot, bundleData, config, dist, linkToLibrary });
 
   if (dist) {
-    await createInstaller({ packageRoot, bundleData });
+    await createInstaller({
+      packageRoot,
+      bundleData,
+      adHocSign,
+    });
   }
 };
 
@@ -113,11 +118,12 @@ export const execute = async (
   config: Config,
   dist: boolean,
   linkToLibrary: boolean,
+  adHocSign = false,
 ) => {
   if (process.platform === "win32") {
     await executeWindows(config, dist, linkToLibrary);
   } else {
-    await executeMacos(config, dist, linkToLibrary);
+    await executeMacos(config, dist, linkToLibrary, adHocSign);
   }
 };
 
@@ -129,9 +135,23 @@ export const addPackageCommand = (command: Command) => {
       "-d, --dist",
       "Whether to create a distributable package, including an installer",
     )
+    .option(
+      "--ad-hoc-sign",
+      "When creating a distributable package, use ad-hoc codesigning (no certs or notarization; for local use only). This only applied to macOS, conformal installers are always unsigned.",
+    )
     .option("--release", "Build with optimizations")
     .action(async (options) => {
-      const { dist, release } = options;
-      await execute(parseConfigArg(release), dist ?? false, !dist);
+      const { dist, release, adHocSign } = options;
+      if (adHocSign && !dist) {
+        throw new Error(
+          "Ad-hoc signing is only relevant when creating a distributable package",
+        );
+      }
+      await execute(
+        parseConfigArg(release),
+        dist ?? false,
+        !dist,
+        adHocSign ?? false,
+      );
     });
 };
