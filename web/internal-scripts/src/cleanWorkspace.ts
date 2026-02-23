@@ -1,15 +1,18 @@
 import { $ } from "bun";
 import { z } from "zod";
+import path from "node:path";
 
 const packageJsonSchema = z.looseObject({
   catalog: z.optional(z.record(z.string(), z.string())),
   dependencies: z.optional(z.record(z.string(), z.string())),
 });
 
+const workspacePath = path.join(import.meta.path, "..", "..", "..", "..");
+
 // Cleans any `workspace` and `catalog` protocols for publishing.
 // This mutates the package.json files in place.
 export const cleanWorkspaceProtocols = async () => {
-  const packages = (await $`bun pm list`.quiet())
+  const packages = (await $`bun pm list`.cwd(workspacePath).quiet())
     .text()
     .trim()
     .split("\n")
@@ -17,13 +20,13 @@ export const cleanWorkspaceProtocols = async () => {
     .map((p) => p.split("@workspace:")[1]!.trim());
 
   const rootPackageJson = packageJsonSchema.parse(
-    await Bun.file("package.json").json(),
+    await Bun.file(path.join(workspacePath, "package.json")).json(),
   );
 
   for (const p of packages) {
     // Get json contents of package.json
     const packageJson = packageJsonSchema.parse(
-      await Bun.file(`${p}/package.json`).json(),
+      await Bun.file(path.join(workspacePath, p, "package.json")).json(),
     );
     if (!packageJson.dependencies) {
       // No need to fix dependencies, since there aren't any!
@@ -63,6 +66,9 @@ export const cleanWorkspaceProtocols = async () => {
     }
 
     // Write the package.json back to the file system
-    await Bun.write(`${p}/package.json`, JSON.stringify(packageJson, null, 2));
+    await Bun.write(
+      path.join(workspacePath, p, "package.json"),
+      JSON.stringify(packageJson, null, 2),
+    );
   }
 };

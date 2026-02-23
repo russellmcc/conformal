@@ -7,6 +7,8 @@
   "bugs": "https://github.com/russellmcc/conformal/issues",
   "license": "ISC",
   "scripts": {
+    "release": "conformal-internal-scripts release",
+    "deploy-docs": "conformal-internal-scripts deploy-docs",
     "lint": "tsc && eslint . --max-warnings 0",
     "check-format": "prettier --ignore-path .gitignore -c .",
     "format": "prettier --ignore-path .gitignore --write .",

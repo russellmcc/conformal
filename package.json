@@ -5,7 +5,6 @@
     "web/*"
   ],
   "dependencies": {
-    "@morlay/bunpublish": "catalog:",
     "@changesets/cli": "^2.29.8",
     "@happy-dom/global-registrator": "^20.6.3",
     "@next/eslint-plugin-next": "^16.1.6",
@@ -40,8 +39,8 @@
     "rust-snapshot-update": "UPDATE_SNAPSHOTS=1 bun run rust-test",
     "package": "conformal-scripts web-script -s package",
     "validate": "conformal-scripts web-script -s validate",
-    "release": "conformal-internal-scripts release",
-    "deploy-docs": "conformal-internal-scripts deploy-docs",
+    "release": "bun run --filter conformal-internal-scripts release",
+    "deploy-docs": "bun run --filter conformal-internal-scripts deploy-docs",
     "web-change": "changeset",
     "rust-change": "conformal-internal-scripts rust-change",
     "rust-prepare-release": "conformal-internal-scripts rust-prepare-release",

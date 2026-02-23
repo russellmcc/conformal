@@ -2,10 +2,10 @@ import path from "node:path";
 import { $ } from "bun";
 import { Command } from "@commander-js/extra-typings";
 
+const workspacePath = path.join(import.meta.path, "..", "..", "..", "..");
+
 export const deployDocs = async () => {
   const outDir = "_site";
-
-  const workspacePath = path.join(import.meta.path, "..", "..", "..", "..");
 
   // Build the documentation
   await $`bun run web-build docs`.cwd(workspacePath);
@@ -18,7 +18,7 @@ export const deployDocs = async () => {
   --workspace`.cwd(workspacePath);
 
   // Build the TypeScript documentation
-  await $`bun x typedoc`.cwd(workspacePath);
+  await $`typedoc`.cwd(workspacePath);
 
   // Clear the output directory
   await $`rm -rf ${outDir}`.cwd(workspacePath);

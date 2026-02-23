@@ -3,6 +3,9 @@ import { $ } from "bun";
 import { deployDocs } from "./deployDocs";
 import { cleanWorkspaceProtocols } from "./cleanWorkspace";
 import { z } from "zod";
+import path from "node:path";
+
+const workspacePath = path.join(import.meta.path, "..", "..", "..", "..");
 
 const crateDependencySchema = z.object({
   name: z.string(),
@@ -38,14 +41,18 @@ const fromRawCrateInfo = (rawCrateInfo: RawCrateInfo): CrateInfo => ({
 const getCargoWorkspaceCrates = async (): Promise<CrateInfo[]> =>
   cargoMetadataSchema
     .parse(
-      JSON.parse(await $`cargo metadata --format-version 1 --no-deps`.text()),
+      JSON.parse(
+        await $`cargo metadata --format-version 1 --no-deps`
+          .cwd(workspacePath)
+          .text(),
+      ),
     )
     .packages.map(fromRawCrateInfo);
 
 const getPublishedCrateVersion = async (
   crate: string,
 ): Promise<string | undefined> => {
-  const searchResult = await $`cargo search ${crate}`.text();
+  const searchResult = await $`cargo search ${crate}`.cwd(workspacePath).text();
   const published = searchResult
     .split("\n")
     .find((line) => line.includes(crate));
@@ -65,7 +72,7 @@ const getPublishedCrateVersion = async (
 };
 
 const publishCrate = async (crate: string) => {
-  await $`cargo publish --package ${crate}`;
+  await $`cargo publish --package ${crate}`.cwd(workspacePath);
 };
 
 const topologicallySortCrateInfos = (crateInfos: CrateInfo[]): CrateInfo[] => {
@@ -119,7 +126,7 @@ export const release = async ({ skipPublish }: { skipPublish?: boolean }) => {
   //  - https://github.com/oven-sh/bun/issues/5050 <- bun publish doesn't support monorepos (we could
   //    simply work around this by sorting packages topologically and publishing each one)
   //  - https://github.com/oven-sh/bun/issues/15601 <- bun publish doesn't support `provenance` flag
-  await $`bunpublish --provenance`;
+  await $`bunpublish --provenance`.cwd(workspacePath);
 
   // Publish documentation
   await deployDocs();
