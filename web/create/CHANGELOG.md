@@ -1,5 +1,11 @@
 # create-conformal
 
+## 0.12.1
+
+### Patch Changes
+
+- 0f26266: Fix for windows CI in template
+
 ## 0.12.0
 
 ### Minor Changes
