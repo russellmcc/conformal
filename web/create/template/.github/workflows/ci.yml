@@ -7,8 +7,16 @@ on:
       - "*"
 
 jobs:
-  ci:
+  ci-macos:
     runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: "true"
+      - uses: ./.github/actions/bootstrap
+      - run: bun run ci
+  ci-windows:
+    runs-on: windows-2025
     steps:
       - uses: actions/checkout@v4
         with:

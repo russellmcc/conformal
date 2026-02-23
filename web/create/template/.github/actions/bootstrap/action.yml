@@ -20,14 +20,14 @@ runs:
       id: vst3-cache
       uses: actions/cache@v4
       with:
-        path: /tmp/vst3sdk
+        path: $\{{ runner.temp }}/vst3sdk/vst3sdk
         key: vst3-$\{{ runner.os }}-v3.8.0_build_66
 
     - name: Set VST3_SDK_DIR from cache
       if: steps.vst3-cache.outputs.cache-hit == 'true'
       run: |
-        echo "VST3_SDK_DIR=/tmp/vst3sdk" >> "$GITHUB_ENV"
-        echo "VST3_SDK_DIR=/tmp/vst3sdk" >> .env
+        echo "VST3_SDK_DIR=$RUNNER_TEMP/vst3sdk" >> "$GITHUB_ENV"
+        echo "VST3_SDK_DIR=$RUNNER_TEMP/vst3sdk" >> .env
       shell: bash
 
     - run: bun run bootstrap-rust-toolchain --rust-version 1.93.1
@@ -43,7 +43,7 @@ runs:
       if: steps.vst3-cache.outputs.cache-hit != 'true'
       run: |
         VST3_DIR=$(grep "^VST3_SDK_DIR=" .env 2>/dev/null | tail -1 | cut -d= -f2-)
-        if [ -n "$VST3_DIR" ] && [ -d "$VST3_DIR" ] && [ "$VST3_DIR" != "/tmp/vst3sdk" ]; then
-          cp -r "$VST3_DIR" /tmp/vst3sdk
+        if [ -n "$VST3_DIR" ] && [ -d "$VST3_DIR" ] && [ "$VST3_DIR" != "$RUNNER_TEMP/vst3sdk" ]; then
+          cp -r "$VST3_DIR" $RUNNER_TEMP/vst3sdk
         fi
       shell: bash
