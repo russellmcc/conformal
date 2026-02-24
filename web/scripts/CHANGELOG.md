@@ -1,5 +1,12 @@
 # @conformal/scripts
 
+## 0.11.1
+
+### Patch Changes
+
+- c42d43d: Add ad-hoc signing mode (predominantly for testing)
+- c42d43d: fix windows installer scripts
+
 ## 0.11.0
 
 ### Minor Changes
