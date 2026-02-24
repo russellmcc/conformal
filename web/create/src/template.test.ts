@@ -229,6 +229,10 @@ describe("create-conformal template", () => {
 
           // Make sure CI would pass.
           await $`bun run ci`.cwd(dest);
+
+          // Package one of the plugins with ad-hoc signing
+          // to test that we can build distributable packages.
+          await $`bun run package test_plug --dist --ad-hoc-sign`.cwd(dest);
         },
         { unsafeCleanup: true, tmpdir: process.env.RUNNER_TEMP },
       );
