@@ -21,7 +21,7 @@ conformal_ui = { version = "0.5.0", path = "rust/ui" }
 vst3 = "0.3.0"
 serde = { version = "1.0.193", features = ["derive"] }
 rmp-serde = "1.1.2"
-itertools = "0.13.0"
+itertools = "0.14.0"
 assert_approx_eq = "1.1.0"
 process_path = "0.1.4"
 objc = "0.2.7"
