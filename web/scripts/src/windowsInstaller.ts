@@ -6,6 +6,9 @@ import { createHash } from "crypto";
 import { z } from "zod";
 import { readFile } from "node:fs/promises";
 
+const DEFAULT_BANNER_PATH = join(import.meta.dir, "assets", "banner.png");
+const DEFAULT_DIALOG_PATH = join(import.meta.dir, "assets", "dlg.png");
+
 const getRustPackagePath = async (rustPackage: string) => {
   const metadataParser = z.object({
     packages: z.array(
@@ -144,6 +147,13 @@ export const createWindowsInstaller = async ({
 
   const upgradeCode = deriveGuid(`${bundleData.id}.msi.upgrade-code`);
 
+  const bannerPath = bundleData.windowsInstallerBanner
+    ? resolve(packageRoot, bundleData.windowsInstallerBanner)
+    : DEFAULT_BANNER_PATH;
+  const dialogPath = bundleData.windowsInstallerDialog
+    ? resolve(packageRoot, bundleData.windowsInstallerDialog)
+    : DEFAULT_DIALOG_PATH;
+
   await withDir(
     async ({ path: tmpDir }) => {
       const licenseTmpPath = join(tmpDir, "license_temp");
@@ -229,6 +239,8 @@ export const createWindowsInstaller = async ({
         "-ext",
         "WixUIExtension",
         `-dWixUILicenseRtf=${rtfPath}`,
+        `-dWixUIBannerBmp=${bannerPath}`,
+        `-dWixUIDialogBmp=${dialogPath}`,
         "-b",
         bundlePath,
         "-b",
