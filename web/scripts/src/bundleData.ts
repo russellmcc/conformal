@@ -8,6 +8,8 @@ const BundleDataParser = z.object({
   id: z.string(),
   sig: z.string(),
   version: z.string(),
+  windowsInstallerBanner: z.string().optional(),
+  windowsInstallerDialog: z.string().optional(),
 });
 
 export type BundleData = z.infer<typeof BundleDataParser>;
