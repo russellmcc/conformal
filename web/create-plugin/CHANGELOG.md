@@ -1,5 +1,12 @@
 # @conformal/create-plugin
 
+## 0.12.1
+
+### Patch Changes
+
+- a498daf: Add UI smoke test to template
+- 5f3e01f: Don't clobber Cargo.toml
+
 ## 0.12.0
 
 ### Minor Changes

@@ -1,3 +1,9 @@
+## 0.6.0 (2026-02-26)
+
+### Breaking Changes
+
+- Use unreleased wry to fix some bugs
+
 ## 0.5.0 (2026-02-22)
 
 ### Breaking Changes
