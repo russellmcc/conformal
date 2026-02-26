@@ -5,7 +5,7 @@ import { Config } from "./config";
 import { parse, stringify } from "smol-toml";
 import { z } from "zod";
 
-const workspaceCargoTomlSchema = z.object({
+const workspaceCargoTomlSchema = z.looseObject({
   workspace: z.looseObject({
     members: z.array(z.string()),
   }),

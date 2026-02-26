@@ -169,7 +169,7 @@ impl<S: super::ParameterStore + 'static> Ui<S> {
         )));
         let server_ipc = server.clone();
         let web_view = Rc::new(
-            wry::WebViewBuilder::new_as_child(&RawWindowHandleWrapper(parent))
+            wry::WebViewBuilder::new()
                 .with_ipc_handler(move |m| {
                     if let Ok(message) = protocol::decode_message(m.body()) {
                         server_ipc.borrow_mut().handle_request(&message);
@@ -177,7 +177,7 @@ impl<S: super::ParameterStore + 'static> Ui<S> {
                     // We ignore any unknown messages - these could be from
                     // future clients!
                 })
-                .with_custom_protocol("rsrc".to_string(), move |request| {
+                .with_custom_protocol("rsrc".to_string(), move |_, request| {
                     get_rsrc_response(&rsrc_root, &request).map(Into::into)
                 })
                 .with_devtools(dev_mode_enabled)
@@ -185,7 +185,7 @@ impl<S: super::ParameterStore + 'static> Ui<S> {
                 .with_accept_first_mouse(true)
                 .with_back_forward_navigation_gestures(false)
                 .with_drag_drop_handler(|_| true)
-                .build()
+                .build_as_child(&RawWindowHandleWrapper(parent))
                 .map_err(UiError::CouldNotConstruct)?,
         );
 
