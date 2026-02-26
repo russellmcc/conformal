@@ -25,3 +25,8 @@ default_trait_access = "allow"
 
 [profile.release]
 lto = "thin"
+
+# We need these patches to workaround https://github.com/tauri-apps/wry/issues/1675
+[patch.crates-io]
+objc2 = { git = "https://github.com/madsmtm/objc2.git", rev = "0dc236c0e186ed29991798d2a6ff5cdc595b2ffa" }
+wry = { git = "https://github.com/russellmcc/wry.git", rev = "458591b02238d89322b0567ba2918a123ff22dda" }
