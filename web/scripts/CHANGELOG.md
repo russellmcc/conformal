@@ -1,5 +1,14 @@
 # @conformal/scripts
 
+## 0.11.2
+
+### Patch Changes
+
+- f5363f4: Support custom windows installer art
+- Updated dependencies [a498daf]
+- Updated dependencies [5f3e01f]
+  - @conformal/create-plugin@0.12.1
+
 ## 0.11.1
 
 ### Patch Changes

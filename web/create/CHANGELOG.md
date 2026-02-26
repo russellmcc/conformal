@@ -1,5 +1,18 @@
 # create-conformal
 
+## 0.13.0
+
+### Minor Changes
+
+- 5f3e01f: Use cargo patch to workaround wry bug
+
+### Patch Changes
+
+- a498daf: Add UI smoke test to template
+- Updated dependencies [a498daf]
+- Updated dependencies [5f3e01f]
+  - @conformal/create-plugin@0.12.1
+
 ## 0.12.1
 
 ### Patch Changes

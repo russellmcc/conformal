@@ -203,7 +203,7 @@ dependencies = [
 
 [[package]]
 name = "conformal_ui"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "base64",
  "conformal_component",
@@ -218,7 +218,7 @@ dependencies = [
 
 [[package]]
 name = "conformal_vst_wrapper"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "assert_approx_eq",
  "conformal_component",
