@@ -1,5 +1,11 @@
 # @conformal/create-plugin
 
+## 0.12.2
+
+### Patch Changes
+
+- c490521: oops can't publish with crate patches
+
 ## 0.12.1
 
 ### Patch Changes
