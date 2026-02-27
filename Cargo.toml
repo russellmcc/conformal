@@ -29,7 +29,7 @@ serde_json = "1.0.117"
 windows-registry = "0.6"
 fxhash = "0.2.1"
 base64 = "0.22.1"
-wry = { version = "0.54.3", features = ["devtools"] }
+wry = { version = "0.54.2", features = ["devtools"] }
 serde_bytes = "0.11.14"
 mime_guess = "2.0.4"
 arrayvec = "0.7.6"
@@ -53,8 +53,3 @@ cast_sign_loss = "allow"
 cast_possible_wrap = "allow"
 default_trait_access = "allow"
 large_enum_variant = "allow"
-
-# We need to patch for https://github.com/tauri-apps/wry/issues/1675
-[patch.crates-io]
-objc2 = { git = "https://github.com/madsmtm/objc2.git", rev = "0dc236c0e186ed29991798d2a6ff5cdc595b2ffa" }
-wry = { git = "https://github.com/russellmcc/wry.git", rev = "458591b02238d89322b0567ba2918a123ff22dda" }
