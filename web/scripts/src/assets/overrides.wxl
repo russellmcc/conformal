@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Override default WixUI strings that use the jargon-y "Setup Wizard" phrasing. -->
+<WixLocalization Culture="en-US" xmlns="http://schemas.microsoft.com/wix/2006/localization">
+    <String Id="WelcomeDlgTitle">{\WixUI_Font_Bigger}Install [ProductName]</String>
+    <String Id="WelcomeDlgDescription">We'll install [ProductName] on your computer. Click Next to continue or Cancel to exit.</String>
+
+    <String Id="WelcomeUpdateDlgDescriptionUpdate">We'll update [ProductName] on your computer. Click Next to continue or Cancel to exit.</String>
+
+    <String Id="PrepareDlgTitle">{\WixUI_Font_Bigger}Install [ProductName]</String>
+    <String Id="PrepareDlgDescription">Please wait while we prepare the installation.</String>
+
+    <String Id="ProgressDlgTextInstalling">Please wait while we install [ProductName].</String>
+    <String Id="ProgressDlgTextChanging">Please wait while we update [ProductName].</String>
+    <String Id="ProgressDlgTextRepairing">Please wait while we repair [ProductName].</String>
+    <String Id="ProgressDlgTextRemoving">Please wait while we remove [ProductName].</String>
+    <String Id="ProgressDlgTextUpdating">Please wait while we update [ProductName].</String>
+
+    <String Id="ExitDialogTitle">{\WixUI_Font_Bigger}[ProductName] has been installed</String>
+    <String Id="ExitDialogDescription">Click the Finish button to exit.</String>
+
+    <String Id="FatalErrorTitle">{\WixUI_Font_Bigger}[ProductName] installation failed</String>
+    <String Id="FatalErrorDescription1">[ProductName] could not be installed due to an error. Your system has not been modified. To install at a later time, please run the installer again.</String>
+    <String Id="FatalErrorDescription2">Click the Finish button to exit.</String>
+
+    <String Id="MaintenanceWelcomeDlgTitle">{\WixUI_Font_Bigger}Modify [ProductName]</String>
+    <String Id="MaintenanceWelcomeDlgDescription">You can change how [ProductName] is installed on your computer, or remove it entirely. Click Next to continue or Cancel to exit.</String>
+
+    <String Id="ResumeDlgTitle">{\WixUI_Font_Bigger}Resuming [ProductName] Installation</String>
+    <String Id="ResumeDlgDescription">We'll complete the installation of [ProductName] on your computer. Click Install to continue or Cancel to exit.</String>
+
+    <String Id="UserExitTitle">{\WixUI_Font_Bigger}[ProductName] installation was interrupted</String>
+    <String Id="UserExitDescription2">Click the Finish button to exit.</String>
+</WixLocalization>
