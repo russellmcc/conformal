@@ -8,6 +8,7 @@ import { readFile } from "node:fs/promises";
 
 const DEFAULT_BANNER_PATH = join(import.meta.dir, "assets", "banner.png");
 const DEFAULT_DIALOG_PATH = join(import.meta.dir, "assets", "dlg.png");
+const WXL_OVERRIDES_PATH = join(import.meta.dir, "assets", "overrides.wxl");
 
 const getRustPackagePath = async (rustPackage: string) => {
   const metadataParser = z.object({
@@ -238,6 +239,8 @@ export const createWindowsInstaller = async ({
         "light.exe",
         "-ext",
         "WixUIExtension",
+        "-loc",
+        WXL_OVERRIDES_PATH,
         `-dWixUILicenseRtf=${rtfPath}`,
         `-dWixUIBannerBmp=${bannerPath}`,
         `-dWixUIDialogBmp=${dialogPath}`,
