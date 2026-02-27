@@ -1,3 +1,9 @@
+## 0.6.1 (2026-02-27)
+
+### Fixes
+
+- Oops can't publish crate patches
+
 ## 0.6.0 (2026-02-26)
 
 ### Breaking Changes
