@@ -25,3 +25,7 @@ default_trait_access = "allow"
 
 [profile.release]
 lto = "thin"
+
+# We need to patch for https://github.com/tauri-apps/wry/issues/1675
+[patch.crates-io]
+wry = { git = "https://github.com/tauri-apps/wry.git", rev = "40a703214d3e66942edf6f6a96074580798d5046" }
