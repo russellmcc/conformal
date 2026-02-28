@@ -1,5 +1,12 @@
 # @conformal/scripts
 
+## 0.11.3
+
+### Patch Changes
+
+- 108d88e: Improve phrasing on windows installer
+- d97ff9a: better default banner for windows installer
+
 ## 0.11.2
 
 ### Patch Changes
