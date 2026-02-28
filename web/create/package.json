@@ -1,6 +1,6 @@
 {
   "name": "create-conformal",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "description": "Project generator script for conformal projects",
   "homepage": "https://russellmcc.github.io/conformal",
   "bugs": "https://github.com/russellmcc/conformal/issues",

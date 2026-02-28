@@ -1,5 +1,11 @@
 # create-conformal
 
+## 0.13.2
+
+### Patch Changes
+
+- c7bc932: override wray with crate patch to workaround bug
+
 ## 0.13.1
 
 ### Patch Changes
