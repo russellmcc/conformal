@@ -1,0 +1,161 @@
+# Parameters
+
+Parameters are the primary way the outside world communicates with your audio processing code.
+They represent values that can change over time — controlled by the user through the plug-in UI, by the host through automation, or by both.
+
+Conformal manages the parameter state for you. You declare which parameters exist, Conformal exposes them to the host and to your UI, and your processing code receives
+their values each time it runs.
+
+## Parameter types
+
+Every parameter is one of three types:
+
+| Type        | Rust value | Description                                                             |
+| ----------- | ---------- | ----------------------------------------------------------------------- |
+| **Numeric** | `f32`      | A continuous value within a range (e.g. a gain in %, a frequency in Hz) |
+| **Enum**    | `u32`      | One of a discrete set of named values (e.g. a filter mode)              |
+| **Switch**  | `bool`     | On or off (e.g. a bypass toggle)                                        |
+
+## Defining parameters
+
+Parameters are declared as a `const` array of [`InfoRef`](/rust-doc/conformal_component/parameters/struct.InfoRef.html) and returned from your component's [`parameter_infos`](/rust-doc/conformal_component/trait.Component.html#method.parameter_infos) method. Each parameter has a `unique_id` that identifies it across processing code, UI code, and saved state.
+
+See the [`InfoRef`](/rust-doc/conformal_component/parameters/struct.InfoRef.html) docs for the full set of fields, and [`TypeSpecificInfoRef`](/rust-doc/conformal_component/parameters/enum.TypeSpecificInfoRef.html) for the configuration options specific to each parameter type.
+
+The template projects created by `bun create conformal` include working examples of parameter definitions for both effects and synths.
+
+## Accessing parameters during processing
+
+During audio processing, Conformal provides the current parameter values through the processing context. Two macros make it ergonomic to access them: [`pzip!`](/rust-doc/conformal_component/macro.pzip.html) and [`pgrab!`](/rust-doc/conformal_component/macro.pgrab.html).
+
+Both macros take the same syntax — a reference to a `BufferStates` value followed by a bracketed list of typed parameter references:
+
+```rust
+pzip!(parameters[numeric "gain", switch "bypass"])
+pgrab!(parameters[numeric "gain", switch "bypass"])
+```
+
+The type keyword (`numeric`, `enum`, or `switch`) must match the parameter's declared type, and the string must match its `unique_id`.
+
+### `pzip!` — per-sample iteration
+
+`pzip!` returns an iterator that yields one tuple of parameter values per sample. Use it when you need to process audio sample-by-sample with potentially varying parameter values — this is the common case for automatable parameters.
+
+```rust
+fn process(
+    &mut self,
+    context: &impl ProcessContext,
+    input: &impl Buffer,
+    output: &mut impl BufferMut,
+) {
+    let parameters = context.parameters();
+    for (input_channel, output_channel) in channels(input).zip(channels_mut(output)) {
+        for ((input_sample, output_sample), (gain, bypass)) in input_channel
+            .iter()
+            .zip(output_channel.iter_mut())
+            .zip(pzip!(parameters[numeric "gain", switch "bypass"]))
+        {
+            *output_sample = *input_sample * (if bypass { 1.0 } else { gain / 100.0 });
+        }
+    }
+}
+```
+
+When a parameter is being automated, `pzip!` smoothly interpolates between values across the buffer. When it is constant, no extra work is done — the same value is repeated efficiently.
+
+### `pgrab!` — single snapshot
+
+`pgrab!` returns a single tuple of parameter values taken from the start of the buffer. Use it when per-sample variation is not needed — for example, to make a discrete decision at the start of a buffer.
+
+```rust
+let (gain, enabled) = pgrab!(params[numeric "gain", switch "enabled"]);
+```
+
+### Getting parameters while processing
+
+Both macros support method-call expressions before the brackets, which is convenient when the `BufferStates` comes from a method:
+
+```rust
+pzip!(context.parameters()[numeric "gain", switch "bypass"])
+pgrab!(context.parameters()[numeric "gain"])
+```
+
+## Displaying and modifying parameters from the UI
+
+On the TypeScript side, the `@conformal/plugin` package provides React hooks that give your UI two-way access to parameter values. The hooks automatically subscribe to parameter changes and send updates back to the processing engine.
+
+Three hooks are available, one for each parameter type:
+
+- [`useNumericParam`](/ts-doc/plugin/functions/useNumericParam.html)
+- [`useEnumParam`](/ts-doc/plugin/functions/useEnumParam.html)
+- [`useSwitchParam`](/ts-doc/plugin/functions/useSwitchParam.html)
+
+Each hook takes the parameter's `unique_id` and returns an object with `value`, `set`, `info`, `grab`, and `release`:
+
+```tsx
+import { useNumericParam } from "@conformal/plugin";
+
+const GainControl = () => {
+  const { value, set, info } = useNumericParam("gain");
+  return (
+    <input
+      type="range"
+      min={info.valid_range[0]}
+      max={info.valid_range[1]}
+      value={value}
+      onChange={(e) => set(Number(e.target.value))}
+    />
+  );
+};
+```
+
+The `grab` and `release` functions signal to the host that the user is actively interacting with a parameter (e.g. dragging a slider). This is important for correct undo/redo behavior in hosts that support it — call `grab` when the interaction starts and `release` when it ends.
+
+Your UI must be wrapped in a `Provider` for the hooks to work:
+
+```tsx
+import { Provider } from "@conformal/plugin";
+import { createRoot } from "react-dom/client";
+
+createRoot(document.getElementById("root")!).render(
+  <Provider>
+    <App />
+  </Provider>,
+);
+```
+
+### Mocking parameters for development
+
+During UI development, you can supply mock parameter info and values to the `Provider` so your UI renders without a running plug-in instance:
+
+```tsx
+<Provider
+  mockInfos={
+    new Map(
+      Object.entries({
+        gain: {
+          title: "Gain",
+          type_specific: {
+            t: "numeric",
+            default: 100,
+            valid_range: [0, 100],
+            units: "%",
+          },
+        },
+      }),
+    )
+  }
+>
+  <App />
+</Provider>
+```
+
+## How it fits together
+
+When you declare parameters in your Rust component, Conformal automatically:
+
+1. Exposes them to the host as standard plug-in parameters (supporting automation, state save/restore, etc.)
+2. Makes them available to your processing code through `BufferStates`
+3. Makes them available to your UI through the `@conformal/plugin` hooks
+
+The parameter's `unique_id` is the common key used across all three contexts. Keep these in sync and Conformal handles the rest — including thread-safe delivery of parameter values to the real-time audio thread.
