@@ -1,0 +1,42 @@
+import { Callout } from "nextra/components";
+
+# Learning Resources
+
+Building plug-ins with Conformal involves TypeScript, Rust, and some audio/DSP fundamentals.
+
+<Callout type="info">
+  Know a great resource that should be on this page? [Let us
+  know](https://github.com/russellmcc/conformal/discussions/new?category=q-a&title=Learning%20resource%20suggestion)
+  — we'd love to expand this list.
+</Callout>
+
+## For the UI: TypeScript and React
+
+Conformal's user interfaces are built with TypeScript and React, running on the web platform. If you've done any web development, you're already most of the way there.
+
+- [The TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/) — the official guide, well-written and thorough.
+- [React Quick Start](https://react.dev/learn) — React's own tutorial. Covers components, props, state, and hooks — everything you need for a plug-in UI.
+
+You'll also encounter HTML and CSS when styling your interface. The [MDN Web Docs](https://developer.mozilla.org/en-US/) are the definitive reference for all web platform technologies.
+
+## For Signal Processing: Rust
+
+Signal processing code is written in Rust. You don't need to be a Rust expert to get started — the code in a typical plug-in uses straightforward structs, traits, and basic arithmetic.
+
+- [The Rust Book](https://doc.rust-lang.org/book/) — Free and comprehensive.
+- [Rust By Example](https://doc.rust-lang.org/rust-by-example/) — if you prefer learning by reading code rather than prose.
+
+## Audio and DSP
+
+Regardless of what framework or language you use, building audio plug-ins requires some understanding of digital signal processing. This is a huge field, so we'll never be able to provide a comprehensive learning path, but we can list a few resources that we've found helpful.
+
+- [Julius O. Smith's online books](https://ccrma.stanford.edu/~jos/) — free, rigorous.
+- [KVR Audio Forum](https://www.kvraudio.com/forum/) — a long-running community for audio plug-in developers and users.
+- [Rust Audio Discord](https://discord.gg/8qW6q2k) — a community of developers using Rust for audio development.
+
+## What You Don't Need
+
+- **C++**
+- **Xcode or Visual Studio project configuration.** Conformal's build tools handle this.
+- **A custom build system.** `cargo` and `bun` manage dependencies and builds.
+- **Deep knowledge of plug-in formats.** Conformal's wrappers handle the VST3 specifics.
