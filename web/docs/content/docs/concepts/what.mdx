@@ -4,16 +4,16 @@ import { Callout, Steps } from "nextra/components";
 
 Conformal is a framework for building audio plug-ins using **TypeScript** and **Rust**. But what actually _is_ it? Really, Conformal is four things:
 
-- **Abstractions** defining what needs to be implemented to create an audio plug-in. Plug-in authors will _implement_ these abstractions to create their plug-ins.
-- **Wrappers** that take these abstractions and turn them into various standard plug-in formats.
-- **Tools** that make it easy to build and distribute your wrapped plug-ins.
-- **Helper libraries** that make it easier to implement plug-ins.
+- **Abstractions** that define the building blocks of an audio plug-in — you implement these to create yours.
+- **Wrappers** that turn your implementation into standard plug-in formats.
+- **Tools** for building and distributing your plug-ins.
+- **Helper libraries** for common tasks like polyphonic synthesis.
 
 For a guided tour of the framework, please see the [build your first plug-in tutorial](/docs/tutorials/first-plug-in).
 
 If you're already familiar with Conformal but you want to start a new project, use `bun create conformal` to create a new project that already has the basics set up for you.
 
-For a better understanding of how a Conformal project is set up, please read on - we'll take a quick look at how these three parts fit together to actually create a distributable plug-in!
+For a better understanding of how a Conformal project is set up, please read on - we'll take a quick look at how these parts fit together to actually create a distributable plug-in!
 
 ## Abstractions
 
@@ -24,7 +24,7 @@ In Conformal, you as the plug-in author have to write two main pieces of code:
 
 ## Wrappers
 
-Once you have these two pieces of code, you can use a wrapper to turn them into a standard plug-in format. Currently, Conformal supports VST synth and effect plug-ins on macOS, but we hope to support more platforms, plug-in types and plug-in formats in the future.
+Once you have these two pieces of code, you can use a wrapper to turn them into a standard plug-in format. Currently, Conformal supports VST synth and effect plug-ins on macOS and Windows, but we hope to support more platforms, plug-in types and plug-in formats in the future.
 
 Note that the VST wrapper is already set up in the template project created by `bun create conformal`, so you can start building your plug-in right away. However, here's how you'd do it from scratch
 

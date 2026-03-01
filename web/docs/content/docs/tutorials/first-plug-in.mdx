@@ -14,8 +14,8 @@ Welcome to Conformal! In this tutorial we'll:
 If you need help or encounter any issues along the way, please use the "Questions?" link on the right sidebar to start a discussion on GitHub, we'd love to hear from you!
 
 <Callout type="warning">
-  Note that this tutorial is written for macOS system. However, with small
-  tweaks, it should work on Windows as well! See the [Quick
+  Note that this tutorial is written for macOS. However, with small tweaks, it
+  should work on Windows as well! See the [Quick
   Start](/docs/guides/quickstart-win) guide for more details on getting started
   developing on Windows.
 </Callout>
@@ -26,21 +26,9 @@ In this tutorial we'll build a plug-in that applies an artificial [tremolo](http
 
 ## Installing prerequisites
 
-The first step is to install [homebrew](https://brew.sh), which is a package manager that we'll use to install the other tools we need to build Conformal projects. To install brew, follow the instructions on [their website](https://brew.sh).
+The first step is to install [bun](https://bun.sh), which is the toolkit we use to run TypeScript code. Conformal uses TypeScript for scripts for common tasks like building and testing, so you'll be using `bun` a lot! However, you don't need to become a `bun` expert to work with Conformal - feel free to treat it as a black-box.
 
-Next up, we need to install [bun](https://bun.sh), which is the toolkit we use to run TypeScript code. Conformal uses TypeScript for scripts for common tasks like building and testing, so you'll be using `bun` a lot! However, you don't need to become a `bun` expert to work with Conformal - feel free to treat it as a black-box.
-
-To install `bun`, we can use `brew`:
-
-```sh copy
-brew install oven-sh/bun/bun
-```
-
-Next, we'll install VST SDK. This can live anywhere that's convenient for you - if you're not sure where to put it, why not in `~/SDKs`? Note that the VST SDK is currently only used for its validator tool.
-
-```sh copy
-mkdir -p ~/SDKs && git clone https://github.com/steinbergmedia/vst3sdk.git ~/SDKs/vst3sdk --branch v3.8.0_build_66 --recurse-submodules
-```
+To install `bun`, follow the instructions on [their website](https://bun.com/docs/installation#macos-%26-linux).
 
 ## Create a new project
 
@@ -77,21 +65,15 @@ There's some other files in the repo, which are there to configure various tools
 
 ## Development environment
 
-Now that we have our project folder, we need to tell the project where to find the VST3 SDK you installed earlier. We do this by setting the `VST3_SDK_DIR` environment variable in a `.env` file.
-
 From here on out, run all shell commands from the project folder (`cd conformal_tutorial` should get you there!)
 
-```sh copy
-echo "VST3_SDK_DIR=$HOME/SDKs/vst3sdk" > .env
-```
-
-Now, we can install all the project's TypeScript dependencies with
+First, we must install all the project's TypeScript dependencies with
 
 ```sh copy
 bun install
 ```
 
-We can use the project's `bootstrap` script to finish installing the required development tools 🥾.
+We can use the project's `bootstrap` script to finish installing the required development tools 🥾. Note that this script may prompt you to take some manual steps to install additional software - please just enjoy the journey.
 
 <Callout type="info">
   `bootstrap` is a one-time set-up - you won't need to run it again, even if you
@@ -185,7 +167,7 @@ Now we have an LFO! 🤘
 
 ### Optional: Testing the LFO
 
-Well, we _think_ have the LFO, but how do we know it actually works? We can add some unit tests to the `lfo.rs` file to ensure basic properties are upheld!
+Well, we _think_ we have the LFO, but how do we know it actually works? We can add some unit tests to the `lfo.rs` file to ensure basic properties are upheld!
 
 <Callout emoji="🏃">
   If you're in a rush, you can skip this section to get on with building the
@@ -494,7 +476,7 @@ Then, click the "switch to dev server" button in the bottom-right of the plug-in
   package` script is called.
 </Callout>
 
-Now, while the plug-in is open in the DAW, make an edit to `Layout.tsx` and save the file, for example, change the "Hello, world!" text to womething else! You should see the changes reflected immediately in the plugin window! Pretty cool, huh? 🪄
+Now, while the plug-in is open in the DAW, make an edit to `Layout.tsx` and save the file, for example, change the "Hello, world!" text to something else! You should see the changes reflected immediately in the plugin window! Pretty cool, huh? 🪄
 
 You can click the "switch to embedded" button to go back to the view that's embedded into the plug-in. This will be way the view was the last time you ran `bun run package`.
 

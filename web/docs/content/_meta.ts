@@ -7,6 +7,8 @@ export default {
       layout: "full",
       sidebar: false,
       toc: false,
+      footer: false,
+      timestamp: false,
     },
   },
   docs: {

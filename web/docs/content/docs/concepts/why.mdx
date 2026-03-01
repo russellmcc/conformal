@@ -1,42 +1,55 @@
 # Why Conformal?
 
-Conformal was created because making audio plug-ins is _too hard_. While audio plug-ins are inherently complex, challenging pieces of software,
-the tools often used to build them make the task harder than it needs to be. We aim to change that by
-providing a framework to create plug-ins using **modern**, **high-quality**, **popular** technologies. We hope that by sticking to popular languages,
-skills learned while building with Conformal will prove useful in other contexts as well.
+If you want to make audio plug-ins, you've probably been told you need to learn C++. While that's been the standard advice for a long time, we don't think it's the best way.
+
+Conformal lets you build plug-ins using [TypeScript](https://www.typescriptlang.org) and [Rust](https://www.rust-lang.org), two languages that are safer and more approachable, with far better tooling. This combination is unusual in audio, but it's standard everywhere else.
+
+## What Building With Conformal Feels Like
+
+Before getting into the reasoning, here's what the developer experience actually looks like:
+
+- **Start fast.** `bun create conformal` scaffolds a complete project (signal processing, UI, build config) ready to load in a DAW in minutes.
+- **Iterate instantly.** While developing your UI, changes appear in the running plug-in immediately via hot reloading. No rebuild, or even a relaunch.
+- **Develop in a browser.** You can build and test your entire UI in a browser, no DAW required. Debug with your browser's built-in dev tools.
+- **Simple wiring.** Connecting your UI to plug-in parameters is a single React hook: `useNumericParam("rate")` is all you need.
+- **Test easily.** `bun run rust-test` runs your signal processing tests. `bun run web-test` runs your UI tests.
 
 ## Why TypeScript?
 
-In Conformal, user interfaces for plug-ins are written in [TypeScript](https://www.typescriptlang.org).
-TypeScript is a language that provides important type safety features on top of JavaScript, making it
-easier to write and maintain.
+In Conformal, plug-in user interfaces are written in TypeScript and run on the web platform. You'll build UIs with the same technologies behind most modern desktop apps, and taught in every web development course and bootcamp.
 
-In the [2025 Stack Overflow Developer Survey](https://survey.stackoverflow.co/2025/technology#most-popular-technologies-language-prof),
-TypeScript was the 6th most popular language, and of those who used it in the last year, 58% wanted
-to use it again next year.
+The [npm](https://www.npmjs.com) package registry has over 3 million packages. Whatever problem you run into, someone has almost certainly solved it before. The skills transfer, too. TypeScript, [React](https://react.dev), and web development are in demand across the software industry, so time spent learning them pays off well beyond audio.
 
-In Conformal, the TypeScript user interface runs on the web platform, which is surely the most popular platform for building user interfaces. All interactive websites, including the one you are reading now, are built using the web. An increasing number of desktop applications also are built with web technologies - Spotify, Visual Studio Code and Discord are popular examples.
-
-Why is the web so popular for building interfaces? Likely [network effects](https://en.wikipedia.org/wiki/Network_effect) are part of the reason, that is - popularity itself creates more popularity. As of January 2026, there are more than 3 million packages available on [npm](https://www.npmjs.com), compared to fewer than 3 _thousand_ on [vcpkg](https://vcpkg.io/en/), one of the more popular package managers for C++. This thousandfold difference means that you're more likely to find a high-quality library that solves a specific problem you encounter.
-
-Building UIs in TypeScript for the web also gives us easy access to [React](https://react.dev), an excellent library for building UIs out of reusable components that update automatically when data changes. React is very well suited for the unique needs of audio UI development.
+React fits audio UI development well. Plug-in interfaces need to react to parameter changes and handle rich user interactions. That's React's whole model: reusable components that update automatically when data changes.
 
 ## Why Rust?
 
-Signal processing code in Conformal is written in [Rust](https://www.rust-lang.org), a language focused on performance, reliability, and productivity. While Rust is less popular than TypeScript, it is by no means obscure, with 14.5% of professional developers using it, according to the [2025 Stack Overflow Developer Survey](https://survey.stackoverflow.co/2025/technology#most-popular-technologies-language-prof). 72% of those who used Rust wanted to continue using it next year, making it the **most** admired language of the survey, a top spot it has consistently held for the last few years.
+Signal processing code in Conformal is written in Rust.
 
-Along with a great language design and overall good vibes from the developer community, Rust is a great choice for audio plug-in signal processing code. This sort of code runs in _real-time_, that is - audio buffers must be processed in a fixed amount of time.
+The Rust you need for basic audio processing is approachable. The compiler's detailed error messages guide you toward fixes rather than leaving you puzzled, unlike the pages of cryptic template errors that C++ is known for. Rust's tooling further improves the experience: `cargo` provides a unified build system and dependency manager, and `clippy`, the built-in linter, catches common mistakes and suggests idiomatic improvements.
 
-To achieve this, code must run with a relatively deterministic runtime - and this is very hard to achieve in most languages.
+Rust is also well suited for audio signal processing specifically. This code runs in _real-time_: audio buffers must be processed within a fixed time budget. Most modern languages rely on [automatic memory management](https://en.wikipedia.org/wiki/Tracing_garbage_collection) that can pause unpredictably, and in audio, those pauses become audible glitches. Rust gives you the control to avoid this while remaining memory safe.
 
-Two operations that are totally counter to this goal are [tracing garbage collection](https://en.wikipedia.org/wiki/Tracing_garbage_collection) (used automatically by the majority of modern languages), and heap allocations, which can be unpredictably slow. Very few languages give you enough control to avoid these operations in a real-time context. Of the somewhat popular languages with this sort of low-level control, Rust is the only one that is also [memory safe](https://en.wikipedia.org/wiki/Memory_safety), that is, free of undefined behavior that can cause surprising, hard to diagnose bugs.
+In C and C++, the price of low-level control is that bugs like use-after-free and data races are easy to introduce and notoriously hard to track down. Rust, though, is [memory safe](https://en.wikipedia.org/wiki/Memory_safety): the compiler catches these categories of bugs before your code ever runs.
+
+In the [2025 Stack Overflow Developer Survey](https://survey.stackoverflow.co/2025/technology#most-popular-technologies-language-prof), 72% of Rust users wanted to continue using it, making it the **most admired** language.
 
 ## Are Two Languages Better Than One?
 
-To some, the prospect of learning _two_ languages to write plug-ins may seem a little daunting. However, the tasks of building interfaces and writing signal processing are quite different, and even when using a single language there's little overlap in patterns and techniques used in these two contexts. With two languages, we can choose the best tool for each job.
+Two languages can sound daunting, but using a high-level language for UI and a systems language for performance-critical code is how most modern software is built. Game engines pair C++ with scripting languages; machine learning frameworks pair Python with C++ and CUDA. It's just not common in audio plug-in development yet.
 
-## Mainstream or Eccentric?
+The split makes each half of your project simpler. Building interfaces and writing signal processing are different tasks. Even in a single-language framework, there's little overlap in the patterns and techniques you use. With two languages, each side only does one thing. You can build and test your UI entirely in a browser, without touching Rust or running a DAW.
 
-Depending on your background, you may find the technology choices of Conformal to be either "boring" or heterodox - from a perspective outside audio programming, both TypeScript and Rust are established technologies, but both of these technologies are still unusual choices for building audio plug-ins.
+Wondering what you'll actually need to learn? See our [learning resources](/docs/concepts/learning-resources) page for a roadmap and starting points.
 
-We hope that no matter where you are coming from - whether you are a Rust or TypeScript fan hoping to learn audio plug-in development, a seasoned audio plug-in developer looking to learn more about modern technologies, or a total novice who just wants to bring their idea for a plug-in into reality - you will find something to like and learn from in Conformal.
+## How Does Conformal Compare to JUCE?
+
+[JUCE](https://juce.com) is a well-established framework for audio plug-in development, with a broad feature set, a large community, and years of production use behind it.
+
+When JUCE was created in 2004, C++ was the right choice. There simply weren't better alternatives for audio. Two decades later, better alternatives do exist. Yet JUCE remains based entirely on C++, and that foundation shapes the entire experience. The usual C++ memory safety problems apply. JUCE also has its own UI system with ownership semantics that can lead to hard-to-diagnose crashes. Build tooling and dependency management lag far behind modern standards.
+
+Conformal takes a different approach: choose the strongest available tool for each task, and prioritize correctness, clear APIs, and developer comfort. That said, Conformal is a young framework with a narrow focus on VST3 plug-ins for macOS and Windows, and it is missing features like metering support. Improvements in these areas are planned, but it does not yet come close to matching the breadth of JUCE's platform support.
+
+## Ready to Start?
+
+[Build your first plug-in](/docs/tutorials/first-plug-in): you'll go from zero to a working tremolo effect loaded in your DAW.
