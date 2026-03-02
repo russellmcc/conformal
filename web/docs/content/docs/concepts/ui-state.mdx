@@ -1,0 +1,82 @@
+# UI State
+
+Parameters are great for values that both the host and your UI need to see — but sometimes your UI needs to remember things that are purely its own concern. A selected tab, a collapsed panel, a color theme preference, a scroll position — none of these belong in the parameter list, but they should still be there when the user reopens their project.
+
+**UI State** is Conformal's answer to this. It gives your React UI a blob of typed, persisted storage that lives alongside the plug-in in the DAW session. The host never sees it and it has no effect on audio processing, but it is saved and restored automatically when the user saves and reopens their project.
+
+## When to use UI State vs. Parameters
+
+|                              | Parameters                                  | UI State                                                         |
+| ---------------------------- | ------------------------------------------- | ---------------------------------------------------------------- |
+| **Visible to the host**      | Yes — automatable, shown in generic editors | No                                                               |
+| **Affects audio processing** | Yes                                         | No                                                               |
+| **Persisted in DAW project** | Yes                                         | Yes                                                              |
+| **Defined in**               | Rust (`parameter_infos`)                    | TypeScript (a [`Codec`](/ts-doc/plugin/type-aliases/Codec.html)) |
+| **Use for**                  | Gain, frequency, filter mode, bypass…       | Selected tab, theme, panel layout…                               |
+
+If the value should be automatable or needs to reach your Rust processing code, it is a parameter. If it is purely a UI concern that should survive a save/load cycle, it is UI state.
+
+## Codecs
+
+UI state is stored as an opaque byte blob. A [`Codec`](/ts-doc/plugin/type-aliases/Codec.html) defines how to convert between your typed state and those bytes:
+
+```tsx
+type Codec<T> = {
+  encode: (value: T) => Uint8Array;
+  decode: (value: Uint8Array) => T;
+};
+```
+
+`decode` should throw if the bytes are not valid — the provider catches the error and returns `undefined`, so your UI won't crash if the schema changes between plug-in versions.
+
+### Quick start with Zod
+
+The easiest way to get a codec is [`codecFromZod`](/ts-doc/plugin/functions/codecFromZod.html), which combines [Zod](https://zod.dev) validation with [MessagePack](https://msgpack.org/) serialization:
+
+```tsx
+import { z } from "zod";
+import { codecFromZod } from "@conformal/plugin";
+
+const uiStateCodec = codecFromZod(
+  z.object({
+    selectedTab: z.enum(["main", "settings", "about"]),
+    expandedSections: z.array(z.string()),
+  }),
+);
+```
+
+This is sufficient for most cases. If you need a different serialization format or want to handle schema migrations manually, implement `encode` and `decode` yourself.
+
+## Providing UI State to your component tree
+
+Wrap your UI in a [`UiStateProvider`](/ts-doc/plugin/functions/UiStateProvider.html), passing the codec. This must be a descendant of `Provider`:
+
+```tsx
+<Provider>
+  <UiStateProvider codec={uiStateCodec}>
+    <App />
+  </UiStateProvider>
+</Provider>
+```
+
+## Reading and writing UI State
+
+Inside the provider subtree, the [`useUiState`](/ts-doc/plugin/functions/useUiState.html) hook gives you `value` and `set`:
+
+```tsx
+const { value, set } = useUiState<UiState>();
+```
+
+`value` is `undefined` until the first read completes and whenever the stored bytes cannot be decoded against the current codec. Your UI should handle this by falling back to sensible defaults.
+
+`set` replaces the entire state — there is no partial-update API. If your state is an object with multiple fields, spread the previous value and override what changed:
+
+```tsx
+set({ ...value, selectedTab: "settings" });
+```
+
+## How it works under the hood
+
+When your UI calls `set`, the codec encodes the value into bytes, which are sent to the Rust host wrapper over the same channel used for parameters. The wrapper stores the bytes and marks the plug-in state as dirty so the DAW knows to save. When the DAW reloads the project, the bytes are sent back to the UI, decoded through the codec, and the `useUiState` hook returns the restored value.
+
+Because the host only sees an opaque byte blob, UI state does not appear in the host's parameter list and cannot be automated.
