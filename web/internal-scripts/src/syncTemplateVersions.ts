@@ -20,7 +20,8 @@ const versionSections = [
   "catalog",
 ] as const;
 
-const syncableRange = /^(?<prefix>\^|~)?(?<version>\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)$/;
+const syncableRange =
+  /^(?<prefix>\^|~)?(?<version>\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)$/;
 
 const getWorkspaceVersions = async (): Promise<Map<string, string>> => {
   const versions = new Map<string, string>();
@@ -96,7 +97,10 @@ export const syncTemplateVersions = async () => {
     }
 
     if (changed) {
-      await Bun.write(absolutePath, `${JSON.stringify(packageJson, null, 2)}\n`);
+      await Bun.write(
+        absolutePath,
+        `${JSON.stringify(packageJson, null, 2)}\n`,
+      );
     }
   }
 };

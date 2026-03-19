@@ -5,7 +5,12 @@ import { z } from "zod";
 import { syncTemplateVersions } from "./syncTemplateVersions";
 
 const workspacePath = path.join(import.meta.path, "..", "..", "..", "..");
-const createPackageJsonPath = path.join(workspacePath, "web", "create", "package.json");
+const createPackageJsonPath = path.join(
+  workspacePath,
+  "web",
+  "create",
+  "package.json",
+);
 const createTemplatePackageJsonPath = path.join(
   workspacePath,
   "web",
@@ -40,15 +45,17 @@ Bump create-conformal when synced template dependency versions change.
 
 export const prepareWebRelease = async () => {
   const originalCreateVersion = await readCreateVersion();
-  const originalTemplatePackageJson =
-    await Bun.file(createTemplatePackageJsonPath).text();
+  const originalTemplatePackageJson = await Bun.file(
+    createTemplatePackageJsonPath,
+  ).text();
 
   await $`changeset version`.cwd(workspacePath);
   await syncTemplateVersions();
 
   const updatedCreateVersion = await readCreateVersion();
-  const updatedTemplatePackageJson =
-    await Bun.file(createTemplatePackageJsonPath).text();
+  const updatedTemplatePackageJson = await Bun.file(
+    createTemplatePackageJsonPath,
+  ).text();
 
   if (
     originalCreateVersion === updatedCreateVersion &&
