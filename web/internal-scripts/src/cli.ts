@@ -7,6 +7,8 @@ import {
   addRustChangeCommand,
   addRustPrepareReleaseCommand,
 } from "./rustChange";
+import { addPrepareWebReleaseCommand } from "./prepareWebRelease";
+import { addSyncTemplateVersionsCommand } from "./syncTemplateVersions";
 
 export const command = () => {
   const command = new Command("conformal-internal-scripts").description(
@@ -19,6 +21,8 @@ export const command = () => {
   addDeployDocsCommand(command);
   addRustChangeCommand(command);
   addRustPrepareReleaseCommand(command);
+  addPrepareWebReleaseCommand(command);
+  addSyncTemplateVersionsCommand(command);
 
   return command;
 };
