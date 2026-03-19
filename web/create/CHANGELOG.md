@@ -1,5 +1,11 @@
 # create-conformal
 
+## 0.14.0
+
+### Minor Changes
+
+- 69eb6ea: bump dependencies
+
 ## 0.13.3
 
 ### Patch Changes
