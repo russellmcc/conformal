@@ -4,15 +4,15 @@ If you want to make audio plug-ins, you've probably been told you need to learn 
 
 Conformal lets you build plug-ins using [TypeScript](https://www.typescriptlang.org) and [Rust](https://www.rust-lang.org), two languages that are safer and more approachable, with far better tooling.
 
-## What Building With Conformal Feels Like
+## What building with Conformal feels like
 
 Before getting into the reasoning, here's what the developer experience actually looks like:
 
-- **Start fast.** `bun create conformal` scaffolds a complete project (signal processing, UI, build config) ready to load in a DAW in minutes.
-- **Iterate instantly.** While developing your UI, changes appear in the running plug-in immediately via hot reloading. No rebuild, or even a relaunch.
-- **Develop in a browser.** You can build and test your entire UI in a browser, no DAW required. Debug with your browser's built-in dev tools.
-- **Simple wiring.** Connecting your UI to plug-in parameters is a single React hook: `useNumericParam("rate")` is all you need.
-- **Test easily.** `bun run rust-test` runs your signal processing tests. `bun run web-test` runs your UI tests.
+- `bun create conformal` scaffolds a complete project — signal processing, UI, build config — ready to load in a DAW in minutes.
+- While developing your UI, changes appear in the running plug-in immediately via hot reloading. No rebuild, or even a relaunch.
+- You can build and test your entire UI in a browser, no DAW required. Debug with your browser's built-in dev tools.
+- Connecting your UI to plug-in parameters is a single React hook: `useNumericParam("rate")` is all you need.
+- `bun run rust-test` runs your signal processing tests. `bun run web-test` runs your UI tests.
 
 ## Why TypeScript?
 
@@ -34,7 +34,7 @@ In C and C++, the price of low-level control is that bugs like use-after-free an
 
 In the [2025 Stack Overflow Developer Survey](https://survey.stackoverflow.co/2025/technology#most-popular-technologies-language-prof), 72% of Rust users wanted to continue using it, making it the **most admired** language.
 
-## Are Two Languages Better Than One?
+## Are two languages better than one?
 
 Two languages can sound daunting, but using a high-level language for UI and a systems language for performance-critical code is how most modern software is built. Game engines pair C++ with scripting languages; machine learning frameworks pair Python with C++ and CUDA. It's just not common in audio plug-in development yet.
 
@@ -42,14 +42,14 @@ The split makes each half of your project simpler. Building interfaces and writi
 
 Wondering what you'll actually need to learn? See our [learning resources](/docs/concepts/learning-resources) page for a roadmap and starting points.
 
-## How Does Conformal Compare to JUCE?
+## How does Conformal compare to JUCE?
 
-[JUCE](https://juce.com) is a well-established framework for audio plug-in development, with a broad feature set, a large community, and years of production use behind it.
+[JUCE](https://juce.com) is a well-established framework for audio plug-in development, with a broad feature set, a large community and over two decades of production use.
 
 When JUCE was created in 2004, C++ was the right choice. There simply weren't better alternatives for audio. Two decades later, better alternatives do exist. Yet JUCE remains based entirely on C++, and that foundation shapes the entire experience. The usual C++ memory safety problems apply. JUCE also has its own UI system with ownership semantics that can lead to hard-to-diagnose crashes. Build tooling and dependency management lag far behind modern standards.
 
-Conformal takes a different approach: choose the strongest available tool for each task, and prioritize correctness, clear APIs, and developer comfort. That said, Conformal is a young framework with a narrow focus on VST3 plug-ins for macOS and Windows, and it is missing features like metering support. Improvements in these areas are planned, but it does not yet come close to matching the breadth of JUCE's platform support.
+Conformal takes a different approach: choose the strongest available tool for each task, and prioritize correctness and a comfortable developer experience. That said, Conformal is a young framework with a narrow focus on VST3 plug-ins for macOS and Windows, and it is missing features like metering support. Improvements in these areas are planned, but it does not yet come close to matching the breadth of JUCE's platform support.
 
-## Ready to Start?
+## Ready to start?
 
 [Build your first plug-in](/docs/tutorials/first-plug-in): you'll go from zero to a working tremolo effect loaded in your DAW.
