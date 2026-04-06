@@ -81,6 +81,9 @@ impl IPluginFactoryTrait for Factory {
         obj: *mut *mut ::std::ffi::c_void,
     ) -> tresult {
         unsafe {
+            if obj.is_null() {
+                return vst3::Steinberg::kInvalidArgument;
+            }
             for class in self.classes {
                 if compare_fid(class_id, class.info().edit_controller_cid) {
                     let com_ptr = ComWrapper::new(edit_controller::create(
@@ -95,7 +98,7 @@ impl IPluginFactoryTrait for Factory {
                     if let Some(i) =
                         IPluginBase::query_interface(com_ptr.as_ptr(), &to_iid(interface_id))
                     {
-                        *obj = i;
+                        std::ptr::write_unaligned(obj, i);
                         return vst3::Steinberg::kResultOk;
                     }
                     return vst3::Steinberg::kNoInterface;
@@ -106,7 +109,7 @@ impl IPluginFactoryTrait for Factory {
                     if let Some(i) =
                         IPluginBase::query_interface(com_ptr.as_ptr(), &to_iid(interface_id))
                     {
-                        *obj = i;
+                        std::ptr::write_unaligned(obj, i);
                         return vst3::Steinberg::kResultOk;
                     }
                     return vst3::Steinberg::kNoInterface;
