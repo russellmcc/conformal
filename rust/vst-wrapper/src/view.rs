@@ -515,8 +515,8 @@ impl<S: store::Store + 'static> IPlugViewContentScaleSupportTrait for SharedView
         let new_scaled_size = round_size(scale_size(unscaled_size, factor));
         let frame = self.borrow().frame.clone();
         let plug_view_ptr = self.borrow().plug_view_ptr;
-        self.borrow_mut().pending_scale_factor_change_size = Some(new_scaled_size);
         if let Some(frame) = frame {
+            self.borrow_mut().pending_scale_factor_change_size = Some(new_scaled_size);
             let mut new_rect = vst3::Steinberg::ViewRect {
                 top: 0,
                 left: 0,
@@ -524,6 +524,10 @@ impl<S: store::Store + 'static> IPlugViewContentScaleSupportTrait for SharedView
                 bottom: new_scaled_size.height,
             };
             unsafe { frame.resizeView(plug_view_ptr, &raw mut new_rect) };
+        } else {
+            // If we don't have a frame set-up, we can't advertise the new size, so simply
+            // update our current size immediately.
+            self.borrow_mut().current_size = new_scaled_size;
         }
         vst3::Steinberg::kResultOk
     }
