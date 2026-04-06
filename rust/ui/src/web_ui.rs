@@ -62,6 +62,9 @@ impl server::ResponseSender for ResponseSender {
 
 pub struct Ui<S> {
     #[allow(dead_code)]
+    // false-positive - we need to keep context alive, but we never read from it.
+    web_context: wry::WebContext,
+    #[allow(dead_code)]
     // false-positive - we keep web_view alive, but we don't need to read from it.
     web_view: Rc<wry::WebView>,
     server: Rc<RefCell<server::Server<S, ResponseSender>>>,
@@ -138,6 +141,34 @@ pub struct Size {
     pub height: i32,
 }
 
+#[cfg(target_os = "windows")]
+fn webview_data_root() -> std::path::PathBuf {
+    if let Some(path) = std::env::var_os("LOCALAPPDATA").map(Into::into) {
+        return path;
+    }
+
+    if let Some(path) = std::env::var_os("USERPROFILE").map(Into::<std::path::PathBuf>::into) {
+        return path.join("AppData").join("Local");
+    }
+
+    if let Some(path) = std::env::var_os("APPDATA").map(Into::into) {
+        return path;
+    }
+
+    std::env::temp_dir()
+}
+
+#[cfg(target_os = "windows")]
+#[allow(clippy::unnecessary_wraps)]
+fn webview_data_dir(domain: &str) -> Option<std::path::PathBuf> {
+    Some(webview_data_root().join(domain).join("webview"))
+}
+
+#[cfg(not(target_os = "windows"))]
+fn webview_data_dir(_: &str) -> Option<std::path::PathBuf> {
+    None
+}
+
 impl<S: super::ParameterStore + 'static> Ui<S> {
     /// # Errors
     ///
@@ -168,8 +199,9 @@ impl<S: super::ParameterStore + 'static> Ui<S> {
             },
         )));
         let server_ipc = server.clone();
+        let mut web_context = wry::WebContext::new(webview_data_dir(domain));
         let web_view = Rc::new(
-            wry::WebViewBuilder::new()
+            wry::WebViewBuilder::new_with_web_context(&mut web_context)
                 .with_ipc_handler(move |m| {
                     if let Ok(message) = protocol::decode_message(m.body()) {
                         server_ipc.borrow_mut().handle_request(&message);
@@ -197,7 +229,11 @@ impl<S: super::ParameterStore + 'static> Ui<S> {
                 height: f64::from(size.height),
             }),
         });
-        Ok(Self { web_view, server })
+        Ok(Self {
+            web_context,
+            web_view,
+            server,
+        })
     }
 
     /// Any time any parameter changes, this must be called with the new value.
