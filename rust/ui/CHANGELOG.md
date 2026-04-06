@@ -1,3 +1,10 @@
+## 0.6.3 (2026-04-06)
+
+### Fixes
+
+- Allow re-entrancy in performEdit -> setParamNormalized to prevent tracktion crashes
+- Fix issue where ui would be blank on some windows DAWs
+
 ## 0.6.2 (2026-03-10)
 
 ### Fixes
