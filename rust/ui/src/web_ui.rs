@@ -68,6 +68,7 @@ pub struct Ui<S> {
     // false-positive - we keep web_view alive, but we don't need to read from it.
     web_view: Rc<wry::WebView>,
     server: Rc<RefCell<server::Server<S, ResponseSender>>>,
+    pending_parameter_updates: Rc<RefCell<HashMap<String, parameters::Value>>>,
 }
 
 fn make_plain_error(status: StatusCode, message: &str) -> Response<Vec<u8>> {
@@ -200,11 +201,23 @@ impl<S: super::ParameterStore + 'static> Ui<S> {
         )));
         let server_ipc = server.clone();
         let mut web_context = wry::WebContext::new(webview_data_dir(domain));
+        let pending_parameter_updates: Rc<RefCell<HashMap<String, parameters::Value>>> =
+            Rc::new(RefCell::new(HashMap::new()));
+        let pending_parameter_updates_ipc = pending_parameter_updates.clone();
         let web_view = Rc::new(
             wry::WebViewBuilder::new_with_web_context(&mut web_context)
                 .with_ipc_handler(move |m| {
                     if let Ok(message) = protocol::decode_message(m.body()) {
-                        server_ipc.borrow_mut().handle_request(&message);
+                        let mut server = server_ipc.borrow_mut();
+                        server.handle_request(&message);
+
+                        // Send any re-entrant parameter updates to the server.
+                        let mut pending_parameter_updates =
+                            pending_parameter_updates_ipc.borrow_mut();
+                        for (unique_id, value) in pending_parameter_updates.iter() {
+                            server.update_parameter(unique_id, value);
+                        }
+                        pending_parameter_updates.clear();
                     }
                     // We ignore any unknown messages - these could be from
                     // future clients!
@@ -233,12 +246,22 @@ impl<S: super::ParameterStore + 'static> Ui<S> {
             web_context,
             web_view,
             server,
+            pending_parameter_updates,
         })
     }
 
     /// Any time any parameter changes, this must be called with the new value.
     pub fn update_parameter(&mut self, unique_id: &str, value: &parameters::Value) {
-        self.server.borrow_mut().update_parameter(unique_id, value);
+        if let Ok(mut server) = self.server.try_borrow_mut() {
+            server.update_parameter(unique_id, value);
+        } else {
+            // If we get a re-entrant update while the server is borrowed,
+            // add it to the pending updates list so that it will be handled
+            // after the current request.
+            self.pending_parameter_updates
+                .borrow_mut()
+                .insert(unique_id.to_string(), value.clone());
+        }
     }
 
     /// This must be called whenever the UI state changes.
