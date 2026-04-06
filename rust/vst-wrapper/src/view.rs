@@ -540,10 +540,13 @@ impl<S> Class for SharedView<S> {
 // Only include tests in test config on macos
 #[cfg(all(test, target_os = "macos"))]
 mod tests {
+    use std::cell::RefCell;
+
     use vst3::Steinberg::{
-        IPlugViewContentScaleSupport_::ScaleFactor, IPlugViewContentScaleSupportTrait,
-        IPlugViewTrait,
+        IPlugFrame, IPlugFrameTrait, IPlugView, IPlugViewContentScaleSupport_::ScaleFactor,
+        IPlugViewContentScaleSupportTrait, IPlugViewTrait,
     };
+    use vst3::{Class, ComPtr, ComWrapper};
 
     use crate::Resizability;
 
@@ -596,6 +599,43 @@ mod tests {
         }
     }
 
+    #[derive(Default)]
+    struct MockFrame {
+        resized_sizes: RefCell<Vec<(i32, i32)>>,
+    }
+
+    impl IPlugFrameTrait for MockFrame {
+        unsafe fn resizeView(
+            &self,
+            _view: *mut IPlugView,
+            new_size: *mut vst3::Steinberg::ViewRect,
+        ) -> vst3::Steinberg::tresult {
+            let new_size = unsafe { *new_size };
+            self.resized_sizes.borrow_mut().push((
+                new_size.right - new_size.left,
+                new_size.bottom - new_size.top,
+            ));
+            vst3::Steinberg::kResultOk
+        }
+    }
+
+    impl Class for MockFrame {
+        type Interfaces = (IPlugFrame,);
+    }
+
+    fn get_size(view: &ComPtr<IPlugView>) -> vst3::Steinberg::ViewRect {
+        let mut size = vst3::Steinberg::ViewRect {
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0,
+        };
+        unsafe {
+            assert_eq!(view.getSize(&raw mut size), vst3::Steinberg::kResultOk);
+        }
+        size
+    }
+
     #[test]
     fn nsview_platform_supported() {
         let v = create(DummyStore {}, "test".to_string(), Resizability::FixedSize);
@@ -632,7 +672,44 @@ mod tests {
     }
 
     #[test]
-    fn set_content_scale_factor_then_on_size_succeeds() {
+    fn set_content_scale_factor_then_on_size_succeeds_when_frame_attached() {
+        let view = create(DummyStore {}, "test".to_string(), Resizability::FixedSize);
+        let frame = ComWrapper::new(MockFrame::default());
+        let scale_support = view
+            .cast::<vst3::Steinberg::IPlugViewContentScaleSupport>()
+            .unwrap();
+        unsafe {
+            assert_eq!(
+                view.setFrame(frame.as_com_ref().unwrap().as_ptr()),
+                vst3::Steinberg::kResultOk
+            );
+            assert_eq!(
+                scale_support
+                    .as_com_ref()
+                    .setContentScaleFactor(2.0f32 as ScaleFactor),
+                vst3::Steinberg::kResultOk
+            );
+        }
+        assert_eq!(frame.resized_sizes.borrow().as_slice(), &[(200, 200)]);
+        let get_before_size = get_size(&view);
+        assert_eq!(get_before_size.right, 100);
+        assert_eq!(get_before_size.bottom, 100);
+        let mut rect = vst3::Steinberg::ViewRect {
+            left: 0,
+            top: 0,
+            right: 200,
+            bottom: 200,
+        };
+        unsafe {
+            assert_eq!(view.onSize(&raw mut rect), vst3::Steinberg::kResultOk);
+        }
+        let get_after_size = get_size(&view);
+        assert_eq!(get_after_size.right, 200);
+        assert_eq!(get_after_size.bottom, 200);
+    }
+
+    #[test]
+    fn set_content_scale_factor_immediately_updates_size_without_frame() {
         let view = create(DummyStore {}, "test".to_string(), Resizability::FixedSize);
         let scale_support = view
             .cast::<vst3::Steinberg::IPlugViewContentScaleSupport>()
@@ -645,46 +722,9 @@ mod tests {
                 vst3::Steinberg::kResultOk
             );
         }
-        {
-            let mut get_before_size = vst3::Steinberg::ViewRect {
-                left: 0,
-                top: 0,
-                right: 0,
-                bottom: 0,
-            };
-            unsafe {
-                assert_eq!(
-                    view.getSize(&raw mut get_before_size),
-                    vst3::Steinberg::kResultOk
-                );
-            }
-            assert_eq!(get_before_size.right, 100);
-            assert_eq!(get_before_size.bottom, 100);
-        }
-        let mut rect = vst3::Steinberg::ViewRect {
-            left: 0,
-            top: 0,
-            right: 200,
-            bottom: 200,
-        };
-        unsafe {
-            assert_eq!(view.onSize(&raw mut rect), vst3::Steinberg::kResultOk);
-        }
-        {
-            let mut get_after_size = vst3::Steinberg::ViewRect {
-                left: 0,
-                top: 0,
-                right: 0,
-                bottom: 0,
-            };
-            unsafe {
-                assert_eq!(
-                    view.getSize(&raw mut get_after_size),
-                    vst3::Steinberg::kResultOk
-                );
-            }
-            assert_eq!(get_after_size.right, 200);
-            assert_eq!(get_after_size.bottom, 200);
-        }
+
+        let size = get_size(&view);
+        assert_eq!(size.right, 200);
+        assert_eq!(size.bottom, 200);
     }
 }
