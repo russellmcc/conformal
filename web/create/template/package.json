@@ -32,7 +32,7 @@
     "eslint": "^9.39.1",
     "prettier": "^3.8.1",
     "typescript": "^5.9.3",
-    "@conformal/scripts": "^0.11.3",
+    "@conformal/scripts": "^0.11.4",
     "@happy-dom/global-registrator": "^20.3.3",
     "tsconfig": "workspace:*"
   },

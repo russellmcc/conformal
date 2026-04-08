@@ -1,3 +1,11 @@
+## 0.6.4 (2026-04-08)
+
+### Fixes
+
+- Fix issue with MPE in bitwig
+- Workaround for Luna: activate even when event bus isn't activated
+- Workaround for mac hosts that inappropriately send content scale factor changes (like Luna)
+
 ## 0.6.3 (2026-04-06)
 
 ### Fixes
