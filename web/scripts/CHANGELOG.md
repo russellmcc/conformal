@@ -1,5 +1,11 @@
 # @conformal/scripts
 
+## 0.11.4
+
+### Patch Changes
+
+- d8a6019: Use better webview2 detection
+
 ## 0.11.3
 
 ### Patch Changes
