@@ -9,6 +9,7 @@ import { readFile } from "node:fs/promises";
 const DEFAULT_BANNER_PATH = join(import.meta.dir, "assets", "banner.png");
 const DEFAULT_DIALOG_PATH = join(import.meta.dir, "assets", "dlg.png");
 const WXL_OVERRIDES_PATH = join(import.meta.dir, "assets", "overrides.wxl");
+const WEBVIEW2_RUNTIME_GUID = "{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}";
 
 const getRustPackagePath = async (rustPackage: string) => {
   const metadataParser = z.object({
@@ -76,6 +77,10 @@ const textToRtf = (text: string): string => {
 
 const WEBVIEW2_BOOTSTRAPPER_URL =
   "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
+const WEBVIEW2_INSTALLED_CONDITION = [
+  '(WVRT_MACHINE_VERSION AND WVRT_MACHINE_VERSION <> "0.0.0.0")',
+  '(WVRT_USER_VERSION AND WVRT_USER_VERSION <> "0.0.0.0")',
+].join(" OR ");
 
 /**
  * Generates the main WiX source file for the MSI installer.
@@ -84,8 +89,10 @@ const WEBVIEW2_BOOTSTRAPPER_URL =
  * it references VST3_INSTALL_DIR which is defined here.
  *
  * The WebView2 bootstrapper is embedded as a Binary and run via a deferred
- * Custom Action if WebView2 is not already installed. The registry key
- * checked is Microsoft's documented detection mechanism.
+ * Custom Action if WebView2 is not already installed. Detection follows
+ * Microsoft's documented guidance by checking the `pv` value in the machine-
+ * wide and per-user registry locations and treating `0.0.0.0` as not
+ * installed.
  */
 const generateWxs = (
   bundleData: BundleData,
@@ -104,8 +111,11 @@ const generateWxs = (
     <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
-    <Property Id="WVRTINSTALLED">
-      <RegistrySearch Id="WVRTInstalled" Root="HKLM" Key="SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" Name="EBWebView" Type="raw" Win64="no" />
+    <Property Id="WVRT_MACHINE_VERSION">
+      <RegistrySearch Id="WVRTMachineVersion" Root="HKLM" Key="SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\${WEBVIEW2_RUNTIME_GUID}" Name="pv" Type="raw" Win64="yes" />
+    </Property>
+    <Property Id="WVRT_USER_VERSION">
+      <RegistrySearch Id="WVRTUserVersion" Root="HKCU" Key="Software\\Microsoft\\EdgeUpdate\\Clients\\${WEBVIEW2_RUNTIME_GUID}" Name="pv" Type="raw" />
     </Property>
 
     <Directory Id="TARGETDIR" Name="SourceDir">
@@ -125,7 +135,7 @@ const generateWxs = (
     <Binary Id="MicrosoftEdgeWebview2Setup.exe" SourceFile="MicrosoftEdgeWebview2Setup.exe" />
     <CustomAction Id="InstallWebView2Runtime" BinaryKey="MicrosoftEdgeWebview2Setup.exe" Execute="deferred" ExeCommand="/silent /install" Return="check" Impersonate="no" />
     <InstallExecuteSequence>
-      <Custom Action="InstallWebView2Runtime" Before="InstallFinalize"><![CDATA[NOT(REMOVE OR WVRTINSTALLED)]]></Custom>
+      <Custom Action="InstallWebView2Runtime" Before="InstallFinalize"><![CDATA[NOT(REMOVE OR ${WEBVIEW2_INSTALLED_CONDITION})]]></Custom>
     </InstallExecuteSequence>
 
     <UIRef Id="WixUI_Minimal" />
