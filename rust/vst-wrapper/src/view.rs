@@ -3,7 +3,7 @@ use std::{cell::RefCell, ops::Deref, rc};
 use vst3::{
     Class, ComPtr, ComRef, ComWrapper,
     Steinberg::{
-        IPlugFrame, IPlugFrameTrait, IPlugView, IPlugViewContentScaleSupport,
+        IPlugFrame, IPlugView, IPlugViewContentScaleSupport,
         IPlugViewContentScaleSupport_::ScaleFactor, IPlugViewContentScaleSupportTrait,
         IPlugViewTrait,
     },
@@ -507,8 +507,12 @@ impl<S: store::Store + SizePersistance + 'static> IPlugViewTrait for SharedView<
 }
 
 impl<S: store::Store + 'static> IPlugViewContentScaleSupportTrait for SharedView<S> {
+    // Note we use windows implementation in tests on all platforms.
+    // This is because non-windows implementation is trivial,
+    // and as of this writing we only run tests for this module on macOS.
+    #[cfg(any(target_os = "windows", test))]
     unsafe fn setContentScaleFactor(&self, factor: ScaleFactor) -> vst3::Steinberg::tresult {
-        println!("setting content scale factor");
+        use vst3::Steinberg::IPlugFrameTrait;
         let old_scale_factor = self.borrow().scale_factor;
         let unscaled_size = unscale_size(self.borrow().current_size, old_scale_factor);
         self.borrow_mut().scale_factor = factor;
@@ -530,6 +534,16 @@ impl<S: store::Store + 'static> IPlugViewContentScaleSupportTrait for SharedView
             self.borrow_mut().current_size = new_scaled_size;
         }
         vst3::Steinberg::kResultOk
+    }
+
+    #[cfg(not(any(target_os = "windows", test)))]
+    unsafe fn setContentScaleFactor(&self, _: ScaleFactor) -> vst3::Steinberg::tresult {
+        // macOS vst3 is not supposed to send setContentScaleFactor, so if we get it,
+        // ignore it.
+        //
+        // VST docs for this function imply we are supposed to return kResultFalse here when we
+        // no-op.
+        vst3::Steinberg::kResultFalse
     }
 }
 
