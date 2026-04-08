@@ -323,39 +323,60 @@ fn event_to_vst3_event(event: &MockEvent) -> vst3::Steinberg::Vst::Event {
             id,
             expression,
             value,
-        } => {
-            let (value, type_id) = match expression {
-                NumericPerNoteExpression::PitchBend => (
-                    (value / 240.0 + 0.5) as f64,
-                    vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID,
-                ),
-                NumericPerNoteExpression::Timbre => (
-                    value as f64,
-                    vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kCustomStart,
-                ),
-                NumericPerNoteExpression::Aftertouch => (
-                    value as f64,
-                    vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kCustomStart + 1,
-                ),
-            };
-            vst3::Steinberg::Vst::Event {
+        } => match expression {
+            NumericPerNoteExpression::PitchBend | NumericPerNoteExpression::Timbre => {
+                let (value, type_id) = match expression {
+                    NumericPerNoteExpression::PitchBend => (
+                        (value / 240.0 + 0.5) as f64,
+                        vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID,
+                    ),
+                    NumericPerNoteExpression::Timbre => (
+                        value as f64,
+                        crate::processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID,
+                    ),
+                    NumericPerNoteExpression::Aftertouch => unreachable!(),
+                };
+                vst3::Steinberg::Vst::Event {
+                    busIndex: 0,
+                    sampleOffset: event.sample_offset as i32,
+                    ppqPosition: 0f64,
+                    flags: 0,
+                    r#type: vst3::Steinberg::Vst::Event_::EventTypes_::kNoteExpressionValueEvent
+                        as u16,
+                    __field0: vst3::Steinberg::Vst::Event__type0 {
+                        noteExpressionValue: vst3::Steinberg::Vst::NoteExpressionValueEvent {
+                            noteId: match id.internals {
+                                NoteIDInternals::NoteIDWithID(id) => id,
+                                _ => -1,
+                            },
+                            value,
+                            typeId: type_id,
+                        },
+                    },
+                }
+            }
+            NumericPerNoteExpression::Aftertouch => vst3::Steinberg::Vst::Event {
                 busIndex: 0,
                 sampleOffset: event.sample_offset as i32,
                 ppqPosition: 0f64,
                 flags: 0,
-                r#type: vst3::Steinberg::Vst::Event_::EventTypes_::kNoteExpressionValueEvent as u16,
+                r#type: vst3::Steinberg::Vst::Event_::EventTypes_::kPolyPressureEvent as u16,
                 __field0: vst3::Steinberg::Vst::Event__type0 {
-                    noteExpressionValue: vst3::Steinberg::Vst::NoteExpressionValueEvent {
+                    polyPressure: vst3::Steinberg::Vst::PolyPressureEvent {
+                        channel: match id.internals {
+                            NoteIDInternals::NoteIDFromChannelID(channel) => channel,
+                            _ => 0,
+                        },
+                        pitch: 0,
                         noteId: match id.internals {
                             NoteIDInternals::NoteIDWithID(id) => id,
                             _ => -1,
                         },
-                        value,
-                        typeId: type_id,
+                        pressure: value,
                     },
                 },
-            }
-        }
+            },
+        },
     }
 }
 

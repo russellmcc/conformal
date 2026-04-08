@@ -11,9 +11,9 @@
 //!    must set up mappings to params, and then changes are provided
 //!    as params.
 //!
-//! We support both methods. We use the first method for note IDs with
-//! channel 0 and a non-negative-one VST Node ID, and the second method
-//! for non-channel-0 note IDs.
+//! We support both methods. We use the first method whenever the host
+//! supplies a valid VST note ID, and the second method for
+//! channel-tagged notes without a VST note ID.
 //!
 //! Note that eventually we may want to legitimately support more channels,
 //! in which case we'll have to be smarter about when to interpret channels
