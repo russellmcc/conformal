@@ -40,6 +40,21 @@ unsafe fn get_event(
     }
 }
 
+fn get_note_id(pitch: u8, channel: i16, note_id: i32) -> NoteID {
+    if note_id != -1 {
+        return NoteID::from_id(note_id);
+    }
+    if channel != 0 {
+        NoteID::from_channel_id(channel)
+    } else {
+        NoteID::from_pitch(pitch)
+    }
+}
+
+fn get_mpe_note_id(note_id: i32) -> Option<i32> {
+    if note_id == -1 { None } else { Some(note_id) }
+}
+
 unsafe fn convert_event(event: &vst3::Steinberg::Vst::Event) -> Option<Event> {
     unsafe {
         if event.sampleOffset < 0 {
@@ -56,13 +71,7 @@ unsafe fn convert_event(event: &vst3::Steinberg::Vst::Event) -> Option<Event> {
                             pitch,
                             tuning: event.__field0.noteOn.tuning,
                             velocity: event.__field0.noteOn.velocity,
-                            id: if channel != 0 {
-                                NoteID::from_channel_id(channel)
-                            } else if event.__field0.noteOn.noteId == -1 {
-                                NoteID::from_pitch(pitch)
-                            } else {
-                                NoteID::from_id(event.__field0.noteOn.noteId)
-                            },
+                            id: get_note_id(pitch, channel, event.__field0.noteOn.noteId),
                         },
                     },
                 })
@@ -77,13 +86,7 @@ unsafe fn convert_event(event: &vst3::Steinberg::Vst::Event) -> Option<Event> {
                             pitch,
                             tuning: event.__field0.noteOff.tuning,
                             velocity: event.__field0.noteOff.velocity,
-                            id: if channel != 0 {
-                                NoteID::from_channel_id(channel)
-                            } else if event.__field0.noteOff.noteId == -1 {
-                                NoteID::from_pitch(pitch)
-                            } else {
-                                NoteID::from_id(event.__field0.noteOff.noteId)
-                            },
+                            id: get_note_id(pitch, channel, event.__field0.noteOff.noteId),
                         },
                     },
                 })
@@ -100,22 +103,16 @@ unsafe fn convert_mpe_event(event: &vst3::Steinberg::Vst::Event) -> Option<mpe::
         }
         match u32_to_enum(u32::from(event.r#type)) {
             Ok(vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOnEvent) => {
-                let channel = event.__field0.noteOn.channel;
                 let note_id = event.__field0.noteOn.noteId;
-                if note_id == -1 || channel != 0 {
-                    return None;
-                }
+                let note_id = get_mpe_note_id(note_id)?;
                 Some(mpe::NoteEvent {
                     sample_offset: event.sampleOffset as usize,
                     data: mpe::NoteEventData::On { note_id },
                 })
             }
             Ok(vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOffEvent) => {
-                let channel = event.__field0.noteOff.channel;
                 let note_id = event.__field0.noteOff.noteId;
-                if note_id == -1 || channel != 0 {
-                    return None;
-                }
+                let note_id = get_mpe_note_id(note_id)?;
                 Some(mpe::NoteEvent {
                     sample_offset: event.sampleOffset as usize,
                     data: mpe::NoteEventData::Off { note_id },
@@ -123,9 +120,7 @@ unsafe fn convert_mpe_event(event: &vst3::Steinberg::Vst::Event) -> Option<mpe::
             }
             Ok(vst3::Steinberg::Vst::Event_::EventTypes_::kNoteExpressionValueEvent) => {
                 let note_id = event.__field0.noteExpressionValue.noteId;
-                if note_id == -1 {
-                    return None;
-                }
+                let note_id = get_mpe_note_id(note_id)?;
                 let expression = match event.__field0.noteExpressionValue.typeId {
                     vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID => {
                         NumericPerNoteExpression::PitchBend
@@ -156,6 +151,105 @@ unsafe fn convert_mpe_event(event: &vst3::Steinberg::Vst::Event) -> Option<mpe::
             }
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use conformal_component::events::{Data, NoteData, NoteIDInternals};
+
+    use super::*;
+
+    fn note_on_event(channel: i16, note_id: i32, pitch: i16) -> vst3::Steinberg::Vst::Event {
+        vst3::Steinberg::Vst::Event {
+            busIndex: 0,
+            sampleOffset: 0,
+            ppqPosition: 0.0,
+            flags: 0,
+            r#type: vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOnEvent as u16,
+            __field0: vst3::Steinberg::Vst::Event__type0 {
+                noteOn: vst3::Steinberg::Vst::NoteOnEvent {
+                    channel,
+                    pitch,
+                    tuning: 0.0,
+                    velocity: 0.5,
+                    length: 0,
+                    noteId: note_id,
+                },
+            },
+        }
+    }
+
+    fn note_off_event(channel: i16, note_id: i32, pitch: i16) -> vst3::Steinberg::Vst::Event {
+        vst3::Steinberg::Vst::Event {
+            busIndex: 0,
+            sampleOffset: 0,
+            ppqPosition: 0.0,
+            flags: 0,
+            r#type: vst3::Steinberg::Vst::Event_::EventTypes_::kNoteOffEvent as u16,
+            __field0: vst3::Steinberg::Vst::Event__type0 {
+                noteOff: vst3::Steinberg::Vst::NoteOffEvent {
+                    channel,
+                    pitch,
+                    tuning: 0.0,
+                    velocity: 0.5,
+                    noteId: note_id,
+                },
+            },
+        }
+    }
+
+    #[test]
+    fn note_ids_prefer_vst_note_id_over_channel() {
+        let event = note_on_event(3, 42, 64);
+        let converted = unsafe { convert_event(&event) }.unwrap();
+        assert_eq!(
+            converted,
+            Event {
+                sample_offset: 0,
+                data: Data::NoteOn {
+                    data: NoteData {
+                        id: NoteID::from_id(42),
+                        pitch: 64,
+                        velocity: 0.5,
+                        tuning: 0.0,
+                    },
+                },
+            }
+        );
+    }
+
+    #[test]
+    fn official_mpe_note_on_accepts_nonzero_channel_when_note_id_present() {
+        let event = note_on_event(7, 42, 64);
+        let converted = unsafe { convert_mpe_event(&event) }.unwrap();
+        match converted.data {
+            mpe::NoteEventData::On { note_id } => assert_eq!(note_id, 42),
+            _ => panic!("expected note on"),
+        }
+    }
+
+    #[test]
+    fn official_mpe_note_off_accepts_nonzero_channel_when_note_id_present() {
+        let event = note_off_event(7, 42, 64);
+        let converted = unsafe { convert_mpe_event(&event) }.unwrap();
+        match converted.data {
+            mpe::NoteEventData::Off { note_id } => assert_eq!(note_id, 42),
+            _ => panic!("expected note off"),
+        }
+    }
+
+    #[test]
+    fn quirks_note_without_note_id_still_uses_channel_id() {
+        let event = note_on_event(7, -1, 64);
+        let converted = unsafe { convert_event(&event) }.unwrap();
+        match converted.data {
+            Data::NoteOn { data } => {
+                assert_eq!(data.id.internals, NoteIDInternals::NoteIDFromChannelID(7));
+            }
+            _ => panic!("expected note on"),
+        }
+        assert!(unsafe { convert_mpe_event(&event) }.is_none());
     }
 }
 
