@@ -208,8 +208,12 @@ impl ProcessorCategory for SynthProcessorCategory {
 
     fn activate(&self) -> Self::Active {
         ActiveSynthProcessor {
+            // Here we work around buggy hosts that activate audio bus without the event bus.
+            // UA Luna is an example of this at time of writing.
+            // Luna does provide events even when the event bus is not active, so
+            // it's okay to activate audio.
             audio_state: if self.bus_activation_state.event_input_active
-                && self.bus_activation_state.audio_output_active
+                || self.bus_activation_state.audio_output_active
             {
                 SynthProcessorAudioState::AudioEnabled(self.channel_layout)
             } else {
