@@ -3476,7 +3476,7 @@ mod tests {
             map[1].physicalUITypeID =
                 enum_to_u32(vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIXMovement).unwrap();
             let mut physical_ui_mapping = vst3::Steinberg::Vst::PhysicalUIMapList {
-                count: 3,
+                count: 2,
                 map: map.as_mut_ptr(),
             };
 
