@@ -1247,7 +1247,7 @@ impl INoteExpressionControllerTrait for EditController {
         if channel != 0 {
             return 0;
         }
-        3
+        2
     }
 
     unsafe fn getNoteExpressionInfo(
@@ -1302,22 +1302,6 @@ impl INoteExpressionControllerTrait for EditController {
 
                     vst3::Steinberg::kResultOk
                 }
-                2 => {
-                    info_out.typeId = crate::processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID;
-                    to_utf16("Aftertouch", &mut info_out.title);
-                    to_utf16("Aftertouch", &mut info_out.shortTitle);
-                    to_utf16("", &mut info_out.units);
-                    info_out.unitId = 0;
-                    info_out.valueDesc = vst3::Steinberg::Vst::NoteExpressionValueDescription {
-                        defaultValue: 0.0,
-                        minimum: 0.0,
-                        maximum: 1.0,
-                        stepCount: 0, // Continuous
-                    };
-                    info_out.flags = 0;
-
-                    vst3::Steinberg::kResultOk
-                }
                 _ => vst3::Steinberg::kInvalidArgument,
             }
         }
@@ -1347,8 +1331,7 @@ impl INoteExpressionControllerTrait for EditController {
                     to_utf16(&format!("{value:.2}"), &mut *string);
                     vst3::Steinberg::kResultOk
                 }
-                crate::processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID
-                | crate::processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID => {
+                crate::processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID => {
                     to_utf16(&format!("{value_normalized:.2}"), &mut *string);
                     vst3::Steinberg::kResultOk
                 }
@@ -1386,8 +1369,7 @@ impl INoteExpressionControllerTrait for EditController {
                     vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID => {
                         Some((value / 240.0) + 0.5)
                     }
-                    crate::processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID
-                    | crate::processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID => Some(value),
+                    crate::processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID => Some(value),
                     _ => None,
                 }
             })() {
@@ -1429,10 +1411,6 @@ impl INoteExpressionPhysicalUIMappingTrait for EditController {
                     Ok(vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIYMovement) => {
                         item.noteExpressionTypeID =
                             crate::processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID;
-                    }
-                    Ok(vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIPressure) => {
-                        item.noteExpressionTypeID =
-                            crate::processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID;
                     }
                     _ => {}
                 }
@@ -3232,7 +3210,7 @@ mod tests {
         unsafe {
             assert_eq!(ec.getNoteExpressionCount(0, 0), 0);
             assert_eq!(ec.initialize(host.as_com_ref().unwrap().as_ptr()), 0);
-            assert_eq!(ec.getNoteExpressionCount(0, 0), 3);
+            assert_eq!(ec.getNoteExpressionCount(0, 0), 2);
             assert_eq!(ec.getNoteExpressionCount(1, 0), 0);
             assert_eq!(ec.getNoteExpressionCount(0, 1), 0);
             assert_eq!(ec.getNoteExpressionCount(1, 1), 0);
@@ -3302,21 +3280,6 @@ mod tests {
             assert_eq!(info.valueDesc.stepCount, 0);
             assert_eq!(info.flags, 0);
 
-            assert_eq!(
-                ec.getNoteExpressionInfo(0, 0, 2, &mut info),
-                vst3::Steinberg::kResultOk
-            );
-            assert_eq!(info.typeId, processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID);
-            assert_eq!(from_utf16_buffer(&info.title).unwrap(), "Aftertouch");
-            assert_eq!(from_utf16_buffer(&info.shortTitle).unwrap(), "Aftertouch");
-            assert_eq!(from_utf16_buffer(&info.units).unwrap(), "");
-            assert_eq!(info.unitId, 0);
-            assert_eq!(info.valueDesc.defaultValue, 0.);
-            assert_eq!(info.valueDesc.minimum, 0.);
-            assert_eq!(info.valueDesc.maximum, 1.0);
-            assert_eq!(info.valueDesc.stepCount, 0);
-            assert_eq!(info.flags, 0);
-
             assert_ne!(
                 ec.getNoteExpressionInfo(1, 0, 0, &mut info),
                 vst3::Steinberg::kResultOk
@@ -3326,7 +3289,7 @@ mod tests {
                 vst3::Steinberg::kResultOk
             );
             assert_ne!(
-                ec.getNoteExpressionInfo(0, 0, 3, &mut info),
+                ec.getNoteExpressionInfo(0, 0, 2, &mut info),
                 vst3::Steinberg::kResultOk
             );
         }
@@ -3382,18 +3345,6 @@ mod tests {
                     0,
                     0,
                     crate::processor::NOTE_EXPRESSION_TIMBRE_TYPE_ID,
-                    0.5,
-                    string.as_mut_ptr().cast::<[u16; 128]>()
-                ),
-                vst3::Steinberg::kResultOk
-            );
-            assert_eq!(from_utf16_buffer(&string).unwrap(), "0.50");
-
-            assert_eq!(
-                ec.getNoteExpressionStringByValue(
-                    0,
-                    0,
-                    crate::processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID,
                     0.5,
                     string.as_mut_ptr().cast::<[u16; 128]>()
                 ),
@@ -3496,18 +3447,6 @@ mod tests {
             );
             assert_approx_eq!(value, 0.5);
 
-            assert_eq!(
-                ec.getNoteExpressionValueByString(
-                    0,
-                    0,
-                    crate::processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID,
-                    string.as_ptr(),
-                    &mut value
-                ),
-                vst3::Steinberg::kResultOk
-            );
-            assert_approx_eq!(value, 0.5);
-
             assert_ne!(
                 ec.getNoteExpressionValueByString(1, 0, 0, string.as_ptr(), &mut value),
                 vst3::Steinberg::kResultOk
@@ -3528,16 +3467,14 @@ mod tests {
         let ec = dummy_synth_edit_controller();
         let host = ComWrapper::new(dummy_host::Host::default());
         unsafe {
-            let mut map: [PhysicalUIMap; 3] = [PhysicalUIMap {
+            let mut map: [PhysicalUIMap; 2] = [PhysicalUIMap {
                 physicalUITypeID: 0,
                 noteExpressionTypeID: 0,
-            }; 3];
+            }; 2];
             map[0].physicalUITypeID =
                 enum_to_u32(vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIYMovement).unwrap();
             map[1].physicalUITypeID =
                 enum_to_u32(vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIXMovement).unwrap();
-            map[2].physicalUITypeID =
-                enum_to_u32(vst3::Steinberg::Vst::PhysicalUITypeIDs_::kPUIPressure).unwrap();
             let mut physical_ui_mapping = vst3::Steinberg::Vst::PhysicalUIMapList {
                 count: 3,
                 map: map.as_mut_ptr(),
@@ -3576,10 +3513,6 @@ mod tests {
             assert_eq!(
                 map[1].noteExpressionTypeID,
                 vst3::Steinberg::Vst::NoteExpressionTypeIDs_::kTuningTypeID
-            );
-            assert_eq!(
-                map[2].noteExpressionTypeID,
-                processor::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID
             );
         }
     }

@@ -118,6 +118,18 @@ unsafe fn convert_mpe_event(event: &vst3::Steinberg::Vst::Event) -> Option<mpe::
                     data: mpe::NoteEventData::Off { note_id },
                 })
             }
+            Ok(vst3::Steinberg::Vst::Event_::EventTypes_::kPolyPressureEvent) => {
+                let note_id = get_mpe_note_id(event.__field0.polyPressure.noteId)?;
+                let pressure = event.__field0.polyPressure.pressure;
+                Some(mpe::NoteEvent {
+                    sample_offset: event.sampleOffset as usize,
+                    data: mpe::NoteEventData::ExpressionChange {
+                        note_id,
+                        expression: NumericPerNoteExpression::Aftertouch,
+                        value: pressure,
+                    },
+                })
+            }
             Ok(vst3::Steinberg::Vst::Event_::EventTypes_::kNoteExpressionValueEvent) => {
                 let note_id = event.__field0.noteExpressionValue.noteId;
                 let note_id = get_mpe_note_id(note_id)?;
@@ -126,9 +138,6 @@ unsafe fn convert_mpe_event(event: &vst3::Steinberg::Vst::Event) -> Option<mpe::
                         NumericPerNoteExpression::PitchBend
                     }
                     super::NOTE_EXPRESSION_TIMBRE_TYPE_ID => NumericPerNoteExpression::Timbre,
-                    super::NOTE_EXPRESSION_AFTERTOUCH_TYPE_ID => {
-                        NumericPerNoteExpression::Aftertouch
-                    }
                     _ => return None,
                 };
                 #[allow(clippy::cast_possible_truncation)]
