@@ -745,6 +745,42 @@ mod tests {
     }
 
     #[test]
+    fn set_content_scale_factor_accepts_on_size_within_slush_factor() {
+        let view = create(DummyStore {}, "test".to_string(), Resizability::FixedSize);
+        let frame = ComWrapper::new(MockFrame::default());
+        let scale_support = view
+            .cast::<vst3::Steinberg::IPlugViewContentScaleSupport>()
+            .unwrap();
+        unsafe {
+            assert_eq!(
+                view.setFrame(frame.as_com_ref().unwrap().as_ptr()),
+                vst3::Steinberg::kResultOk
+            );
+            assert_eq!(
+                scale_support
+                    .as_com_ref()
+                    .setContentScaleFactor(2.0f32 as ScaleFactor),
+                vst3::Steinberg::kResultOk
+            );
+        }
+        assert_eq!(frame.resized_sizes.borrow().as_slice(), &[(200, 200)]);
+
+        let mut rect = vst3::Steinberg::ViewRect {
+            left: 0,
+            top: 0,
+            right: 201,
+            bottom: 199,
+        };
+        unsafe {
+            assert_eq!(view.onSize(&raw mut rect), vst3::Steinberg::kResultOk);
+        }
+
+        let size = get_size(&view);
+        assert_eq!(size.right, 201);
+        assert_eq!(size.bottom, 199);
+    }
+
+    #[test]
     fn set_content_scale_factor_immediately_updates_size_without_frame() {
         let view = create(DummyStore {}, "test".to_string(), Resizability::FixedSize);
         let scale_support = view
