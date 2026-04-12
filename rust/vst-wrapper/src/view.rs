@@ -99,7 +99,7 @@ struct View<S> {
     ///    a) We are expected to call `IPlugFrame::resizeView` with the new size
     /// 2) Host is expected to call `IPlugView::onSize` with the new size
     ///
-    /// In this scenario, if the host gets size after step 1 but before step 2,
+    /// In this scenario, if the host calls getSize after step 1 but before step 2,
     /// it's illegal for us to return the new value.
     ///
     /// That said, we need to behave a bit differently on "true" resizes vs these
@@ -111,7 +111,7 @@ struct View<S> {
     /// We implement this by setting this variable in step 1a, and clearing it after
     /// step 2, if we end up receiving a notification for the same size we asked for.
     /// In this case, we skip updating the size of the wry view and the persistance layer.
-    pending_scale_factor_change_size: Option<Size>,
+    pending_scale_factor_change: Option<f32>,
 
     frame: Option<ComPtr<IPlugFrame>>,
 
@@ -204,7 +204,7 @@ pub fn create<S: store::Store + SizePersistance + 'static>(
         domain,
         resizability,
         current_size: round_size(initial_size),
-        pending_scale_factor_change_size: None,
+        pending_scale_factor_change: None,
         scale_factor: 1.0,
         frame: None,
         plug_view_ptr: std::ptr::null_mut(),
@@ -308,6 +308,18 @@ fn get_rsrc_root_or_panic() -> std::path::PathBuf {
     resources_path
 }
 
+impl<S: store::Store + 'static> SharedView<S> {
+    fn apply_size_change_to_ui(&self, scaled_new_size: Size) -> Result<(), conformal_ui::UiError> {
+        let scale_factor = self.borrow().scale_factor;
+
+        // Also alert our web UI that the size has changed.
+        if let Some(ui) = self.borrow_mut().ui.as_mut() {
+            return ui.set_size(round_size(unscale_size(scaled_new_size, scale_factor)));
+        }
+        Ok(())
+    }
+}
+
 impl<S: store::Store + SizePersistance + 'static> IPlugViewTrait for SharedView<S> {
     unsafe fn isPlatformTypeSupported(
         &self,
@@ -396,19 +408,31 @@ impl<S: store::Store + SizePersistance + 'static> IPlugViewTrait for SharedView<
 
         // Special case, if this is simply the result of a scale factor change, we do need to
         // update our internal scaled size, even if we're not resizable.
-        let pending_scale_factor_change_size = self.borrow().pending_scale_factor_change_size;
-        if let Some(pending_scale_factor_change_size) = pending_scale_factor_change_size
-            && pending_scale_factor_change_size.width == scaled_new_size.width
-            && pending_scale_factor_change_size.height == scaled_new_size.height
-        {
-            self.borrow_mut().pending_scale_factor_change_size = None;
-            self.borrow_mut().current_size = scaled_new_size;
-            return vst3::Steinberg::kResultOk;
+        let pending_scale_factor_change = self.borrow().pending_scale_factor_change;
+        if let Some(pending_scale_factor_change) = pending_scale_factor_change {
+            let pending_scaled_new_size =
+                scale_size(self.borrow().store.get_size(), pending_scale_factor_change);
+            // Note that we allow a margin here since some hosts (like Tracktion waveform)
+            // can ignore the size we told it to resize to, and instead use some re-rounded size.
+            if (pending_scaled_new_size.width - scaled_new_size.width as f32).abs() <= 1.0
+                && (pending_scaled_new_size.height - scaled_new_size.height as f32).abs() <= 1.0
+            {
+                self.borrow_mut().pending_scale_factor_change = None;
+                self.borrow_mut().current_size = scaled_new_size;
+
+                // Note that the web ui scales itself, but it doesn't detect scale factor changes.
+                // So, we need to notify it here.
+                if (self.apply_size_change_to_ui(scaled_new_size)).is_err() {
+                    return vst3::Steinberg::kInternalError;
+                }
+
+                return vst3::Steinberg::kResultOk;
+            }
         }
 
         // Otherwise, we got some other update from the host before our pending scale factor change
         // - so just clear it.
-        self.borrow_mut().pending_scale_factor_change_size = None;
+        self.borrow_mut().pending_scale_factor_change = None;
 
         // Nothing to do if we're not resizable.
         if let Resizability::FixedSize = self.borrow().resizability {
@@ -419,11 +443,7 @@ impl<S: store::Store + SizePersistance + 'static> IPlugViewTrait for SharedView<
         let scale_factor = self.borrow().scale_factor;
 
         // Also alert our web UI that the size has changed.
-        if let Some(ui) = self.borrow_mut().ui.as_mut()
-            && ui
-                .set_size(round_size(unscale_size(scaled_new_size, scale_factor)))
-                .is_err()
-        {
+        if (self.apply_size_change_to_ui(scaled_new_size)).is_err() {
             return vst3::Steinberg::kInternalError;
         }
 
@@ -506,21 +526,23 @@ impl<S: store::Store + SizePersistance + 'static> IPlugViewTrait for SharedView<
     }
 }
 
-impl<S: store::Store + 'static> IPlugViewContentScaleSupportTrait for SharedView<S> {
+impl<S: store::Store + SizePersistance + 'static> IPlugViewContentScaleSupportTrait
+    for SharedView<S>
+{
     // Note we use windows implementation in tests on all platforms.
     // This is because non-windows implementation is trivial,
     // and as of this writing we only run tests for this module on macOS.
     #[cfg(any(target_os = "windows", test))]
     unsafe fn setContentScaleFactor(&self, factor: ScaleFactor) -> vst3::Steinberg::tresult {
         use vst3::Steinberg::IPlugFrameTrait;
-        let old_scale_factor = self.borrow().scale_factor;
-        let unscaled_size = unscale_size(self.borrow().current_size, old_scale_factor);
+
+        let unscaled_size = self.borrow().store.get_size();
         self.borrow_mut().scale_factor = factor;
         let new_scaled_size = round_size(scale_size(unscaled_size, factor));
         let frame = self.borrow().frame.clone();
         let plug_view_ptr = self.borrow().plug_view_ptr;
         if let Some(frame) = frame {
-            self.borrow_mut().pending_scale_factor_change_size = Some(new_scaled_size);
+            self.borrow_mut().pending_scale_factor_change = Some(factor);
             let mut new_rect = vst3::Steinberg::ViewRect {
                 top: 0,
                 left: 0,
@@ -720,6 +742,42 @@ mod tests {
         let get_after_size = get_size(&view);
         assert_eq!(get_after_size.right, 200);
         assert_eq!(get_after_size.bottom, 200);
+    }
+
+    #[test]
+    fn set_content_scale_factor_accepts_on_size_within_slush_factor() {
+        let view = create(DummyStore {}, "test".to_string(), Resizability::FixedSize);
+        let frame = ComWrapper::new(MockFrame::default());
+        let scale_support = view
+            .cast::<vst3::Steinberg::IPlugViewContentScaleSupport>()
+            .unwrap();
+        unsafe {
+            assert_eq!(
+                view.setFrame(frame.as_com_ref().unwrap().as_ptr()),
+                vst3::Steinberg::kResultOk
+            );
+            assert_eq!(
+                scale_support
+                    .as_com_ref()
+                    .setContentScaleFactor(2.0f32 as ScaleFactor),
+                vst3::Steinberg::kResultOk
+            );
+        }
+        assert_eq!(frame.resized_sizes.borrow().as_slice(), &[(200, 200)]);
+
+        let mut rect = vst3::Steinberg::ViewRect {
+            left: 0,
+            top: 0,
+            right: 201,
+            bottom: 199,
+        };
+        unsafe {
+            assert_eq!(view.onSize(&raw mut rect), vst3::Steinberg::kResultOk);
+        }
+
+        let size = get_size(&view);
+        assert_eq!(size.right, 201);
+        assert_eq!(size.bottom, 199);
     }
 
     #[test]
