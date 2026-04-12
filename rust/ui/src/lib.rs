@@ -39,4 +39,5 @@ pub trait ParameterStore {
 
 pub use web_ui::Size;
 pub use web_ui::Ui;
+pub use web_ui::UiError;
 pub use wry::raw_window_handle;
