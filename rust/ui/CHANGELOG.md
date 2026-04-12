@@ -1,3 +1,9 @@
+## 0.6.4 (2026-04-12)
+
+### Fixes
+
+- Workaround rounding errors when re-scaling windows hosts
+
 ## 0.6.3 (2026-04-06)
 
 ### Fixes
