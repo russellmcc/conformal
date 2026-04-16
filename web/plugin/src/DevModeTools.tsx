@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import IgnoreErrorBoundary from "./IgnoreErrorBoundary";
 import { useBooleanAtom, useBooleanValue } from "./stores_react";
 
@@ -6,6 +7,24 @@ const DevModeToolsInternal = () => {
   const [webDevServer, setWebDevServer] = useBooleanAtom(
     "prefs/use_web_dev_server",
   );
+
+  useEffect(() => {
+    console.warn("isDevMode", isDevMode);
+    if (isDevMode) {
+      return;
+    }
+
+    const disableDefaultContextMenu = (event: MouseEvent) => {
+      // Run in the bubbling phase so any custom context menu handler sees the
+      // original event before we suppress the browser's built-in menu.
+      event.preventDefault();
+    };
+
+    window.addEventListener("contextmenu", disableDefaultContextMenu);
+    return () => {
+      window.removeEventListener("contextmenu", disableDefaultContextMenu);
+    };
+  }, [isDevMode]);
 
   if (!isDevMode) {
     return <></>;
@@ -35,6 +54,8 @@ const DevModeToolsInternal = () => {
 
 /**
  * Component that displays developer tools if the `dev_mode` preference is enabled.
+ *
+ * This also _disables_ the default context menus when devmode is disabled.
  *
  * This includes for example, a toggle to render the UI embedded in the plug-in or the dev server UI.
  *
