@@ -1,5 +1,11 @@
 # @conformal/plugin
 
+## 0.6.1
+
+### Patch Changes
+
+- 69ed0c0: disable right-click context menu when dev mode is off
+
 ## 0.6.0
 
 ### Minor Changes
