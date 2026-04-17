@@ -1,5 +1,11 @@
 # create-conformal
 
+## 0.14.2
+
+### Patch Changes
+
+- Bump create-conformal when synced template dependency versions change.
+
 ## 0.14.1
 
 ### Patch Changes

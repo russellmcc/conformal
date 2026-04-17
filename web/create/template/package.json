@@ -37,7 +37,7 @@
     "tsconfig": "workspace:*"
   },
   "catalog": {
-    "@conformal/plugin": "^0.6.0",
+    "@conformal/plugin": "^0.6.1",
     "rollup-plugin-license": "^3.4.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
