@@ -115,7 +115,11 @@ const binstall = (name: string): Tool => ({
   name,
   check: async () => await which(name),
   install: async () => {
-    await $`cargo binstall ${name} --no-confirm`;
+    // --force is needed because Swatinem/rust-cache removes cached binaries
+    // before saving, so stale metadata in .crates2.json can trick binstall
+    // into thinking our tool is installed when the binary is actually gone.
+    // See: https://github.com/Swatinem/rust-cache/blob/779680da715d629ac1d338a641029a2f4372abb5/src/cleanup.ts#L99-L112
+    await $`cargo binstall ${name} --force --no-confirm`;
   },
 });
 
@@ -233,11 +237,7 @@ const rust = (options: {
       }
       await $`rustup component add rustfmt`;
       await $`rustup component add clippy`;
-      // --force is needed because Swatinem/rust-cache removes cached binaries
-      // before saving, so stale metadata in .crates2.json can trick binstall
-      // into thinking cargo-about is installed when the binary is actually gone.
-      // See: https://github.com/Swatinem/rust-cache/blob/779680da715d629ac1d338a641029a2f4372abb5/src/cleanup.ts#L99-L112
-      await $`cargo binstall --no-confirm --force cargo-about@${cargoAboutVersion}`;
+      await binstall(`cargo-about@${cargoAboutVersion}`).install();
     },
   };
 };
