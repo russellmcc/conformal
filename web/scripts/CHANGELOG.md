@@ -1,5 +1,11 @@
 # @conformal/scripts
 
+## 0.11.5
+
+### Patch Changes
+
+- be7f410: force-install when using cargo binstall to work around caching issues
+
 ## 0.11.4
 
 ### Patch Changes
